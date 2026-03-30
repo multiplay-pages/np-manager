@@ -6,3 +6,6 @@ export * from './constants'
 
 // Typy
 export * from './types'
+
+// DTOs
+export * from './dto/operators.dto'
