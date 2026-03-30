@@ -1,0 +1,275 @@
+// ============================================================
+// ROLE UŻYTKOWNIKÓW
+// ============================================================
+
+export const USER_ROLES = {
+  ADMIN: 'ADMIN',
+  BOK_CONSULTANT: 'BOK_CONSULTANT',
+  BACK_OFFICE: 'BACK_OFFICE',
+  MANAGER: 'MANAGER',
+  TECHNICAL: 'TECHNICAL',
+  LEGAL: 'LEGAL',
+  AUDITOR: 'AUDITOR',
+} as const
+
+export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES]
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: 'Administrator',
+  BOK_CONSULTANT: 'Konsultant BOK',
+  BACK_OFFICE: 'Back Office',
+  MANAGER: 'Kierownik',
+  TECHNICAL: 'Dział Techniczny',
+  LEGAL: 'Dział Prawny',
+  AUDITOR: 'Audytor',
+}
+
+// ============================================================
+// STATUSY SPRAW
+// ============================================================
+
+export const CASE_STATUS_CODES = {
+  NEW: 'NEW',
+  IN_VERIFICATION: 'IN_VERIFICATION',
+  WAITING_COMPLETION: 'WAITING_COMPLETION',
+  DOCUMENTS_COMPLETE: 'DOCUMENTS_COMPLETE',
+  SENT_TO_DONOR: 'SENT_TO_DONOR',
+  REJECTED_BY_DONOR: 'REJECTED_BY_DONOR',
+  ACCEPTED_BY_DONOR: 'ACCEPTED_BY_DONOR',
+  PORTING_DATE_SET: 'PORTING_DATE_SET',
+  TECHNICAL_IN_PROGRESS: 'TECHNICAL_IN_PROGRESS',
+  ON_HOLD: 'ON_HOLD',
+  COMPLETED: 'COMPLETED',
+  CLOSED: 'CLOSED',
+  CANCELLED: 'CANCELLED',
+  REJECTED_FINAL: 'REJECTED_FINAL',
+  OVERDUE: 'OVERDUE',
+} as const
+
+export type CaseStatusCode = (typeof CASE_STATUS_CODES)[keyof typeof CASE_STATUS_CODES]
+
+/** Statusy będące stanem końcowym sprawy (zablokowane do edycji) */
+export const FINAL_STATUS_CODES: CaseStatusCode[] = [
+  CASE_STATUS_CODES.CLOSED,
+  CASE_STATUS_CODES.CANCELLED,
+  CASE_STATUS_CODES.REJECTED_FINAL,
+]
+
+/** Statusy oznaczające aktywną sprawę (nie archiwalną) */
+export const ACTIVE_STATUS_CODES: CaseStatusCode[] = [
+  CASE_STATUS_CODES.NEW,
+  CASE_STATUS_CODES.IN_VERIFICATION,
+  CASE_STATUS_CODES.WAITING_COMPLETION,
+  CASE_STATUS_CODES.DOCUMENTS_COMPLETE,
+  CASE_STATUS_CODES.SENT_TO_DONOR,
+  CASE_STATUS_CODES.REJECTED_BY_DONOR,
+  CASE_STATUS_CODES.ACCEPTED_BY_DONOR,
+  CASE_STATUS_CODES.PORTING_DATE_SET,
+  CASE_STATUS_CODES.TECHNICAL_IN_PROGRESS,
+  CASE_STATUS_CODES.ON_HOLD,
+  CASE_STATUS_CODES.OVERDUE,
+]
+
+// ============================================================
+// PRIORYTETY
+// ============================================================
+
+export const PRIORITIES = {
+  NORMAL: 'NORMAL',
+  HIGH: 'HIGH',
+  CRITICAL: 'CRITICAL',
+} as const
+
+export type Priority = (typeof PRIORITIES)[keyof typeof PRIORITIES]
+
+export const PRIORITY_LABELS: Record<Priority, string> = {
+  NORMAL: 'Normalny',
+  HIGH: 'Wysoki',
+  CRITICAL: 'Krytyczny',
+}
+
+// ============================================================
+// TYPY KLIENTÓW
+// ============================================================
+
+export const CLIENT_TYPES = {
+  INDIVIDUAL: 'INDIVIDUAL',
+  BUSINESS: 'BUSINESS',
+} as const
+
+export type ClientType = (typeof CLIENT_TYPES)[keyof typeof CLIENT_TYPES]
+
+export const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
+  INDIVIDUAL: 'Osoba fizyczna',
+  BUSINESS: 'Firma / podmiot prawny',
+}
+
+// ============================================================
+// STATUSY DOKUMENTÓW
+// ============================================================
+
+export const DOCUMENT_STATUS = {
+  UPLOADED: 'UPLOADED',
+  VERIFIED: 'VERIFIED',
+  REJECTED: 'REJECTED',
+} as const
+
+export type DocumentStatus = (typeof DOCUMENT_STATUS)[keyof typeof DOCUMENT_STATUS]
+
+export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
+  UPLOADED: 'Wgrane',
+  VERIFIED: 'Zweryfikowane',
+  REJECTED: 'Odrzucone',
+}
+
+// ============================================================
+// TYPY KODÓW DOKUMENTÓW (słownik)
+// ============================================================
+
+export const DOCUMENT_TYPE_CODES = {
+  IDENTITY_DOCUMENT: 'IDENTITY_DOCUMENT',
+  CONSENT_FOR_PORTING: 'CONSENT_FOR_PORTING',
+  POWER_OF_ATTORNEY: 'POWER_OF_ATTORNEY',
+  COMPANY_REGISTRATION: 'COMPANY_REGISTRATION',
+  CONTRACT_COPY: 'CONTRACT_COPY',
+  OTHER: 'OTHER',
+} as const
+
+export type DocumentTypeCode = (typeof DOCUMENT_TYPE_CODES)[keyof typeof DOCUMENT_TYPE_CODES]
+
+// ============================================================
+// TYPY NUMERÓW TELEFONÓW
+// ============================================================
+
+export const PHONE_NUMBER_TYPES = {
+  GEOGRAPHIC: 'GEOGRAPHIC',
+  NON_GEOGRAPHIC: 'NON_GEOGRAPHIC',
+} as const
+
+export type PhoneNumberType = (typeof PHONE_NUMBER_TYPES)[keyof typeof PHONE_NUMBER_TYPES]
+
+// ============================================================
+// TRYBY PORTOWANIA
+// ============================================================
+
+export const PORTING_MODES = {
+  END: 'END',
+  EOP: 'EOP',
+  DAY: 'DAY',
+} as const
+
+export type PortingMode = (typeof PORTING_MODES)[keyof typeof PORTING_MODES]
+
+export const PORTING_MODE_LABELS: Record<PortingMode, string> = {
+  END: 'Na koniec dnia',
+  EOP: 'Koniec okresu rozliczeniowego',
+  DAY: 'Konkretny dzień',
+}
+
+// ============================================================
+// STATUSY WEWNĘTRZNE SPRAWY PORTOWANIA
+// ============================================================
+
+export const PORTING_CASE_STATUSES = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  PENDING_DONOR: 'PENDING_DONOR',
+  CONFIRMED: 'CONFIRMED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+  PORTED: 'PORTED',
+  ERROR: 'ERROR',
+} as const
+
+export type PortingCaseStatus =
+  (typeof PORTING_CASE_STATUSES)[keyof typeof PORTING_CASE_STATUSES]
+
+export const PORTING_CASE_STATUS_LABELS: Record<PortingCaseStatus, string> = {
+  DRAFT: 'Szkic',
+  SUBMITTED: 'Złożona',
+  PENDING_DONOR: 'Oczekuje na dawcę',
+  CONFIRMED: 'Potwierdzona',
+  REJECTED: 'Odrzucona',
+  CANCELLED: 'Anulowana',
+  PORTED: 'Przeniesiona',
+  ERROR: 'Błąd',
+}
+
+// ============================================================
+// KODY EXX Z PLI CBD
+// ============================================================
+
+export const PLI_CBD_EXX_TYPES = {
+  E03: 'E03',
+  E06: 'E06',
+  E16: 'E16',
+  E17: 'E17',
+  E18: 'E18',
+  E23: 'E23',
+  E31: 'E31',
+} as const
+
+export type PliCbdExxType =
+  (typeof PLI_CBD_EXX_TYPES)[keyof typeof PLI_CBD_EXX_TYPES]
+
+// ============================================================
+// KANAŁY KONTAKTU
+// ============================================================
+
+export const CONTACT_CHANNELS = {
+  EMAIL: 'EMAIL',
+  SMS: 'SMS',
+  LETTER: 'LETTER',
+} as const
+
+export type ContactChannel = (typeof CONTACT_CHANNELS)[keyof typeof CONTACT_CHANNELS]
+
+export const CONTACT_CHANNEL_LABELS: Record<ContactChannel, string> = {
+  EMAIL: 'E-mail',
+  SMS: 'SMS',
+  LETTER: 'List',
+}
+
+// ============================================================
+// TYPY NUMERÓW
+// ============================================================
+
+export const NUMBER_TYPES = {
+  FIXED_LINE: 'FIXED_LINE',
+  MOBILE: 'MOBILE',
+} as const
+
+export type NumberType = (typeof NUMBER_TYPES)[keyof typeof NUMBER_TYPES]
+
+export const NUMBER_TYPE_LABELS: Record<NumberType, string> = {
+  FIXED_LINE: 'Numer stacjonarny',
+  MOBILE: 'Numer komórkowy',
+}
+
+// ============================================================
+// DOZWOLONE TYPY PLIKÓW
+// ============================================================
+
+export const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/tiff',
+] as const
+
+export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number]
+
+// ============================================================
+// KLUCZE USTAWIEŃ SYSTEMOWYCH
+// ============================================================
+
+export const SYSTEM_SETTING_KEYS = {
+  SLA_DAYS_TOTAL: 'sla_days_total',
+  SLA_ALERT_HOURS_FIRST: 'sla_alert_hours_first',
+  SLA_ALERT_HOURS_CRITICAL: 'sla_alert_hours_critical',
+  DONOR_RESPONSE_DAYS: 'donor_response_days',
+  MAX_FILE_SIZE_MB: 'max_file_size_mb',
+  MAX_RETRY_COUNT: 'max_retry_count',
+} as const
+
+export type SystemSettingKey = (typeof SYSTEM_SETTING_KEYS)[keyof typeof SYSTEM_SETTING_KEYS]

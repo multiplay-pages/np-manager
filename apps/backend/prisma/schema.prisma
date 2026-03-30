@@ -1,0 +1,501 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMERACJE
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  BOK_CONSULTANT
+  BACK_OFFICE
+  MANAGER
+  TECHNICAL
+  LEGAL
+  AUDITOR
+}
+
+enum ClientType {
+  INDIVIDUAL
+  BUSINESS
+}
+
+enum Priority {
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum DocumentStatus {
+  UPLOADED
+  VERIFIED
+  REJECTED
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum CommentVisibility {
+  INTERNAL
+  CLIENT_FACING
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  LOGIN
+  LOGOUT
+  DOCUMENT_UPLOAD
+  DOCUMENT_VERIFY
+  DOCUMENT_REJECT
+  TASK_CREATE
+  TASK_CLOSE
+  COMMENT_ADD
+  EXPORT
+  SECURITY_ALERT
+}
+
+enum PhoneNumberType {
+  GEOGRAPHIC
+  NON_GEOGRAPHIC
+}
+
+enum PortingMode {
+  END
+  EOP
+  DAY
+}
+
+enum PortingCaseStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_DONOR
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  PORTED
+  ERROR
+}
+
+enum PliCbdExxType {
+  E03
+  E06
+  E16
+  E17
+  E18
+  E23
+  E31
+}
+
+enum ContactChannel {
+  EMAIL
+  SMS
+  LETTER
+}
+
+enum NumberType {
+  FIXED_LINE
+  MOBILE
+}
+
+// ============================================================
+// USERS — Użytkownicy systemu
+// ============================================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique @db.VarChar(200)
+  passwordHash String    @db.VarChar(255)
+  firstName    String    @db.VarChar(100)
+  lastName     String    @db.VarChar(100)
+  role         UserRole
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs         AuditLog[]
+  comments          Comment[]
+  uploadedDocuments Document[]      @relation("UploadedBy")
+  verifiedDocuments Document[]      @relation("VerifiedBy")
+  createdTasks      Task[]          @relation("TaskCreatedBy")
+  assignedTasks     Task[]          @relation("TaskAssignedTo")
+  statusHistories   StatusHistory[]
+  notifications     Notification[]
+
+  @@map("users")
+}
+
+// ============================================================
+// CLIENTS — Kartoteka klientów
+// ============================================================
+
+model Client {
+  id         String     @id @default(uuid())
+  clientType ClientType
+
+  // Osoba fizyczna
+  firstName String? @db.VarChar(100)
+  lastName  String? @db.VarChar(100)
+  pesel     String? @unique @db.VarChar(11)
+
+  // Firma
+  companyName String? @db.VarChar(200)
+  nip         String? @unique @db.VarChar(10)
+  krs         String? @db.VarChar(10)
+
+  // Pełnomocnik
+  proxyName  String? @db.VarChar(200)
+  proxyPesel String? @db.VarChar(11)
+
+  // Kontakt
+  email        String @db.VarChar(200)
+  phoneContact String @db.VarChar(20)
+
+  // Adres
+  addressStreet String @db.VarChar(200)
+  addressCity   String @db.VarChar(100)
+  addressZip    String @db.VarChar(6)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+
+  requests PortingRequest[]
+
+  @@index([lastName])
+  @@index([pesel])
+  @@index([nip])
+  @@map("clients")
+}
+
+// ============================================================
+// OPERATORS — Słownik operatorów telekomunikacyjnych
+// ============================================================
+
+model Operator {
+  id                 String   @id @default(uuid())
+  name               String   @db.VarChar(200)
+  shortName          String   @db.VarChar(100)
+  routingNumber      String   @unique @db.VarChar(20)
+  isRecipientDefault Boolean  @default(false)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  portingRequestsAsDonor     PortingRequest[] @relation("DonorOperator")
+  portingRequestsAsRecipient PortingRequest[] @relation("RecipientOperator")
+  phoneNumbers               PhoneNumber[]
+
+  @@map("operators")
+}
+
+// ============================================================
+// CASE STATUSES — Statusy spraw (słownik)
+// ============================================================
+
+model CaseStatus {
+  id          String  @id @default(uuid())
+  code        String  @unique @db.VarChar(50)
+  name        String  @db.VarChar(100)
+  description String? @db.Text
+  isFinal     Boolean @default(false)
+  isError     Boolean @default(false)
+  color       String  @db.VarChar(7)
+  orderIndex  Int
+
+  transitionsFrom      StatusTransition[] @relation("FromStatus")
+  transitionsTo        StatusTransition[] @relation("ToStatus")
+  statusHistoryEntries StatusHistory[]
+
+  @@map("case_statuses")
+}
+
+// ============================================================
+// STATUS TRANSITIONS — Dozwolone przejścia między statusami
+// ============================================================
+
+model StatusTransition {
+  id              String     @id @default(uuid())
+  fromStatusId    String
+  toStatusId      String
+  allowedRoles    UserRole[]
+  requiresComment Boolean    @default(false)
+  isReversal      Boolean    @default(false)
+  description     String?    @db.VarChar(200)
+
+  fromStatus CaseStatus @relation("FromStatus", fields: [fromStatusId], references: [id])
+  toStatus   CaseStatus @relation("ToStatus", fields: [toStatusId], references: [id])
+
+  @@unique([fromStatusId, toStatusId])
+  @@map("status_transitions")
+}
+
+// ============================================================
+// PORTING REQUESTS — Sprawa przeniesienia numeru
+// ============================================================
+
+model PortingRequest {
+  id                     String            @id @default(uuid())
+  clientId               String
+  portedNumber           String            @db.VarChar(20)
+  numberType             NumberType        @default(FIXED_LINE)
+  donorOperatorId        String
+  recipientOperatorId    String
+  donorRoutingNumber     String            @db.VarChar(20)
+  recipientRoutingNumber String            @db.VarChar(20)
+  requestRegisteredAt    DateTime?
+  requestedPortDate      DateTime?         @db.Date
+  confirmedPortDate      DateTime?         @db.Date
+  portingMode            PortingMode
+  statusInternal         PortingCaseStatus @default(DRAFT)
+  statusPliCbd           String?           @db.VarChar(50)
+  pliCbdCaseId           String?           @db.VarChar(100)
+  pliCbdPackageId        String?           @db.VarChar(100)
+  lastExxReceived        PliCbdExxType?
+  rejectionCode          String?           @db.VarChar(50)
+  rejectionReason        String?           @db.Text
+  createdBy              String?           @db.VarChar(200)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  client            Client   @relation(fields: [clientId], references: [id])
+  donorOperator     Operator @relation("DonorOperator", fields: [donorOperatorId], references: [id])
+  recipientOperator Operator @relation("RecipientOperator", fields: [recipientOperatorId], references: [id])
+
+  phoneNumbers  PhoneNumber[]
+  documents     Document[]
+  comments      Comment[]
+  statusHistory StatusHistory[]
+  tasks         Task[]
+  auditLogs     AuditLog[]
+
+  @@index([clientId])
+  @@index([donorOperatorId])
+  @@index([recipientOperatorId])
+  @@map("porting_requests")
+}
+
+// ============================================================
+// PHONE NUMBERS — Numery telefoniczne w sprawie
+// ============================================================
+
+model PhoneNumber {
+  id                String          @id @default(uuid())
+  requestId         String
+  number            String          @db.VarChar(15)
+  numberType        PhoneNumberType @default(GEOGRAPHIC)
+  geographicArea    String?         @db.VarChar(100)
+  currentOperatorId String
+  isMain            Boolean         @default(false)
+  verifiedAt        DateTime?
+  verifiedById      String?
+
+  request         PortingRequest @relation(fields: [requestId], references: [id])
+  currentOperator Operator       @relation(fields: [currentOperatorId], references: [id])
+
+  @@unique([number, requestId])
+  @@map("phone_numbers")
+}
+
+// ============================================================
+// DOCUMENT TYPES — Słownik typów dokumentów
+// ============================================================
+
+model DocumentType {
+  id          String  @id @default(uuid())
+  code        String  @unique @db.VarChar(50)
+  name        String  @db.VarChar(150)
+  description String? @db.Text
+  isRequired  Boolean @default(true)
+  isActive    Boolean @default(true)
+
+  documents Document[]
+
+  @@map("document_types")
+}
+
+// ============================================================
+// DOCUMENTS — Dokumenty i załączniki sprawy
+// ============================================================
+
+model Document {
+  id             String @id @default(uuid())
+  requestId      String
+  documentTypeId String
+
+  fileName String @db.VarChar(255)
+  filePath String @db.VarChar(500)
+  fileSize Int
+  mimeType String @db.VarChar(100)
+
+  status          DocumentStatus @default(UPLOADED)
+  rejectionReason String?        @db.Text
+
+  uploadedAt   DateTime  @default(now())
+  uploadedById String
+  verifiedAt   DateTime?
+  verifiedById String?
+
+  request      PortingRequest @relation(fields: [requestId], references: [id])
+  documentType DocumentType   @relation(fields: [documentTypeId], references: [id])
+  uploadedBy   User           @relation("UploadedBy", fields: [uploadedById], references: [id])
+  verifiedBy   User?          @relation("VerifiedBy", fields: [verifiedById], references: [id])
+
+  @@map("documents")
+}
+
+// ============================================================
+// COMMENTS — Komentarze i notatki
+// ============================================================
+
+model Comment {
+  id         String            @id @default(uuid())
+  requestId  String
+  authorId   String
+  body       String            @db.Text
+  visibility CommentVisibility @default(INTERNAL)
+  createdAt  DateTime          @default(now())
+
+  request PortingRequest @relation(fields: [requestId], references: [id])
+  author  User           @relation(fields: [authorId], references: [id])
+
+  @@map("comments")
+}
+
+// ============================================================
+// STATUS HISTORY — Historia zmian statusów (append-only)
+// ============================================================
+
+model StatusHistory {
+  id          String   @id @default(uuid())
+  requestId   String
+  statusId    String
+  changedById String
+  comment     String?  @db.Text
+  changedAt   DateTime @default(now())
+
+  request   PortingRequest @relation(fields: [requestId], references: [id])
+  status    CaseStatus     @relation(fields: [statusId], references: [id])
+  changedBy User           @relation(fields: [changedById], references: [id])
+
+  @@index([requestId])
+  @@map("status_history")
+}
+
+// ============================================================
+// AUDIT LOG — Pełna historia zmian danych (append-only, niemodyfikowalna)
+// ============================================================
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  entityType String      @db.VarChar(50)
+  entityId   String
+  action     AuditAction
+  fieldName  String?     @db.VarChar(100)
+  oldValue   String?     @db.Text
+  newValue   String?     @db.Text
+  userId     String
+  requestId  String?
+  ipAddress  String?     @db.VarChar(45)
+  userAgent  String?     @db.VarChar(500)
+  timestamp  DateTime    @default(now())
+
+  user    User            @relation(fields: [userId], references: [id])
+  request PortingRequest? @relation(fields: [requestId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([requestId])
+  @@map("audit_log")
+}
+
+// ============================================================
+// TASKS — Zadania w ramach sprawy
+// ============================================================
+
+model Task {
+  id           String     @id @default(uuid())
+  requestId    String
+  title        String     @db.VarChar(200)
+  description  String?    @db.Text
+  assignedToId String?
+  createdById  String
+  dueDate      DateTime?  @db.Date
+  priority     Priority   @default(NORMAL)
+  status       TaskStatus @default(OPEN)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  closedAt     DateTime?
+
+  request    PortingRequest @relation(fields: [requestId], references: [id])
+  assignedTo User?          @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  createdBy  User           @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  @@map("tasks")
+}
+
+// ============================================================
+// NOTIFICATIONS — Powiadomienia użytkowników
+// ============================================================
+
+model Notification {
+  id                String    @id @default(uuid())
+  userId            String
+  type              String    @db.VarChar(50)
+  title             String    @db.VarChar(200)
+  body              String    @db.Text
+  relatedEntityType String?   @db.VarChar(50)
+  relatedEntityId   String?
+  isRead            Boolean   @default(false)
+  sentAt            DateTime  @default(now())
+  readAt            DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ============================================================
+// WORKING CALENDAR — Kalendarz dni roboczych (do obliczania SLA)
+// ============================================================
+
+model WorkingCalendar {
+  id           String   @id @default(uuid())
+  date         DateTime @unique @db.Date
+  isWorkingDay Boolean  @default(false)
+  name         String?  @db.VarChar(100)
+  year         Int
+
+  @@index([year])
+  @@map("working_calendar")
+}
+
+// ============================================================
+// SYSTEM SETTINGS — Konfiguracja systemu
+// ============================================================
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  type      String   @db.VarChar(20)
+  label     String   @db.VarChar(200)
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
