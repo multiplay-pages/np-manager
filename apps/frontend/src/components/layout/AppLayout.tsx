@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { label: 'Klienci', path: ROUTES.CLIENTS, icon: '👥' },
   { label: 'Zadania', path: ROUTES.TASKS, icon: '✓' },
   { label: 'Raporty', path: ROUTES.REPORTS, icon: '📊', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
+  { label: 'Operatorzy', path: ROUTES.OPERATORS, icon: '📡' },
   { label: 'Administracja', path: ROUTES.ADMIN, icon: '⚙', roles: ['ADMIN'] },
 ]
 

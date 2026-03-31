@@ -7,6 +7,7 @@ import { ClientsPage } from '@/pages/Clients/ClientsPage'
 import { ClientDetailPage } from '@/pages/Clients/ClientDetailPage'
 import { ClientNewPage } from '@/pages/Clients/ClientNewPage'
 import { ClientEditPage } from '@/pages/Clients/ClientEditPage'
+import { OperatorsPage } from '@/pages/Operators/OperatorsPage'
 import { useAuthStore } from '@/stores/auth.store'
 
 /**
@@ -92,6 +93,12 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.CLIENT_EDIT,      // /clients/:id/edit
         element: <ClientEditPage />,
+      },
+
+      // ── OPERATORZY ───────────────────────────────────────────
+      {
+        path: ROUTES.OPERATORS,
+        element: <OperatorsPage />,
       },
 
       // ── POZOSTAŁE MODUŁY (placeholders) ──────────────────────

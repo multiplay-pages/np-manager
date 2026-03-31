@@ -26,6 +26,9 @@ export const ROUTES = {
   // Raporty
   REPORTS: '/reports',
 
+  // Operatorzy (słownik)
+  OPERATORS: '/operators',
+
   // Administracja
   ADMIN: '/admin',
   ADMIN_USERS: '/admin/users',

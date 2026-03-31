@@ -694,6 +694,32 @@ async function main() {
   console.info('   📧  E-mail:  admin@np-manager.local')
   console.info('   🔑  Hasło:   Admin@NP2026!  ← ZMIEŃ PO PIERWSZYM LOGOWANIU')
 
+  // Konto testowe BOK — do weryfikacji RBAC (brak uprawnień ADMIN)
+  const bokPassword = 'Bok@NP2026!'
+  const bokPasswordHash = await bcrypt.hash(bokPassword, 12)
+
+  await prisma.user.upsert({
+    where: { email: 'bok@np-manager.local' },
+    update: {
+      passwordHash: bokPasswordHash,
+      firstName: 'Anna',
+      lastName: 'Konsultant',
+      role: 'BOK_CONSULTANT',
+      isActive: true,
+    },
+    create: {
+      email: 'bok@np-manager.local',
+      passwordHash: bokPasswordHash,
+      firstName: 'Anna',
+      lastName: 'Konsultant',
+      role: 'BOK_CONSULTANT',
+      isActive: true,
+    },
+  })
+  console.info('   ✓ Konto testowe BOK_CONSULTANT gotowe')
+  console.info('   📧  E-mail:  bok@np-manager.local')
+  console.info('   🔑  Hasło:   Bok@NP2026!')
+
   // ----------------------------------------------------------
   // 6. USTAWIENIA SYSTEMOWE
   // ----------------------------------------------------------
@@ -796,7 +822,7 @@ async function main() {
   console.info(`  • ${transitionCount} przejść statusów`)
   console.info(`  • ${documentTypes.length} typów dokumentów`)
   console.info(`  • ${operators.length} operatorów`)
-  console.info('  • 1 konto administratora')
+  console.info('  • 2 konta użytkowników (ADMIN + BOK_CONSULTANT)')
   console.info(`  • ${settings.length} ustawień systemowych`)
   console.info(`  • ${holidays2026.length} dni wolnych 2026`)
   console.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
