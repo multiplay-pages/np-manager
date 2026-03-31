@@ -202,6 +202,8 @@ export const PORTING_CASE_STATUS_LABELS: Record<PortingCaseStatus, string> = {
 export const PLI_CBD_EXX_TYPES = {
   E03: 'E03',
   E06: 'E06',
+  E12: 'E12',
+  E13: 'E13',
   E16: 'E16',
   E17: 'E17',
   E18: 'E18',
@@ -211,6 +213,48 @@ export const PLI_CBD_EXX_TYPES = {
 
 export type PliCbdExxType =
   (typeof PLI_CBD_EXX_TYPES)[keyof typeof PLI_CBD_EXX_TYPES]
+
+// ============================================================
+// ZAKRES NUMERACJI W SPRAWIE PORTOWANIA
+// ============================================================
+
+export const PORTED_NUMBER_KINDS = {
+  SINGLE: 'SINGLE',
+  DDI_RANGE: 'DDI_RANGE',
+} as const
+
+export type PortedNumberKind =
+  (typeof PORTED_NUMBER_KINDS)[keyof typeof PORTED_NUMBER_KINDS]
+
+export const PORTED_NUMBER_KIND_LABELS: Record<PortedNumberKind, string> = {
+  SINGLE: 'Pojedynczy numer',
+  DDI_RANGE: 'Zakres DDI',
+}
+
+// ============================================================
+// TYPY IDENTYFIKATORA ABONENTA
+// ============================================================
+
+export const SUBSCRIBER_IDENTITY_TYPES = {
+  PESEL: 'PESEL',
+  NIP: 'NIP',
+  REGON: 'REGON',
+  ID_CARD: 'ID_CARD',
+  PASSPORT: 'PASSPORT',
+  OTHER: 'OTHER',
+} as const
+
+export type SubscriberIdentityType =
+  (typeof SUBSCRIBER_IDENTITY_TYPES)[keyof typeof SUBSCRIBER_IDENTITY_TYPES]
+
+export const SUBSCRIBER_IDENTITY_TYPE_LABELS: Record<SubscriberIdentityType, string> = {
+  PESEL: 'PESEL',
+  NIP: 'NIP',
+  REGON: 'REGON',
+  ID_CARD: 'Dowód osobisty',
+  PASSPORT: 'Paszport',
+  OTHER: 'Inny identyfikator',
+}
 
 // ============================================================
 // KANAŁY KONTAKTU

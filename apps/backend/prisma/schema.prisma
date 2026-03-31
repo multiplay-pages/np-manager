@@ -92,6 +92,8 @@ enum PortingCaseStatus {
 enum PliCbdExxType {
   E03
   E06
+  E12
+  E13
   E16
   E17
   E18
@@ -110,6 +112,20 @@ enum NumberType {
   MOBILE
 }
 
+enum PortedNumberKind {
+  SINGLE
+  DDI_RANGE
+}
+
+enum SubscriberIdentityType {
+  PESEL
+  NIP
+  REGON
+  ID_CARD
+  PASSPORT
+  OTHER
+}
+
 // ============================================================
 // USERS — Użytkownicy systemu
 // ============================================================
@@ -126,14 +142,15 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  auditLogs         AuditLog[]
-  comments          Comment[]
-  uploadedDocuments Document[]      @relation("UploadedBy")
-  verifiedDocuments Document[]      @relation("VerifiedBy")
-  createdTasks      Task[]          @relation("TaskCreatedBy")
-  assignedTasks     Task[]          @relation("TaskAssignedTo")
-  statusHistories   StatusHistory[]
-  notifications     Notification[]
+  auditLogs              AuditLog[]
+  comments               Comment[]
+  uploadedDocuments      Document[]       @relation("UploadedBy")
+  verifiedDocuments      Document[]       @relation("VerifiedBy")
+  createdTasks           Task[]           @relation("TaskCreatedBy")
+  assignedTasks          Task[]           @relation("TaskAssignedTo")
+  statusHistories        StatusHistory[]
+  notifications          Notification[]
+  createdPortingRequests PortingRequest[] @relation("PortingRequestCreatedBy")
 
   @@map("users")
 }
@@ -195,9 +212,10 @@ model Operator {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  portingRequestsAsDonor     PortingRequest[] @relation("DonorOperator")
-  portingRequestsAsRecipient PortingRequest[] @relation("RecipientOperator")
-  phoneNumbers               PhoneNumber[]
+  portingRequestsAsDonor          PortingRequest[] @relation("DonorOperator")
+  portingRequestsAsRecipient      PortingRequest[] @relation("RecipientOperator")
+  portingRequestsAsInfrastructure PortingRequest[] @relation("InfrastructureOperator")
+  phoneNumbers                    PhoneNumber[]
 
   @@map("operators")
 }
@@ -248,32 +266,53 @@ model StatusTransition {
 // ============================================================
 
 model PortingRequest {
-  id                     String            @id @default(uuid())
-  clientId               String
-  portedNumber           String            @db.VarChar(20)
-  numberType             NumberType        @default(FIXED_LINE)
-  donorOperatorId        String
-  recipientOperatorId    String
-  donorRoutingNumber     String            @db.VarChar(20)
-  recipientRoutingNumber String            @db.VarChar(20)
-  requestRegisteredAt    DateTime?
-  requestedPortDate      DateTime?         @db.Date
-  confirmedPortDate      DateTime?         @db.Date
-  portingMode            PortingMode
-  statusInternal         PortingCaseStatus @default(DRAFT)
-  statusPliCbd           String?           @db.VarChar(50)
-  pliCbdCaseId           String?           @db.VarChar(100)
-  pliCbdPackageId        String?           @db.VarChar(100)
-  lastExxReceived        PliCbdExxType?
-  rejectionCode          String?           @db.VarChar(50)
-  rejectionReason        String?           @db.Text
-  createdBy              String?           @db.VarChar(200)
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
+  id                                    String                 @id @default(uuid())
+  caseNumber                            String                 @unique @db.VarChar(30)
+  clientId                              String
+  numberType                            NumberType             @default(FIXED_LINE)
+  numberRangeKind                       PortedNumberKind       @default(SINGLE)
+  primaryNumber                         String?                @db.VarChar(20)
+  rangeStart                            String?                @db.VarChar(20)
+  rangeEnd                              String?                @db.VarChar(20)
+  requestDocumentNumber                 String?                @db.VarChar(100)
+  donorOperatorId                       String
+  recipientOperatorId                   String
+  infrastructureOperatorId              String?
+  donorRoutingNumber                    String                 @db.VarChar(20)
+  recipientRoutingNumber                String                 @db.VarChar(20)
+  requestRegisteredAt                   DateTime?
+  requestedPortDate                     DateTime?              @db.Date
+  requestedPortTime                     String?                @db.VarChar(5)
+  earliestAcceptablePortDate            DateTime?              @db.Date
+  confirmedPortDate                     DateTime?              @db.Date
+  portingMode                           PortingMode
+  statusInternal                        PortingCaseStatus      @default(DRAFT)
+  statusPliCbd                          String?                @db.VarChar(50)
+  pliCbdCaseId                          String?                @db.VarChar(100)
+  pliCbdPackageId                       String?                @db.VarChar(100)
+  lastExxReceived                       PliCbdExxType?
+  rejectionCode                         String?                @db.VarChar(50)
+  rejectionReason                       String?                @db.Text
+  subscriberKind                        ClientType
+  subscriberFirstName                   String?                @db.VarChar(100)
+  subscriberLastName                    String?                @db.VarChar(100)
+  subscriberCompanyName                 String?                @db.VarChar(200)
+  identityType                          SubscriberIdentityType
+  identityValue                         String                 @db.VarChar(100)
+  correspondenceAddress                 String                 @db.Text
+  hasPowerOfAttorney                    Boolean                @default(false)
+  linkedWholesaleServiceOnRecipientSide Boolean                @default(false)
+  contactChannel                        ContactChannel
+  internalNotes                         String?                @db.Text
+  createdByUserId                       String
+  createdAt                             DateTime               @default(now())
+  updatedAt                             DateTime               @updatedAt
 
-  client            Client   @relation(fields: [clientId], references: [id])
-  donorOperator     Operator @relation("DonorOperator", fields: [donorOperatorId], references: [id])
-  recipientOperator Operator @relation("RecipientOperator", fields: [recipientOperatorId], references: [id])
+  client                 Client    @relation(fields: [clientId], references: [id])
+  donorOperator          Operator  @relation("DonorOperator", fields: [donorOperatorId], references: [id])
+  recipientOperator      Operator  @relation("RecipientOperator", fields: [recipientOperatorId], references: [id])
+  infrastructureOperator Operator? @relation("InfrastructureOperator", fields: [infrastructureOperatorId], references: [id])
+  createdByUser          User      @relation("PortingRequestCreatedBy", fields: [createdByUserId], references: [id])
 
   phoneNumbers  PhoneNumber[]
   documents     Document[]
@@ -283,8 +322,13 @@ model PortingRequest {
   auditLogs     AuditLog[]
 
   @@index([clientId])
+  @@index([statusInternal])
+  @@index([primaryNumber])
   @@index([donorOperatorId])
   @@index([recipientOperatorId])
+  @@index([infrastructureOperatorId])
+  @@index([createdByUserId])
+  @@index([createdAt])
   @@map("porting_requests")
 }
 

@@ -8,6 +8,7 @@ import { authRouter } from './modules/auth/auth.router'
 import { usersRouter } from './modules/users/users.router'
 import { clientsRouter } from './modules/clients/clients.router'
 import { operatorsRouter } from './modules/operators/operators.router'
+import { portingRequestsRouter } from './modules/porting-requests/porting-requests.router'
 
 /**
  * Buduje i konfiguruje instancję aplikacji Fastify.
@@ -52,6 +53,7 @@ export async function buildApp() {
   await app.register(usersRouter, { prefix: '/api/users' })
   await app.register(clientsRouter, { prefix: '/api/clients' })
   await app.register(operatorsRouter, { prefix: '/api/operators' })
+  await app.register(portingRequestsRouter, { prefix: '/api/porting-requests' })
 
   // ============================================================
   // Trasy systemowe

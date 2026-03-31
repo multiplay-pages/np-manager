@@ -8,6 +8,9 @@ import { ClientDetailPage } from '@/pages/Clients/ClientDetailPage'
 import { ClientNewPage } from '@/pages/Clients/ClientNewPage'
 import { ClientEditPage } from '@/pages/Clients/ClientEditPage'
 import { OperatorsPage } from '@/pages/Operators/OperatorsPage'
+import { RequestsPage } from '@/pages/Requests/RequestsPage'
+import { RequestNewPage } from '@/pages/Requests/RequestNewPage'
+import { RequestDetailPage } from '@/pages/Requests/RequestDetailPage'
 import { useAuthStore } from '@/stores/auth.store'
 
 /**
@@ -104,11 +107,15 @@ export const router = createBrowserRouter([
       // ── POZOSTAŁE MODUŁY (placeholders) ──────────────────────
       {
         path: ROUTES.REQUESTS,
-        element: <PlaceholderPage title="Lista spraw" description="Implementacja w Sprint 4" />,
+        element: <RequestsPage />,
       },
       {
         path: ROUTES.REQUEST_NEW,
-        element: <PlaceholderPage title="Nowa sprawa" description="Implementacja w Sprint 3" />,
+        element: <RequestNewPage />,
+      },
+      {
+        path: ROUTES.REQUEST_DETAIL,
+        element: <RequestDetailPage />,
       },
       {
         path: ROUTES.TASKS,
