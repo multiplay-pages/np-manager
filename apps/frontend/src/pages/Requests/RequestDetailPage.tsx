@@ -207,12 +207,19 @@ export function RequestDetailPage() {
       <Section title="Tryb i terminy">
         <Field label="Tryb przeniesienia" value={PORTING_MODE_LABELS[request.portingMode]} />
         <Field label="Kanal kontaktu" value={CONTACT_CHANNEL_LABELS[request.contactChannel]} />
-        <Field label="Wnioskowany dzien przeniesienia" value={request.requestedPortDate} mono />
-        <Field
-          label="Najwczesniejsza akceptowalna data"
-          value={request.earliestAcceptablePortDate}
-          mono
-        />
+        {request.portingMode === 'DAY' ? (
+          <Field label="Wnioskowany dzien przeniesienia" value={request.requestedPortDate} mono />
+        ) : (
+          <Field
+            label={
+              request.portingMode === 'EOP'
+                ? 'Najwczesniejsza akceptowalna data po koncu promocji'
+                : 'Najwczesniejsza akceptowalna data przeniesienia'
+            }
+            value={request.earliestAcceptablePortDate}
+            mono
+          />
+        )}
         <Field label="Data potwierdzona w systemie" value={request.confirmedPortDate} mono />
         <Field label="Data wyznaczona przez Dawce" value={request.donorAssignedPortDate} mono />
       </Section>
