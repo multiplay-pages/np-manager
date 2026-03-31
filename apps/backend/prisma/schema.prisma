@@ -126,6 +126,13 @@ enum SubscriberIdentityType {
   OTHER
 }
 
+enum PliCbdExportStatus {
+  NOT_EXPORTED
+  EXPORT_PENDING
+  EXPORTED
+  SYNC_ERROR
+}
+
 // ============================================================
 // USERS — Użytkownicy systemu
 // ============================================================
@@ -285,12 +292,19 @@ model PortingRequest {
   requestedPortTime                     String?                @db.VarChar(5)
   earliestAcceptablePortDate            DateTime?              @db.Date
   confirmedPortDate                     DateTime?              @db.Date
+  donorAssignedPortDate                 DateTime?              @db.Date
+  donorAssignedPortTime                 String?                @db.VarChar(5)
   portingMode                           PortingMode
   statusInternal                        PortingCaseStatus      @default(DRAFT)
   statusPliCbd                          String?                @db.VarChar(50)
   pliCbdCaseId                          String?                @db.VarChar(100)
+  pliCbdCaseNumber                      String?                @db.VarChar(100)
   pliCbdPackageId                       String?                @db.VarChar(100)
+  pliCbdExportStatus                    PliCbdExportStatus     @default(NOT_EXPORTED)
+  pliCbdLastSyncAt                      DateTime?
   lastExxReceived                       PliCbdExxType?
+  lastPliCbdStatusCode                  String?                @db.VarChar(100)
+  lastPliCbdStatusDescription           String?                @db.Text
   rejectionCode                         String?                @db.VarChar(50)
   rejectionReason                       String?                @db.Text
   subscriberKind                        ClientType
@@ -329,6 +343,7 @@ model PortingRequest {
   @@index([infrastructureOperatorId])
   @@index([createdByUserId])
   @@index([createdAt])
+  @@index([pliCbdExportStatus])
   @@map("porting_requests")
 }
 

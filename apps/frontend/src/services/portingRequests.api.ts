@@ -47,3 +47,21 @@ export async function createPortingRequest(
 
   return response.data.data.request
 }
+
+export async function exportPortingRequest(id: string): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/export`)
+
+  return response.data.data.request
+}
+
+export async function syncPortingRequest(id: string): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/sync`)
+
+  return response.data.data.request
+}

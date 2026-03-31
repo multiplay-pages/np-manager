@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { landlinePhoneSchema } from '@np-manager/shared'
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/
-const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/
 
 function isValidDateOnly(value: string): boolean {
   if (!DATE_ONLY_REGEX.test(value)) return false
@@ -25,19 +24,11 @@ function todayString(): string {
 
 const dateOnlySchema = z
   .string({ required_error: 'Data jest wymagana' })
-  .refine(isValidDateOnly, 'Data musi mieć format RRRR-MM-DD')
+  .refine(isValidDateOnly, 'Data musi miec format RRRR-MM-DD')
 
 const optionalDateOnlySchema = z.preprocess(
   (value) => (value === '' || value === null ? undefined : value),
   dateOnlySchema.optional(),
-)
-
-const optionalTimeSchema = z.preprocess(
-  (value) => (value === '' || value === null ? undefined : value),
-  z
-    .string()
-    .regex(TIME_REGEX, 'Godzina musi mieć format HH:mm')
-    .optional(),
 )
 
 const optionalUuidSchema = z.preprocess(
@@ -62,12 +53,32 @@ const statusEnum = z.enum([
   'ERROR',
 ])
 
+function validateDeferredEarliestDate(
+  value: string | undefined,
+  ctx: z.RefinementCtx,
+): void {
+  if (!value) return
+
+  if (value < todayString()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['earliestAcceptablePortDate'],
+      message: 'Najwczesniejsza akceptowalna data nie moze byc z przeszlosci.',
+    })
+  }
+
+  // TODO(B4): jesli polityka operacyjna bedzie tego wymagac, dodac
+  // maksymalne wyprzedzenie, np. 14 dni do przodu dla END/EOP.
+}
+
 export const createPortingRequestSchema = z
   .object({
-    clientId: z.string({ required_error: 'Klient jest wymagany' }).uuid('Nieprawidłowy identyfikator klienta'),
+    clientId: z
+      .string({ required_error: 'Klient jest wymagany' })
+      .uuid('Nieprawidlowy identyfikator klienta'),
     donorOperatorId: z
-      .string({ required_error: 'Operator oddający jest wymagany' })
-      .uuid('Nieprawidłowy identyfikator operatora oddającego'),
+      .string({ required_error: 'Operator oddajacy jest wymagany' })
+      .uuid('Nieprawidlowy identyfikator operatora oddajacego'),
     numberType: z.enum(['FIXED_LINE', 'MOBILE']).default('FIXED_LINE'),
     numberRangeKind: z.enum(['SINGLE', 'DDI_RANGE'], {
       required_error: 'Typ numeracji jest wymagany',
@@ -89,7 +100,6 @@ export const createPortingRequestSchema = z
       required_error: 'Tryb przeniesienia jest wymagany',
     }),
     requestedPortDate: optionalDateOnlySchema,
-    requestedPortTime: optionalTimeSchema,
     earliestAcceptablePortDate: optionalDateOnlySchema,
     subscriberKind: z.enum(['INDIVIDUAL', 'BUSINESS'], {
       required_error: 'Typ abonenta jest wymagany',
@@ -101,8 +111,8 @@ export const createPortingRequestSchema = z
       required_error: 'Typ identyfikatora jest wymagany',
     }),
     identityValue: z
-      .string({ required_error: 'Wartość identyfikatora jest wymagana' })
-      .min(1, 'Wartość identyfikatora jest wymagana')
+      .string({ required_error: 'Wartosc identyfikatora jest wymagana' })
+      .min(1, 'Wartosc identyfikatora jest wymagana')
       .max(100)
       .trim(),
     correspondenceAddress: z
@@ -114,7 +124,7 @@ export const createPortingRequestSchema = z
     linkedWholesaleServiceOnRecipientSide: z.boolean().default(false),
     infrastructureOperatorId: optionalUuidSchema,
     contactChannel: z.enum(['EMAIL', 'SMS', 'LETTER'], {
-      required_error: 'Kanał kontaktu jest wymagany',
+      required_error: 'Kanal kontaktu jest wymagany',
     }),
     internalNotes: optionalTrimmedString(5000),
   })
@@ -125,7 +135,7 @@ export const createPortingRequestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['numberType'],
-        message: 'Na tym etapie system obsługuje wyłącznie sprawy FNP (numery stacjonarne).',
+        message: 'Na tym etapie system obsluguje wylacznie sprawy FNP (numery stacjonarne).',
       })
     }
 
@@ -134,14 +144,15 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['primaryNumber'],
-          message: 'Dla pojedynczego numeru podaj numer główny.',
+          message: 'Dla pojedynczego numeru podaj numer glowny.',
         })
       }
+
       if (data.rangeStart || data.rangeEnd) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['rangeStart'],
-          message: 'Zakres DDI podawaj tylko dla typu „Zakres DDI”.',
+          message: 'Zakres DDI podawaj tylko dla typu "Zakres DDI".',
         })
       }
     }
@@ -151,14 +162,15 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['rangeStart'],
-          message: 'Dla zakresu DDI podaj numer początkowy.',
+          message: 'Dla zakresu DDI podaj numer poczatkowy.',
         })
       }
+
       if (!data.rangeEnd) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['rangeEnd'],
-          message: 'Dla zakresu DDI podaj numer końcowy.',
+          message: 'Dla zakresu DDI podaj numer koncowy.',
         })
       }
 
@@ -167,7 +179,7 @@ export const createPortingRequestSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['rangeEnd'],
-            message: 'Numery zakresu muszą mieć zgodny format.',
+            message: 'Numery zakresu musza miec zgodny format.',
           })
         }
 
@@ -175,7 +187,7 @@ export const createPortingRequestSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['rangeEnd'],
-            message: 'Numer końcowy zakresu nie może być mniejszy niż numer początkowy.',
+            message: 'Numer koncowy zakresu nie moze byc mniejszy niz numer poczatkowy.',
           })
         }
       }
@@ -186,7 +198,7 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['requestedPortDate'],
-          message: 'Dla trybu DAY wskaż konkretną datę przeniesienia.',
+          message: 'Dla trybu DAY wskaz wnioskowany dzien przeniesienia.',
         })
       }
 
@@ -194,7 +206,7 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['hasPowerOfAttorney'],
-          message: 'Tryb DAY wymaga pełnomocnictwa.',
+          message: 'Tryb DAY wymaga pelnomocnictwa.',
         })
       }
 
@@ -203,7 +215,7 @@ export const createPortingRequestSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['requestedPortDate'],
-            message: 'Data przeniesienia nie może być z przeszłości.',
+            message: 'Wnioskowany dzien przeniesienia nie moze byc z przeszlosci.',
           })
         }
 
@@ -211,7 +223,7 @@ export const createPortingRequestSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['requestedPortDate'],
-            message: 'Dla FNP data przeniesienia w trybie DAY nie może przypadać w weekend.',
+            message: 'Dla FNP wnioskowany dzien przeniesienia w trybie DAY nie moze przypasc w weekend.',
           })
         }
       }
@@ -222,25 +234,11 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['requestedPortDate'],
-          message: 'Konkretna data przeniesienia dotyczy tylko trybu DAY.',
+          message: 'Wnioskowany dzien przeniesienia dotyczy tylko trybu DAY.',
         })
       }
 
-      if (data.requestedPortTime) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['requestedPortTime'],
-          message: 'Godzina przeniesienia dotyczy tylko trybu DAY.',
-        })
-      }
-
-      if (data.earliestAcceptablePortDate && data.earliestAcceptablePortDate < today) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['earliestAcceptablePortDate'],
-          message: 'Najwcześniejsza akceptowalna data nie może być z przeszłości.',
-        })
-      }
+      validateDeferredEarliestDate(data.earliestAcceptablePortDate, ctx)
     }
 
     if (data.linkedWholesaleServiceOnRecipientSide) {
@@ -248,7 +246,7 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['hasPowerOfAttorney'],
-          message: 'Powiązanie z Usługą Hurtową po stronie Biorcy wymaga pełnomocnictwa.',
+          message: 'Powiazanie z Usluga Hurtowa po stronie Biorcy wymaga pelnomocnictwa.',
         })
       }
 
@@ -256,7 +254,7 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['infrastructureOperatorId'],
-          message: 'Wskaż operatora infrastrukturalnego dla Usługi Hurtowej po stronie Biorcy.',
+          message: 'Wskaz operatora infrastrukturalnego dla Uslugi Hurtowej po stronie Biorcy.',
         })
       }
     }
@@ -266,9 +264,10 @@ export const createPortingRequestSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['subscriberFirstName'],
-          message: 'Imię abonenta jest wymagane.',
+          message: 'Imie abonenta jest wymagane.',
         })
       }
+
       if (!data.subscriberLastName) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -276,6 +275,7 @@ export const createPortingRequestSchema = z
           message: 'Nazwisko abonenta jest wymagane.',
         })
       }
+
       if (!['PESEL', 'ID_CARD', 'PASSPORT', 'OTHER'].includes(data.identityType)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -293,6 +293,7 @@ export const createPortingRequestSchema = z
           message: 'Nazwa firmy abonenta jest wymagana.',
         })
       }
+
       if (!['NIP', 'REGON', 'OTHER'].includes(data.identityType)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -306,7 +307,7 @@ export const createPortingRequestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['identityValue'],
-        message: 'PESEL musi zawierać dokładnie 11 cyfr.',
+        message: 'PESEL musi zawierac dokladnie 11 cyfr.',
       })
     }
 
@@ -314,7 +315,7 @@ export const createPortingRequestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['identityValue'],
-        message: 'NIP musi zawierać 10 cyfr.',
+        message: 'NIP musi zawierac 10 cyfr.',
       })
     }
 
@@ -322,7 +323,7 @@ export const createPortingRequestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['identityValue'],
-        message: 'REGON musi zawierać 9 albo 14 cyfr.',
+        message: 'REGON musi zawierac 9 albo 14 cyfr.',
       })
     }
   })

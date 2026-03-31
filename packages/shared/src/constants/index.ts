@@ -1,5 +1,5 @@
 // ============================================================
-// ROLE UŻYTKOWNIKÓW
+// ROLE UZYTKOWNIKOW
 // ============================================================
 
 export const USER_ROLES = {
@@ -19,8 +19,8 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   BOK_CONSULTANT: 'Konsultant BOK',
   BACK_OFFICE: 'Back Office',
   MANAGER: 'Kierownik',
-  TECHNICAL: 'Dział Techniczny',
-  LEGAL: 'Dział Prawny',
+  TECHNICAL: 'Dzial Techniczny',
+  LEGAL: 'Dzial Prawny',
   AUDITOR: 'Audytor',
 }
 
@@ -48,14 +48,12 @@ export const CASE_STATUS_CODES = {
 
 export type CaseStatusCode = (typeof CASE_STATUS_CODES)[keyof typeof CASE_STATUS_CODES]
 
-/** Statusy będące stanem końcowym sprawy (zablokowane do edycji) */
 export const FINAL_STATUS_CODES: CaseStatusCode[] = [
   CASE_STATUS_CODES.CLOSED,
   CASE_STATUS_CODES.CANCELLED,
   CASE_STATUS_CODES.REJECTED_FINAL,
 ]
 
-/** Statusy oznaczające aktywną sprawę (nie archiwalną) */
 export const ACTIVE_STATUS_CODES: CaseStatusCode[] = [
   CASE_STATUS_CODES.NEW,
   CASE_STATUS_CODES.IN_VERIFICATION,
@@ -89,7 +87,7 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
 }
 
 // ============================================================
-// TYPY KLIENTÓW
+// TYPY KLIENTOW
 // ============================================================
 
 export const CLIENT_TYPES = {
@@ -105,7 +103,7 @@ export const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
 }
 
 // ============================================================
-// STATUSY DOKUMENTÓW
+// STATUSY DOKUMENTOW
 // ============================================================
 
 export const DOCUMENT_STATUS = {
@@ -123,7 +121,7 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
 }
 
 // ============================================================
-// TYPY KODÓW DOKUMENTÓW (słownik)
+// TYPY KODOW DOKUMENTOW
 // ============================================================
 
 export const DOCUMENT_TYPE_CODES = {
@@ -138,7 +136,7 @@ export const DOCUMENT_TYPE_CODES = {
 export type DocumentTypeCode = (typeof DOCUMENT_TYPE_CODES)[keyof typeof DOCUMENT_TYPE_CODES]
 
 // ============================================================
-// TYPY NUMERÓW TELEFONÓW
+// TYPY NUMEROW TELEFONOW
 // ============================================================
 
 export const PHONE_NUMBER_TYPES = {
@@ -161,13 +159,40 @@ export const PORTING_MODES = {
 export type PortingMode = (typeof PORTING_MODES)[keyof typeof PORTING_MODES]
 
 export const PORTING_MODE_LABELS: Record<PortingMode, string> = {
-  END: 'Na koniec dnia',
-  EOP: 'Koniec okresu rozliczeniowego',
-  DAY: 'Konkretny dzień',
+  DAY: 'DAY - konkretny dzien przeniesienia',
+  END: 'END - z zachowaniem okresu wypowiedzenia',
+  EOP: 'EOP - na koniec okresu promocyjnego',
+}
+
+export const PORTING_MODE_DESCRIPTIONS: Record<PortingMode, string> = {
+  DAY: 'Klient wskazuje konkretny dzien przeniesienia numeru. Tryb bez zachowania okresu wypowiedzenia u dotychczasowego dostawcy. Pelnomocnictwo jest wymagane.',
+  END: 'Przeniesienie z zachowaniem okresu wypowiedzenia u dotychczasowego dostawcy. Finalna date przeniesienia wyznacza Dawca. Po stronie Biorcy mozna wskazac najwczesniejsza akceptowalna date.',
+  EOP: 'Przeniesienie na koniec okresu promocyjnego u dotychczasowego dostawcy. Finalna date przeniesienia wyznacza Dawca. Po stronie Biorcy mozna wskazac najwczesniejsza akceptowalna date.',
 }
 
 // ============================================================
-// STATUSY WEWNĘTRZNE SPRAWY PORTOWANIA
+// STATUSY EKSPORTU DO PLI CBD
+// ============================================================
+
+export const PLI_CBD_EXPORT_STATUSES = {
+  NOT_EXPORTED: 'NOT_EXPORTED',
+  EXPORT_PENDING: 'EXPORT_PENDING',
+  EXPORTED: 'EXPORTED',
+  SYNC_ERROR: 'SYNC_ERROR',
+} as const
+
+export type PliCbdExportStatus =
+  (typeof PLI_CBD_EXPORT_STATUSES)[keyof typeof PLI_CBD_EXPORT_STATUSES]
+
+export const PLI_CBD_EXPORT_STATUS_LABELS: Record<PliCbdExportStatus, string> = {
+  NOT_EXPORTED: 'Nie wyeksportowano do PLI CBD',
+  EXPORT_PENDING: 'Oczekuje na eksport do PLI CBD',
+  EXPORTED: 'Wyeksportowano do PLI CBD',
+  SYNC_ERROR: 'Blad synchronizacji z PLI CBD',
+}
+
+// ============================================================
+// STATUSY WEWNETRZNE SPRAWY PORTOWANIA
 // ============================================================
 
 export const PORTING_CASE_STATUSES = {
@@ -186,13 +211,13 @@ export type PortingCaseStatus =
 
 export const PORTING_CASE_STATUS_LABELS: Record<PortingCaseStatus, string> = {
   DRAFT: 'Szkic',
-  SUBMITTED: 'Złożona',
-  PENDING_DONOR: 'Oczekuje na dawcę',
+  SUBMITTED: 'Zlozona',
+  PENDING_DONOR: 'Oczekuje na dawce',
   CONFIRMED: 'Potwierdzona',
   REJECTED: 'Odrzucona',
   CANCELLED: 'Anulowana',
   PORTED: 'Przeniesiona',
-  ERROR: 'Błąd',
+  ERROR: 'Blad',
 }
 
 // ============================================================
@@ -251,13 +276,13 @@ export const SUBSCRIBER_IDENTITY_TYPE_LABELS: Record<SubscriberIdentityType, str
   PESEL: 'PESEL',
   NIP: 'NIP',
   REGON: 'REGON',
-  ID_CARD: 'Dowód osobisty',
+  ID_CARD: 'Dowod osobisty',
   PASSPORT: 'Paszport',
   OTHER: 'Inny identyfikator',
 }
 
 // ============================================================
-// KANAŁY KONTAKTU
+// KANALY KONTAKTU
 // ============================================================
 
 export const CONTACT_CHANNELS = {
@@ -275,7 +300,7 @@ export const CONTACT_CHANNEL_LABELS: Record<ContactChannel, string> = {
 }
 
 // ============================================================
-// TYPY NUMERÓW
+// TYPY NUMEROW
 // ============================================================
 
 export const NUMBER_TYPES = {
@@ -287,11 +312,11 @@ export type NumberType = (typeof NUMBER_TYPES)[keyof typeof NUMBER_TYPES]
 
 export const NUMBER_TYPE_LABELS: Record<NumberType, string> = {
   FIXED_LINE: 'Numer stacjonarny',
-  MOBILE: 'Numer komórkowy',
+  MOBILE: 'Numer komorkowy',
 }
 
 // ============================================================
-// DOZWOLONE TYPY PLIKÓW
+// DOZWOLONE TYPY PLIKOW
 // ============================================================
 
 export const ALLOWED_MIME_TYPES = [
@@ -304,7 +329,7 @@ export const ALLOWED_MIME_TYPES = [
 export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number]
 
 // ============================================================
-// KLUCZE USTAWIEŃ SYSTEMOWYCH
+// KLUCZE USTAWIEN SYSTEMOWYCH
 // ============================================================
 
 export const SYSTEM_SETTING_KEYS = {

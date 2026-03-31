@@ -5,6 +5,7 @@ import type {
   PortedNumberKind,
   PortingCaseStatus,
   PortingMode,
+  PliCbdExportStatus,
   PliCbdExxType,
   SubscriberIdentityType,
 } from '../constants'
@@ -59,7 +60,6 @@ export interface CreatePortingRequestDto {
   requestDocumentNumber?: string
   portingMode: PortingMode
   requestedPortDate?: string
-  requestedPortTime?: string
   earliestAcceptablePortDate?: string
   subscriberKind: ClientType
   subscriberFirstName?: string
@@ -113,11 +113,19 @@ export interface PortingRequestDetailDto {
   requestedPortTime: string | null
   earliestAcceptablePortDate: string | null
   confirmedPortDate: string | null
+  donorAssignedPortDate: string | null
+  donorAssignedPortTime: string | null
   statusInternal: PortingCaseStatus
   statusPliCbd: string | null
   pliCbdCaseId: string | null
+  pliCbdCaseNumber: string | null
   pliCbdPackageId: string | null
+  pliCbdExportStatus: PliCbdExportStatus
+  pliCbdLastSyncAt: string | null
   lastExxReceived: PliCbdExxType | null
+  lastPliCbdMessageType: PliCbdExxType | null
+  lastPliCbdStatusCode: string | null
+  lastPliCbdStatusDescription: string | null
   rejectionCode: string | null
   rejectionReason: string | null
   subscriberKind: ClientType

@@ -8,8 +8,10 @@ import {
 } from './porting-requests.schema'
 import {
   createPortingRequest,
+  exportPortingRequestToPliCbd,
   getPortingRequest,
   listPortingRequests,
+  syncPortingRequestFromPliCbd,
 } from './porting-requests.service'
 
 export async function portingRequestsRouter(app: FastifyInstance): Promise<void> {
@@ -55,6 +57,52 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
       )
 
       return reply.status(201).send({ success: true, data: { request: portingRequest } })
+    },
+  )
+
+  app.post<{ Params: { id: string } }>(
+    '/:id/export',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const portingRequest = await exportPortingRequestToPliCbd(
+        request.params.id,
+        request.user.id,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          request: portingRequest,
+          meta: {
+            mode: 'MANUAL_FOUNDATION_TRIGGER',
+          },
+        },
+      })
+    },
+  )
+
+  app.post<{ Params: { id: string } }>(
+    '/:id/sync',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const portingRequest = await syncPortingRequestFromPliCbd(
+        request.params.id,
+        request.user.id,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({
+        success: true,
+        data: {
+          request: portingRequest,
+          meta: {
+            mode: 'MANUAL_FOUNDATION_TRIGGER',
+          },
+        },
+      })
     },
   )
 }

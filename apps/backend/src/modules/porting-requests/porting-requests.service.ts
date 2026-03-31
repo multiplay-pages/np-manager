@@ -1,4 +1,4 @@
-import { Prisma, type PortingCaseStatus } from '@prisma/client'
+import { Prisma, type PliCbdExportStatus, type PortingCaseStatus } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { AppError } from '../../shared/errors/app-error'
 import { logAuditEvent } from '../../shared/audit/audit.service'
@@ -7,6 +7,7 @@ import type {
   PortingRequestDetailDto,
   PortingRequestListItemDto,
   PortingRequestListResultDto,
+  PliCbdExxType,
 } from '@np-manager/shared'
 import type {
   CreatePortingRequestBody,
@@ -69,11 +70,18 @@ const DETAIL_SELECT = {
   requestedPortTime: true,
   earliestAcceptablePortDate: true,
   confirmedPortDate: true,
+  donorAssignedPortDate: true,
+  donorAssignedPortTime: true,
   statusInternal: true,
   statusPliCbd: true,
   pliCbdCaseId: true,
+  pliCbdCaseNumber: true,
   pliCbdPackageId: true,
+  pliCbdExportStatus: true,
+  pliCbdLastSyncAt: true,
   lastExxReceived: true,
+  lastPliCbdStatusCode: true,
+  lastPliCbdStatusDescription: true,
   rejectionCode: true,
   rejectionReason: true,
   subscriberKind: true,
@@ -96,10 +104,72 @@ const DETAIL_SELECT = {
   infrastructureOperator: { select: OPERATOR_SELECT },
 } as const
 
+const PLI_CBD_TRIGGER_SELECT = {
+  id: true,
+  caseNumber: true,
+  numberType: true,
+  numberRangeKind: true,
+  primaryNumber: true,
+  rangeStart: true,
+  rangeEnd: true,
+  portingMode: true,
+  requestedPortDate: true,
+  earliestAcceptablePortDate: true,
+  statusInternal: true,
+  pliCbdCaseId: true,
+  pliCbdCaseNumber: true,
+  pliCbdExportStatus: true,
+  donorAssignedPortDate: true,
+  donorAssignedPortTime: true,
+  lastExxReceived: true,
+  lastPliCbdStatusCode: true,
+  lastPliCbdStatusDescription: true,
+  donorOperator: {
+    select: { id: true, name: true, routingNumber: true },
+  },
+  recipientOperator: {
+    select: { id: true, name: true, routingNumber: true },
+  },
+} as const
+
 type ClientRow = Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>
 type OperatorRow = Prisma.OperatorGetPayload<{ select: typeof OPERATOR_SELECT }>
 type ListRow = Prisma.PortingRequestGetPayload<{ select: typeof LIST_SELECT }>
 type DetailRow = Prisma.PortingRequestGetPayload<{ select: typeof DETAIL_SELECT }>
+type PliCbdTriggerRow = Prisma.PortingRequestGetPayload<{ select: typeof PLI_CBD_TRIGGER_SELECT }>
+
+interface PortingRequestPliCbdAdapterResult {
+  exportStatus?: PliCbdExportStatus
+  pliCbdCaseId?: string | null
+  pliCbdCaseNumber?: string | null
+  pliCbdLastSyncAt?: Date | null
+  donorAssignedPortDate?: Date | null
+  donorAssignedPortTime?: string | null
+  lastPliCbdMessageType?: PliCbdExxType | null
+  lastPliCbdStatusCode?: string | null
+  lastPliCbdStatusDescription?: string | null
+}
+
+interface PortingRequestPliCbdAdapter {
+  exportPortingRequestToPliCbd(request: PliCbdTriggerRow): Promise<PortingRequestPliCbdAdapterResult>
+  syncPortingRequestFromPliCbd(request: PliCbdTriggerRow): Promise<PortingRequestPliCbdAdapterResult>
+}
+
+class ManualPliCbdAdapter implements PortingRequestPliCbdAdapter {
+  async exportPortingRequestToPliCbd(): Promise<PortingRequestPliCbdAdapterResult> {
+    return {
+      exportStatus: 'EXPORT_PENDING',
+    }
+  }
+
+  async syncPortingRequestFromPliCbd(): Promise<PortingRequestPliCbdAdapterResult> {
+    return {
+      pliCbdLastSyncAt: new Date(),
+    }
+  }
+}
+
+const portingRequestPliCbdAdapter: PortingRequestPliCbdAdapter = new ManualPliCbdAdapter()
 
 function getClientDisplayName(client: {
   clientType: string
@@ -136,10 +206,10 @@ function getNumberDisplay(request: {
   rangeEnd?: string | null
 }): string {
   if (request.numberRangeKind === 'DDI_RANGE') {
-    return `${request.rangeStart ?? '—'} — ${request.rangeEnd ?? '—'}`
+    return `${request.rangeStart ?? '-'} - ${request.rangeEnd ?? '-'}`
   }
 
-  return request.primaryNumber ?? '—'
+  return request.primaryNumber ?? '-'
 }
 
 function toDateOnlyString(value: Date | null | undefined): string | null {
@@ -152,7 +222,10 @@ function toDateOnlyValue(value?: string): Date | undefined {
   return new Date(`${value}T00:00:00.000Z`)
 }
 
-function normalizeIdentityValue(identityType: CreatePortingRequestDto['identityType'], value: string): string {
+function normalizeIdentityValue(
+  identityType: CreatePortingRequestDto['identityType'],
+  value: string,
+): string {
   const trimmed = value.trim()
 
   if (identityType === 'NIP') {
@@ -183,7 +256,7 @@ async function generateCaseNumber(): Promise<string> {
     }
   }
 
-  throw AppError.internal('Nie udało się wygenerować numeru sprawy.')
+  throw AppError.internal('Nie udalo sie wygenerowac numeru sprawy.')
 }
 
 async function getClientOrThrow(clientId: string): Promise<ClientRow> {
@@ -193,7 +266,7 @@ async function getClientOrThrow(clientId: string): Promise<ClientRow> {
   })
 
   if (!client) {
-    throw AppError.notFound('Wybrany klient nie został znaleziony.')
+    throw AppError.notFound('Wybrany klient nie zostal znaleziony.')
   }
 
   return client
@@ -206,11 +279,11 @@ async function getActiveOperatorOrThrow(operatorId: string, label: string): Prom
   })
 
   if (!operator) {
-    throw AppError.notFound(`${label} nie został znaleziony.`)
+    throw AppError.notFound(`${label} nie zostal znaleziony.`)
   }
 
   if (!operator.isActive) {
-    throw AppError.badRequest(`${label} jest nieaktywny i nie może zostać użyty w sprawie.`)
+    throw AppError.badRequest(`${label} jest nieaktywny i nie moze zostac uzyty w sprawie.`)
   }
 
   return operator
@@ -228,7 +301,7 @@ async function getDefaultRecipientOperatorOrThrow(): Promise<OperatorRow> {
 
   if (!operator) {
     throw AppError.badRequest(
-      'Brak skonfigurowanego domyślnego operatora biorącego. Poproś administratora o uzupełnienie słownika operatorów.',
+      'Brak skonfigurowanego domyslnego operatora bioracego. Popros administratora o uzupelnienie slownika operatorow.',
       'DEFAULT_RECIPIENT_OPERATOR_NOT_CONFIGURED',
     )
   }
@@ -286,10 +359,23 @@ async function assertNoDuplicateOpenRequest(
 
   if (duplicate) {
     throw AppError.conflict(
-      `Dla wskazanej numeracji istnieje już otwarta sprawa (${duplicate.caseNumber}). Zamknij ją albo użyj innego numeru/zakresu.`,
+      `Dla wskazanej numeracji istnieje juz otwarta sprawa (${duplicate.caseNumber}). Zamknij ja albo uzyj innego numeru lub zakresu.`,
       'ACTIVE_REQUEST_ALREADY_EXISTS_FOR_NUMBER',
     )
   }
+}
+
+async function getPortingRequestForPliCbdOrThrow(requestId: string): Promise<PliCbdTriggerRow> {
+  const request = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: PLI_CBD_TRIGGER_SELECT,
+  })
+
+  if (!request) {
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
+  }
+
+  return request
 }
 
 function toListItem(row: ListRow): PortingRequestListItemDto {
@@ -344,11 +430,19 @@ function toDetailDto(row: DetailRow): PortingRequestDetailDto {
     requestedPortTime: row.requestedPortTime,
     earliestAcceptablePortDate: toDateOnlyString(row.earliestAcceptablePortDate),
     confirmedPortDate: toDateOnlyString(row.confirmedPortDate),
+    donorAssignedPortDate: toDateOnlyString(row.donorAssignedPortDate),
+    donorAssignedPortTime: row.donorAssignedPortTime,
     statusInternal: row.statusInternal,
     statusPliCbd: row.statusPliCbd,
     pliCbdCaseId: row.pliCbdCaseId,
+    pliCbdCaseNumber: row.pliCbdCaseNumber,
     pliCbdPackageId: row.pliCbdPackageId,
+    pliCbdExportStatus: row.pliCbdExportStatus,
+    pliCbdLastSyncAt: row.pliCbdLastSyncAt?.toISOString() ?? null,
     lastExxReceived: row.lastExxReceived,
+    lastPliCbdMessageType: row.lastExxReceived,
+    lastPliCbdStatusCode: row.lastPliCbdStatusCode,
+    lastPliCbdStatusDescription: row.lastPliCbdStatusDescription,
     rejectionCode: row.rejectionCode,
     rejectionReason: row.rejectionReason,
     subscriberKind: row.subscriberKind,
@@ -379,12 +473,12 @@ export async function createPortingRequest(
 
   if (client.clientType !== body.subscriberKind) {
     throw AppError.badRequest(
-      'Typ abonenta w sprawie musi być zgodny z typem wybranego klienta.',
+      'Typ abonenta w sprawie musi byc zgodny z typem wybranego klienta.',
       'SUBSCRIBER_KIND_MISMATCH',
     )
   }
 
-  const donorOperator = await getActiveOperatorOrThrow(body.donorOperatorId, 'Operator oddający')
+  const donorOperator = await getActiveOperatorOrThrow(body.donorOperatorId, 'Operator oddajacy')
   const recipientOperator = await getDefaultRecipientOperatorOrThrow()
   const infrastructureOperator = body.infrastructureOperatorId
     ? await getActiveOperatorOrThrow(body.infrastructureOperatorId, 'Operator infrastrukturalny')
@@ -416,14 +510,18 @@ export async function createPortingRequest(
       donorRoutingNumber: donorOperator.routingNumber,
       recipientRoutingNumber: recipientOperator.routingNumber,
       requestedPortDate: toDateOnlyValue(body.requestedPortDate) ?? null,
-      requestedPortTime: body.requestedPortTime ?? null,
+      requestedPortTime: body.portingMode === 'DAY' ? '00:00' : null,
       earliestAcceptablePortDate: toDateOnlyValue(body.earliestAcceptablePortDate) ?? null,
       portingMode: body.portingMode,
       statusInternal: 'DRAFT',
+      pliCbdExportStatus: 'NOT_EXPORTED',
       subscriberKind: body.subscriberKind,
-      subscriberFirstName: body.subscriberKind === 'INDIVIDUAL' ? body.subscriberFirstName ?? null : null,
-      subscriberLastName: body.subscriberKind === 'INDIVIDUAL' ? body.subscriberLastName ?? null : null,
-      subscriberCompanyName: body.subscriberKind === 'BUSINESS' ? body.subscriberCompanyName ?? null : null,
+      subscriberFirstName:
+        body.subscriberKind === 'INDIVIDUAL' ? body.subscriberFirstName ?? null : null,
+      subscriberLastName:
+        body.subscriberKind === 'INDIVIDUAL' ? body.subscriberLastName ?? null : null,
+      subscriberCompanyName:
+        body.subscriberKind === 'BUSINESS' ? body.subscriberCompanyName ?? null : null,
       identityType: body.identityType,
       identityValue: normalizeIdentityValue(body.identityType, body.identityValue),
       correspondenceAddress: body.correspondenceAddress,
@@ -513,8 +611,133 @@ export async function getPortingRequest(id: string): Promise<PortingRequestDetai
   })
 
   if (!request) {
-    throw AppError.notFound('Sprawa portowania nie została znaleziona.')
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
   }
 
   return toDetailDto(request)
+}
+
+export async function exportPortingRequestToPliCbd(
+  requestId: string,
+  userId: string,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const request = await getPortingRequestForPliCbdOrThrow(requestId)
+
+  if (CLOSED_STATUSES.includes(request.statusInternal)) {
+    throw AppError.badRequest(
+      'Nie mozna eksportowac do PLI CBD sprawy zakonczonej lub zamknietej.',
+      'PORTING_REQUEST_ALREADY_CLOSED',
+    )
+  }
+
+  const adapterResult = await portingRequestPliCbdAdapter.exportPortingRequestToPliCbd(request)
+
+  await prisma.portingRequest.update({
+    where: { id: requestId },
+    data: {
+      pliCbdExportStatus: adapterResult.exportStatus ?? request.pliCbdExportStatus,
+      pliCbdCaseId: adapterResult.pliCbdCaseId ?? request.pliCbdCaseId,
+      pliCbdCaseNumber: adapterResult.pliCbdCaseNumber ?? request.pliCbdCaseNumber,
+      pliCbdLastSyncAt:
+        adapterResult.pliCbdLastSyncAt === undefined
+          ? undefined
+          : adapterResult.pliCbdLastSyncAt,
+      donorAssignedPortDate:
+        adapterResult.donorAssignedPortDate === undefined
+          ? undefined
+          : adapterResult.donorAssignedPortDate,
+      donorAssignedPortTime:
+        adapterResult.donorAssignedPortTime === undefined
+          ? undefined
+          : adapterResult.donorAssignedPortTime,
+      lastExxReceived:
+        adapterResult.lastPliCbdMessageType === undefined
+          ? undefined
+          : adapterResult.lastPliCbdMessageType,
+      lastPliCbdStatusCode:
+        adapterResult.lastPliCbdStatusCode === undefined
+          ? undefined
+          : adapterResult.lastPliCbdStatusCode,
+      lastPliCbdStatusDescription:
+        adapterResult.lastPliCbdStatusDescription === undefined
+          ? undefined
+          : adapterResult.lastPliCbdStatusDescription,
+    },
+  })
+
+  await logAuditEvent({
+    action: 'EXPORT',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    newValue: 'EXPORT_TO_PLI_CBD_MANUAL_TRIGGER',
+    ipAddress,
+    userAgent,
+  })
+
+  return getPortingRequest(requestId)
+}
+
+export async function syncPortingRequestFromPliCbd(
+  requestId: string,
+  userId: string,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const request = await getPortingRequestForPliCbdOrThrow(requestId)
+
+  if (request.pliCbdExportStatus === 'NOT_EXPORTED') {
+    throw AppError.badRequest(
+      'Nie mozna synchronizowac sprawy, ktora nie zostala jeszcze wyeksportowana do PLI CBD.',
+      'PORTING_REQUEST_NOT_EXPORTED',
+    )
+  }
+
+  const adapterResult = await portingRequestPliCbdAdapter.syncPortingRequestFromPliCbd(request)
+
+  await prisma.portingRequest.update({
+    where: { id: requestId },
+    data: {
+      pliCbdExportStatus: adapterResult.exportStatus ?? request.pliCbdExportStatus,
+      pliCbdCaseId: adapterResult.pliCbdCaseId ?? request.pliCbdCaseId,
+      pliCbdCaseNumber: adapterResult.pliCbdCaseNumber ?? request.pliCbdCaseNumber,
+      pliCbdLastSyncAt: adapterResult.pliCbdLastSyncAt ?? new Date(),
+      donorAssignedPortDate:
+        adapterResult.donorAssignedPortDate === undefined
+          ? undefined
+          : adapterResult.donorAssignedPortDate,
+      donorAssignedPortTime:
+        adapterResult.donorAssignedPortTime === undefined
+          ? undefined
+          : adapterResult.donorAssignedPortTime,
+      lastExxReceived:
+        adapterResult.lastPliCbdMessageType === undefined
+          ? undefined
+          : adapterResult.lastPliCbdMessageType,
+      lastPliCbdStatusCode:
+        adapterResult.lastPliCbdStatusCode === undefined
+          ? undefined
+          : adapterResult.lastPliCbdStatusCode,
+      lastPliCbdStatusDescription:
+        adapterResult.lastPliCbdStatusDescription === undefined
+          ? undefined
+          : adapterResult.lastPliCbdStatusDescription,
+    },
+  })
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    newValue: 'SYNC_FROM_PLI_CBD_MANUAL_TRIGGER',
+    ipAddress,
+    userAgent,
+  })
+
+  return getPortingRequest(requestId)
 }

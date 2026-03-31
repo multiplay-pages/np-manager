@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import axios from 'axios'
-import { buildPath, ROUTES } from '@/constants/routes'
 import { useNavigate } from 'react-router-dom'
+import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
 import { getClientById, searchClients } from '@/services/clients.api'
 import { createPortingRequest } from '@/services/portingRequests.api'
 import {
   CONTACT_CHANNEL_LABELS,
   PORTED_NUMBER_KIND_LABELS,
+  PORTING_MODE_DESCRIPTIONS,
   PORTING_MODE_LABELS,
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
 } from '@np-manager/shared'
@@ -30,7 +31,6 @@ interface FormFields {
   requestDocumentNumber: string
   portingMode: PortingMode
   requestedPortDate: string
-  requestedPortTime: string
   earliestAcceptablePortDate: string
   subscriberFirstName: string
   subscriberLastName: string
@@ -56,7 +56,6 @@ const EMPTY_FORM: FormFields = {
   requestDocumentNumber: '',
   portingMode: 'DAY',
   requestedPortDate: '',
-  requestedPortTime: '',
   earliestAcceptablePortDate: '',
   subscriberFirstName: '',
   subscriberLastName: '',
@@ -71,12 +70,12 @@ const EMPTY_FORM: FormFields = {
   internalNotes: '',
 }
 
+const WHOLESALE_HELPER =
+  'Sprawa powiazana z Usluga Hurtowa po stronie Biorcy wymaga pelnomocnictwa.'
+
 function todayString(): string {
   const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 function isWeekend(value: string): boolean {
@@ -97,697 +96,22 @@ function inferIdentityType(client: ClientDetailDto): SubscriberIdentityType {
 }
 
 function inferIdentityValue(client: ClientDetailDto): string {
-  if (client.clientType === 'BUSINESS') return client.nip ?? ''
-  return client.pesel ?? ''
+  return client.clientType === 'BUSINESS' ? client.nip ?? '' : client.pesel ?? ''
 }
 
-export function RequestNewPage() {
-  const navigate = useNavigate()
-  const { operators, isLoading: operatorsLoading, error: operatorsError } = useOperators()
-
-  const [clientQuery, setClientQuery] = useState('')
-  const [clientResults, setClientResults] = useState<ClientSearchItemDto[]>([])
-  const [isSearchingClients, setIsSearchingClients] = useState(false)
-  const [clientSearchError, setClientSearchError] = useState<string | null>(null)
-  const [selectedClient, setSelectedClient] = useState<ClientDetailDto | null>(null)
-  const [isLoadingClient, setIsLoadingClient] = useState(false)
-
-  const [fields, setFields] = useState<FormFields>(EMPTY_FORM)
-  const [errors, setErrors] = useState<FormErrors>({})
-  const [isSaving, setIsSaving] = useState(false)
-
-  const isBusiness = selectedClient?.clientType === 'BUSINESS'
-
-  const donorOptions = useMemo(
-    () => operators.filter((operator) => operator.isActive),
-    [operators],
-  )
-
-  const infrastructureOptions = donorOptions
-
-  useEffect(() => {
-    if (selectedClient || clientQuery.trim().length < 2) {
-      setClientResults([])
-      setClientSearchError(null)
-      return
-    }
-
-    let cancelled = false
-    setIsSearchingClients(true)
-    setClientSearchError(null)
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        const results = await searchClients(clientQuery.trim())
-        if (!cancelled) {
-          setClientResults(results)
-        }
-      } catch {
-        if (!cancelled) {
-          setClientSearchError('Nie udało się wyszukać klientów.')
-        }
-      } finally {
-        if (!cancelled) {
-          setIsSearchingClients(false)
-        }
-      }
-    }, 300)
-
-    return () => {
-      cancelled = true
-      clearTimeout(timeoutId)
-    }
-  }, [clientQuery, selectedClient])
-
-  const setTextField =
-    (key: keyof FormFields) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      setFields((previous) => ({ ...previous, [key]: event.target.value }))
-      setErrors((previous) => ({ ...previous, [key]: undefined, _root: undefined }))
-    }
-
-  const setCheckboxField =
-    (key: keyof FormFields) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const checked = event.target.checked
-      setFields((previous) => ({ ...previous, [key]: checked }))
-      setErrors((previous) => ({ ...previous, [key]: undefined, _root: undefined }))
-    }
-
-  const applyClientSnapshot = (client: ClientDetailDto) => {
-    setFields((previous) => ({
-      ...previous,
-      subscriberFirstName: client.firstName ?? '',
-      subscriberLastName: client.lastName ?? '',
-      subscriberCompanyName: client.companyName ?? '',
-      identityType: inferIdentityType(client),
-      identityValue: inferIdentityValue(client),
-      correspondenceAddress: buildCorrespondenceAddress(client),
-    }))
-  }
-
-  const handleSelectClient = async (clientId: string) => {
-    setIsLoadingClient(true)
-    setClientSearchError(null)
-
-    try {
-      const client = await getClientById(clientId)
-      setSelectedClient(client)
-      setClientQuery('')
-      setClientResults([])
-      setErrors((previous) => ({ ...previous, clientId: undefined }))
-      applyClientSnapshot(client)
-    } catch {
-      setClientSearchError('Nie udało się pobrać pełnych danych wybranego klienta.')
-    } finally {
-      setIsLoadingClient(false)
-    }
-  }
-
-  const resetSelectedClient = () => {
-    setSelectedClient(null)
-    setFields((previous) => ({
-      ...EMPTY_FORM,
-      donorOperatorId: previous.donorOperatorId,
-      numberRangeKind: previous.numberRangeKind,
-      primaryNumber: previous.primaryNumber,
-      rangeStart: previous.rangeStart,
-      rangeEnd: previous.rangeEnd,
-      requestDocumentNumber: previous.requestDocumentNumber,
-      portingMode: previous.portingMode,
-      requestedPortDate: previous.requestedPortDate,
-      requestedPortTime: previous.requestedPortTime,
-      earliestAcceptablePortDate: previous.earliestAcceptablePortDate,
-      hasPowerOfAttorney: previous.hasPowerOfAttorney,
-      linkedWholesaleServiceOnRecipientSide: previous.linkedWholesaleServiceOnRecipientSide,
-      infrastructureOperatorId: previous.infrastructureOperatorId,
-      contactChannel: previous.contactChannel,
-      internalNotes: previous.internalNotes,
-    }))
-  }
-
-  function validate(): FormErrors {
-    const nextErrors: FormErrors = {}
-    const today = todayString()
-
-    if (!selectedClient) {
-      nextErrors.clientId = 'Wybierz klienta z kartoteki.'
-    }
-
-    if (!fields.donorOperatorId) {
-      nextErrors.donorOperatorId = 'Operator oddający jest wymagany.'
-    }
-
-    if (fields.numberRangeKind === 'SINGLE') {
-      if (!fields.primaryNumber.trim()) {
-        nextErrors.primaryNumber = 'Podaj numer główny.'
-      }
-    } else {
-      if (!fields.rangeStart.trim()) nextErrors.rangeStart = 'Podaj numer początkowy zakresu.'
-      if (!fields.rangeEnd.trim()) nextErrors.rangeEnd = 'Podaj numer końcowy zakresu.'
-
-      if (fields.rangeStart.trim() && fields.rangeEnd.trim()) {
-        const start = normalizeComparablePhone(fields.rangeStart.trim())
-        const end = normalizeComparablePhone(fields.rangeEnd.trim())
-
-        if (start.length !== end.length) {
-          nextErrors.rangeEnd = 'Numery zakresu muszą mieć zgodny format.'
-        } else if (start > end) {
-          nextErrors.rangeEnd = 'Numer końcowy zakresu nie może być mniejszy niż początkowy.'
-        }
-      }
-    }
-
-    if (fields.portingMode === 'DAY') {
-      if (!fields.requestedPortDate) {
-        nextErrors.requestedPortDate = 'Dla trybu DAY wskaż datę przeniesienia.'
-      } else if (fields.requestedPortDate < today) {
-        nextErrors.requestedPortDate = 'Data przeniesienia nie może być z przeszłości.'
-      } else if (isWeekend(fields.requestedPortDate)) {
-        nextErrors.requestedPortDate = 'Dla FNP tryb DAY nie może przypadać w weekend.'
-      }
-
-      if (!fields.hasPowerOfAttorney) {
-        nextErrors.hasPowerOfAttorney = 'Tryb DAY wymaga pełnomocnictwa.'
-      }
-    } else if (fields.earliestAcceptablePortDate && fields.earliestAcceptablePortDate < today) {
-      nextErrors.earliestAcceptablePortDate = 'Najwcześniejsza data nie może być z przeszłości.'
-    }
-
-    if (fields.linkedWholesaleServiceOnRecipientSide) {
-      if (!fields.hasPowerOfAttorney) {
-        nextErrors.hasPowerOfAttorney = 'Powiązanie z UH wymaga pełnomocnictwa.'
-      }
-
-      if (!fields.infrastructureOperatorId) {
-        nextErrors.infrastructureOperatorId = 'Wskaż operatora infrastrukturalnego.'
-      }
-    }
-
-    if (selectedClient?.clientType === 'INDIVIDUAL') {
-      if (!fields.subscriberFirstName.trim()) nextErrors.subscriberFirstName = 'Imię abonenta jest wymagane.'
-      if (!fields.subscriberLastName.trim()) nextErrors.subscriberLastName = 'Nazwisko abonenta jest wymagane.'
-    }
-
-    if (selectedClient?.clientType === 'BUSINESS' && !fields.subscriberCompanyName.trim()) {
-      nextErrors.subscriberCompanyName = 'Nazwa firmy abonenta jest wymagana.'
-    }
-
-    if (!fields.identityValue.trim()) {
-      nextErrors.identityValue = 'Wartość identyfikatora jest wymagana.'
-    } else if (fields.identityType === 'PESEL' && !/^\d{11}$/.test(fields.identityValue.trim())) {
-      nextErrors.identityValue = 'PESEL musi zawierać dokładnie 11 cyfr.'
-    } else if (
-      fields.identityType === 'NIP' &&
-      !/^\d{10}$/.test(fields.identityValue.replace(/[-\s]/g, ''))
-    ) {
-      nextErrors.identityValue = 'NIP musi zawierać 10 cyfr.'
-    } else if (
-      fields.identityType === 'REGON' &&
-      !/^(\d{9}|\d{14})$/.test(fields.identityValue.trim())
-    ) {
-      nextErrors.identityValue = 'REGON musi zawierać 9 albo 14 cyfr.'
-    }
-
-    if (!fields.correspondenceAddress.trim()) {
-      nextErrors.correspondenceAddress = 'Adres korespondencyjny jest wymagany.'
-    }
-
-    return nextErrors
-  }
-
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (isSaving || !selectedClient) return
-
-    const validationErrors = validate()
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors)
-      return
-    }
-
-    setIsSaving(true)
-    setErrors({})
-
-    const payload: CreatePortingRequestDto = {
-      clientId: selectedClient.id,
-      donorOperatorId: fields.donorOperatorId,
-      numberRangeKind: fields.numberRangeKind,
-      primaryNumber: fields.numberRangeKind === 'SINGLE' ? fields.primaryNumber.trim() : undefined,
-      rangeStart: fields.numberRangeKind === 'DDI_RANGE' ? fields.rangeStart.trim() : undefined,
-      rangeEnd: fields.numberRangeKind === 'DDI_RANGE' ? fields.rangeEnd.trim() : undefined,
-      requestDocumentNumber: fields.requestDocumentNumber.trim() || undefined,
-      portingMode: fields.portingMode,
-      requestedPortDate: fields.portingMode === 'DAY' ? fields.requestedPortDate || undefined : undefined,
-      requestedPortTime: fields.portingMode === 'DAY' ? fields.requestedPortTime || undefined : undefined,
-      earliestAcceptablePortDate:
-        fields.portingMode !== 'DAY' ? fields.earliestAcceptablePortDate || undefined : undefined,
-      subscriberKind: selectedClient.clientType,
-      subscriberFirstName:
-        selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberFirstName.trim() : undefined,
-      subscriberLastName:
-        selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberLastName.trim() : undefined,
-      subscriberCompanyName:
-        selectedClient.clientType === 'BUSINESS' ? fields.subscriberCompanyName.trim() : undefined,
-      identityType: fields.identityType,
-      identityValue: fields.identityValue.trim(),
-      correspondenceAddress: fields.correspondenceAddress.trim(),
-      hasPowerOfAttorney: fields.hasPowerOfAttorney,
-      linkedWholesaleServiceOnRecipientSide: fields.linkedWholesaleServiceOnRecipientSide,
-      infrastructureOperatorId:
-        fields.linkedWholesaleServiceOnRecipientSide && fields.infrastructureOperatorId
-          ? fields.infrastructureOperatorId
-          : undefined,
-      contactChannel: fields.contactChannel,
-      internalNotes: fields.internalNotes.trim() || undefined,
-    }
-
-    try {
-      const request = await createPortingRequest(payload)
-      void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.id))
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 409) {
-          setErrors({
-            _root:
-              (error.response.data as { error?: { message?: string } })?.error?.message
-                ?? 'Dla wskazanej numeracji istnieje już aktywna sprawa.',
-          })
-        } else if (error.response?.status === 400) {
-          const details = (error.response.data as { error?: { details?: Record<string, string[]> } })
-            ?.error?.details
-
-          if (details) {
-            const fieldErrors: FormErrors = {}
-
-            for (const [field, messages] of Object.entries(details)) {
-              if (messages?.[0]) {
-                fieldErrors[field as keyof FormErrors] = messages[0]
-              }
-            }
-
-            setErrors(fieldErrors)
-          } else {
-            setErrors({
-              _root:
-                (error.response.data as { error?: { message?: string } })?.error?.message
-                  ?? 'Nieprawidłowe dane. Sprawdź formularz.',
-            })
-          }
-        } else if (error.response?.status === 403) {
-          setErrors({ _root: 'Brak uprawnień do zakładania spraw portowania.' })
-        } else {
-          setErrors({ _root: 'Wystąpił błąd serwera. Spróbuj ponownie.' })
-        }
-      } else {
-        setErrors({ _root: 'Brak połączenia z serwerem.' })
-      }
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const identityTypeOptions: SubscriberIdentityType[] = isBusiness
-    ? ['NIP', 'REGON', 'OTHER']
-    : ['PESEL', 'ID_CARD', 'PASSPORT', 'OTHER']
-
-  return (
-    <div className="p-6 max-w-4xl">
-      <div className="mb-6">
-        <button
-          onClick={() => void navigate(ROUTES.REQUESTS)}
-          className="text-sm text-gray-500 hover:text-gray-700 mb-2 flex items-center gap-1"
-        >
-          ← Sprawy portowania
-        </button>
-        <h1 className="text-2xl font-bold text-gray-900">Nowa sprawa portowania</h1>
-      </div>
-
-      <form onSubmit={(event) => void handleSubmit(event)} noValidate className="space-y-5">
-        <SectionCard title="1. Klient">
-          {selectedClient ? (
-            <div className="flex items-start justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{selectedClient.displayName}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {selectedClient.clientType === 'BUSINESS' ? 'Firma / podmiot prawny' : 'Osoba fizyczna'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Dane abonenta zostały wstępnie uzupełnione z kartoteki i można je doprecyzować poniżej.
-                </p>
-              </div>
-              <button type="button" onClick={resetSelectedClient} className="btn-secondary">
-                Zmień klienta
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <FormField label="Wyszukaj klienta" error={errors.clientId || clientSearchError || undefined}>
-                <input
-                  type="search"
-                  value={clientQuery}
-                  onChange={(event) => setClientQuery(event.target.value)}
-                  className={`input-field ${errors.clientId || clientSearchError ? 'input-error' : ''}`}
-                  placeholder="Wpisz nazwisko, firmę, PESEL albo NIP..."
-                  disabled={isLoadingClient}
-                />
-              </FormField>
-
-              {isSearchingClients && (
-                <p className="text-xs text-gray-400">Wyszukiwanie klientów...</p>
-              )}
-
-              {clientResults.length > 0 && (
-                <div className="rounded-lg border border-gray-200 overflow-hidden">
-                  {clientResults.map((client) => (
-                    <button
-                      key={client.id}
-                      type="button"
-                      onClick={() => void handleSelectClient(client.id)}
-                      className="w-full text-left px-4 py-3 bg-white hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="font-medium text-sm text-gray-900">{client.displayName}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {client.identifierMasked ?? 'Brak identyfikatora'}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </SectionCard>
-
-        <SectionCard title="2. Zakres numeracji">
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            Typ usługi dla B3: numer stacjonarny / FNP.
-          </div>
-
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden w-fit">
-            {(['SINGLE', 'DDI_RANGE'] as PortedNumberKind[]).map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={() => setFields((previous) => ({ ...previous, numberRangeKind: kind }))}
-                className={`px-6 py-2 text-sm font-medium transition-colors ${
-                  fields.numberRangeKind === kind
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {PORTED_NUMBER_KIND_LABELS[kind]}
-              </button>
-            ))}
-          </div>
-
-          {fields.numberRangeKind === 'SINGLE' ? (
-            <FormField label="Numer główny" error={errors.primaryNumber}>
-              <input
-                className={`input-field font-mono ${errors.primaryNumber ? 'input-error' : ''}`}
-                value={fields.primaryNumber}
-                onChange={setTextField('primaryNumber')}
-                placeholder="+48 22 123 45 67"
-              />
-            </FormField>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Numer początkowy zakresu" error={errors.rangeStart}>
-                <input
-                  className={`input-field font-mono ${errors.rangeStart ? 'input-error' : ''}`}
-                  value={fields.rangeStart}
-                  onChange={setTextField('rangeStart')}
-                  placeholder="+48 22 555 10 00"
-                />
-              </FormField>
-              <FormField label="Numer końcowy zakresu" error={errors.rangeEnd}>
-                <input
-                  className={`input-field font-mono ${errors.rangeEnd ? 'input-error' : ''}`}
-                  value={fields.rangeEnd}
-                  onChange={setTextField('rangeEnd')}
-                  placeholder="+48 22 555 10 99"
-                />
-              </FormField>
-            </div>
-          )}
-
-          <FormField label="Numer wniosku / dokumentu (opcjonalnie)" error={errors.requestDocumentNumber}>
-            <input
-              className={`input-field ${errors.requestDocumentNumber ? 'input-error' : ''}`}
-              value={fields.requestDocumentNumber}
-              onChange={setTextField('requestDocumentNumber')}
-              placeholder="np. WN-2026/03/001"
-            />
-          </FormField>
-        </SectionCard>
-
-        <SectionCard title="3. Operatorzy">
-          <FormField label="Operator oddający" error={errors.donorOperatorId}>
-            <select
-              value={fields.donorOperatorId}
-              onChange={setTextField('donorOperatorId')}
-              className={`input-field ${errors.donorOperatorId ? 'input-error' : ''}`}
-              disabled={operatorsLoading}
-            >
-              <option value="">Wybierz operatora oddającego</option>
-              {donorOptions.map((operator) => (
-                <option key={operator.id} value={operator.id}>
-                  {operator.name} ({operator.routingNumber})
-                </option>
-              ))}
-            </select>
-          </FormField>
-
-          {operatorsError && (
-            <p className="text-sm text-red-600">{operatorsError}</p>
-          )}
-        </SectionCard>
-
-        <SectionCard title="4. Tryb i termin">
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden w-fit">
-            {(['DAY', 'END', 'EOP'] as PortingMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setFields((previous) => ({ ...previous, portingMode: mode }))}
-                className={`px-6 py-2 text-sm font-medium transition-colors ${
-                  fields.portingMode === mode
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {PORTING_MODE_LABELS[mode]}
-              </button>
-            ))}
-          </div>
-
-          {fields.portingMode === 'DAY' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Data przeniesienia" error={errors.requestedPortDate}>
-                <input
-                  type="date"
-                  value={fields.requestedPortDate}
-                  onChange={setTextField('requestedPortDate')}
-                  className={`input-field ${errors.requestedPortDate ? 'input-error' : ''}`}
-                />
-              </FormField>
-              <FormField label="Godzina (opcjonalnie)" error={errors.requestedPortTime}>
-                <input
-                  type="time"
-                  value={fields.requestedPortTime}
-                  onChange={setTextField('requestedPortTime')}
-                  className={`input-field ${errors.requestedPortTime ? 'input-error' : ''}`}
-                />
-              </FormField>
-            </div>
-          ) : (
-            <FormField
-              label="Najwcześniejsza akceptowalna data (opcjonalnie)"
-              error={errors.earliestAcceptablePortDate}
-            >
-              <input
-                type="date"
-                value={fields.earliestAcceptablePortDate}
-                onChange={setTextField('earliestAcceptablePortDate')}
-                className={`input-field ${errors.earliestAcceptablePortDate ? 'input-error' : ''}`}
-              />
-            </FormField>
-          )}
-        </SectionCard>
-
-        <SectionCard title="5. Dane abonenta / identyfikacyjne">
-          {!selectedClient && (
-            <p className="text-sm text-gray-500">Najpierw wybierz klienta z kartoteki.</p>
-          )}
-
-          {selectedClient && (
-            <>
-              {selectedClient.clientType === 'INDIVIDUAL' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField label="Imię abonenta" error={errors.subscriberFirstName}>
-                    <input
-                      className={`input-field ${errors.subscriberFirstName ? 'input-error' : ''}`}
-                      value={fields.subscriberFirstName}
-                      onChange={setTextField('subscriberFirstName')}
-                    />
-                  </FormField>
-                  <FormField label="Nazwisko abonenta" error={errors.subscriberLastName}>
-                    <input
-                      className={`input-field ${errors.subscriberLastName ? 'input-error' : ''}`}
-                      value={fields.subscriberLastName}
-                      onChange={setTextField('subscriberLastName')}
-                    />
-                  </FormField>
-                </div>
-              ) : (
-                <FormField label="Nazwa firmy abonenta" error={errors.subscriberCompanyName}>
-                  <input
-                    className={`input-field ${errors.subscriberCompanyName ? 'input-error' : ''}`}
-                    value={fields.subscriberCompanyName}
-                    onChange={setTextField('subscriberCompanyName')}
-                  />
-                </FormField>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField label="Typ identyfikatora" error={errors.identityType}>
-                  <select
-                    value={fields.identityType}
-                    onChange={setTextField('identityType')}
-                    className={`input-field ${errors.identityType ? 'input-error' : ''}`}
-                  >
-                    {identityTypeOptions.map((identityType) => (
-                      <option key={identityType} value={identityType}>
-                        {SUBSCRIBER_IDENTITY_TYPE_LABELS[identityType]}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-                <FormField label="Wartość identyfikatora" error={errors.identityValue}>
-                  <input
-                    className={`input-field font-mono ${errors.identityValue ? 'input-error' : ''}`}
-                    value={fields.identityValue}
-                    onChange={setTextField('identityValue')}
-                  />
-                </FormField>
-              </div>
-
-              <FormField label="Adres korespondencyjny" error={errors.correspondenceAddress}>
-                <textarea
-                  value={fields.correspondenceAddress}
-                  onChange={setTextField('correspondenceAddress')}
-                  className={`input-field min-h-24 ${errors.correspondenceAddress ? 'input-error' : ''}`}
-                />
-              </FormField>
-            </>
-          )}
-        </SectionCard>
-
-        <SectionCard title="6. Upoważnienie i proces">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={fields.hasPowerOfAttorney}
-              onChange={setCheckboxField('hasPowerOfAttorney')}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600"
-            />
-            <span className="text-sm text-gray-700">Klient udzielił pełnomocnictwa</span>
-          </label>
-          {errors.hasPowerOfAttorney && <p className="error-message">{errors.hasPowerOfAttorney}</p>}
-
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={fields.linkedWholesaleServiceOnRecipientSide}
-              onChange={setCheckboxField('linkedWholesaleServiceOnRecipientSide')}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600"
-            />
-            <span className="text-sm text-gray-700">
-              Sprawa jest powiązana z Usługą Hurtową po stronie Biorcy
-            </span>
-          </label>
-
-          {fields.linkedWholesaleServiceOnRecipientSide && (
-            <FormField label="Operator infrastrukturalny" error={errors.infrastructureOperatorId}>
-              <select
-                value={fields.infrastructureOperatorId}
-                onChange={setTextField('infrastructureOperatorId')}
-                className={`input-field ${errors.infrastructureOperatorId ? 'input-error' : ''}`}
-              >
-                <option value="">Wybierz operatora infrastrukturalnego</option>
-                {infrastructureOptions.map((operator) => (
-                  <option key={operator.id} value={operator.id}>
-                    {operator.name} ({operator.routingNumber})
-                  </option>
-                ))}
-              </select>
-            </FormField>
-          )}
-
-          <FormField label="Preferowany kanał kontaktu" error={errors.contactChannel}>
-            <select
-              value={fields.contactChannel}
-              onChange={setTextField('contactChannel')}
-              className={`input-field ${errors.contactChannel ? 'input-error' : ''}`}
-            >
-              {(['EMAIL', 'SMS', 'LETTER'] as ContactChannel[]).map((channel) => (
-                <option key={channel} value={channel}>
-                  {CONTACT_CHANNEL_LABELS[channel]}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </SectionCard>
-
-        <SectionCard title="7. Uwagi">
-          <FormField label="Notatki wewnętrzne (opcjonalnie)" error={errors.internalNotes}>
-            <textarea
-              value={fields.internalNotes}
-              onChange={setTextField('internalNotes')}
-              className={`input-field min-h-28 ${errors.internalNotes ? 'input-error' : ''}`}
-              placeholder="Dodatkowe informacje operacyjne, ustalenia z klientem, kontekst sprawy..."
-            />
-          </FormField>
-        </SectionCard>
-
-        {errors._root && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <span className="text-red-500 text-sm mt-0.5">⚠</span>
-            <p className="text-sm text-red-700">{errors._root}</p>
-          </div>
-        )}
-
-        <div className="flex gap-3 justify-end pt-2">
-          <button
-            type="button"
-            onClick={() => void navigate(ROUTES.REQUESTS)}
-            className="btn-secondary"
-            disabled={isSaving}
-          >
-            Anuluj
-          </button>
-          <button type="submit" className="btn-primary" disabled={isSaving || operatorsLoading}>
-            {isSaving ? (
-              <>
-                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Zapisywanie...
-              </>
-            ) : (
-              'Zapisz sprawę'
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
-  )
+function getDeferredModeDateLabel(mode: PortingMode): string {
+  return mode === 'EOP'
+    ? 'Najwczesniejsza akceptowalna data po koncu promocji'
+    : 'Najwczesniejsza akceptowalna data przeniesienia'
 }
 
-function SectionCard({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) {
+function getDeferredModeHelperText(mode: PortingMode): string {
+  return mode === 'EOP'
+    ? 'Finalna date przeniesienia wyznaczy Dawca zgodnie z koncem okresu promocyjnego. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy.'
+    : 'Finalna date przeniesienia wyznaczy Dawca zgodnie z okresem wypowiedzenia. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy.'
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="card p-5 space-y-4">
       <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{title}</h2>
@@ -810,6 +134,457 @@ function FormField({
       <label className="label">{label}</label>
       {children}
       {error && <p className="error-message">{error}</p>}
+    </div>
+  )
+}
+
+export function RequestNewPage() {
+  const navigate = useNavigate()
+  const { operators, isLoading: operatorsLoading, error: operatorsError } = useOperators()
+  const [clientQuery, setClientQuery] = useState('')
+  const [clientResults, setClientResults] = useState<ClientSearchItemDto[]>([])
+  const [isSearchingClients, setIsSearchingClients] = useState(false)
+  const [clientSearchError, setClientSearchError] = useState<string | null>(null)
+  const [selectedClient, setSelectedClient] = useState<ClientDetailDto | null>(null)
+  const [isLoadingClient, setIsLoadingClient] = useState(false)
+  const [fields, setFields] = useState<FormFields>(EMPTY_FORM)
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const isBusiness = selectedClient?.clientType === 'BUSINESS'
+  const donorOptions = useMemo(() => operators.filter((operator) => operator.isActive), [operators])
+  const infrastructureOptions = donorOptions
+
+  useEffect(() => {
+    if (selectedClient || clientQuery.trim().length < 2) {
+      setClientResults([])
+      setClientSearchError(null)
+      return
+    }
+    let cancelled = false
+    setIsSearchingClients(true)
+    setClientSearchError(null)
+    const timeoutId = setTimeout(async () => {
+      try {
+        const results = await searchClients(clientQuery.trim())
+        if (!cancelled) setClientResults(results)
+      } catch {
+        if (!cancelled) setClientSearchError('Nie udalo sie wyszukac klientow.')
+      } finally {
+        if (!cancelled) setIsSearchingClients(false)
+      }
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [clientQuery, selectedClient])
+
+  const setTextField =
+    (key: keyof FormFields) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      setFields((previous) => ({ ...previous, [key]: event.target.value }))
+      setErrors((previous) => ({ ...previous, [key]: undefined, _root: undefined }))
+    }
+
+  const setCheckboxField =
+    (key: keyof FormFields) =>
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setFields((previous) => ({ ...previous, [key]: event.target.checked }))
+      setErrors((previous) => ({ ...previous, [key]: undefined, _root: undefined }))
+    }
+
+  const applyClientSnapshot = (client: ClientDetailDto) => {
+    setFields((previous) => ({
+      ...previous,
+      subscriberFirstName: client.firstName ?? '',
+      subscriberLastName: client.lastName ?? '',
+      subscriberCompanyName: client.companyName ?? '',
+      identityType: inferIdentityType(client),
+      identityValue: inferIdentityValue(client),
+      correspondenceAddress: buildCorrespondenceAddress(client),
+    }))
+  }
+
+  const handleSelectClient = async (clientId: string) => {
+    setIsLoadingClient(true)
+    setClientSearchError(null)
+    try {
+      const client = await getClientById(clientId)
+      setSelectedClient(client)
+      setClientQuery('')
+      setClientResults([])
+      setErrors((previous) => ({ ...previous, clientId: undefined }))
+      applyClientSnapshot(client)
+    } catch {
+      setClientSearchError('Nie udalo sie pobrac pelnych danych wybranego klienta.')
+    } finally {
+      setIsLoadingClient(false)
+    }
+  }
+
+  const resetSelectedClient = () => {
+    setSelectedClient(null)
+    setFields((previous) => ({
+      ...EMPTY_FORM,
+      donorOperatorId: previous.donorOperatorId,
+      numberRangeKind: previous.numberRangeKind,
+      primaryNumber: previous.primaryNumber,
+      rangeStart: previous.rangeStart,
+      rangeEnd: previous.rangeEnd,
+      requestDocumentNumber: previous.requestDocumentNumber,
+      portingMode: previous.portingMode,
+      requestedPortDate: previous.requestedPortDate,
+      earliestAcceptablePortDate: previous.earliestAcceptablePortDate,
+      hasPowerOfAttorney: previous.hasPowerOfAttorney,
+      linkedWholesaleServiceOnRecipientSide: previous.linkedWholesaleServiceOnRecipientSide,
+      infrastructureOperatorId: previous.infrastructureOperatorId,
+      contactChannel: previous.contactChannel,
+      internalNotes: previous.internalNotes,
+    }))
+  }
+
+  const handleModeChange = (mode: PortingMode) => {
+    setFields((previous) => ({
+      ...previous,
+      portingMode: mode,
+      requestedPortDate: mode === 'DAY' ? previous.requestedPortDate : '',
+      earliestAcceptablePortDate: mode === 'DAY' ? '' : previous.earliestAcceptablePortDate,
+    }))
+    setErrors((previous) => ({
+      ...previous,
+      requestedPortDate: undefined,
+      earliestAcceptablePortDate: undefined,
+      hasPowerOfAttorney: undefined,
+      _root: undefined,
+    }))
+  }
+
+  function validate(): FormErrors {
+    const nextErrors: FormErrors = {}
+    const today = todayString()
+    if (!selectedClient) nextErrors.clientId = 'Wybierz klienta z kartoteki.'
+    if (!fields.donorOperatorId) nextErrors.donorOperatorId = 'Operator oddajacy jest wymagany.'
+    if (fields.numberRangeKind === 'SINGLE') {
+      if (!fields.primaryNumber.trim()) nextErrors.primaryNumber = 'Podaj numer glowny.'
+    } else {
+      if (!fields.rangeStart.trim()) nextErrors.rangeStart = 'Podaj numer poczatkowy zakresu.'
+      if (!fields.rangeEnd.trim()) nextErrors.rangeEnd = 'Podaj numer koncowy zakresu.'
+      if (fields.rangeStart.trim() && fields.rangeEnd.trim()) {
+        const start = normalizeComparablePhone(fields.rangeStart.trim())
+        const end = normalizeComparablePhone(fields.rangeEnd.trim())
+        if (start.length !== end.length) nextErrors.rangeEnd = 'Numery zakresu musza miec zgodny format.'
+        else if (start > end) nextErrors.rangeEnd = 'Numer koncowy zakresu nie moze byc mniejszy niz poczatkowy.'
+      }
+    }
+    if (fields.portingMode === 'DAY') {
+      if (!fields.requestedPortDate) nextErrors.requestedPortDate = 'Dla trybu DAY wskaz wnioskowany dzien przeniesienia.'
+      else if (fields.requestedPortDate < today) nextErrors.requestedPortDate = 'Wnioskowany dzien przeniesienia nie moze byc z przeszlosci.'
+      else if (isWeekend(fields.requestedPortDate)) nextErrors.requestedPortDate = 'Wnioskowany dzien przeniesienia nie moze przypasc w weekend.'
+      if (!fields.hasPowerOfAttorney) nextErrors.hasPowerOfAttorney = 'Tryb DAY wymaga pelnomocnictwa.'
+    } else if (!fields.earliestAcceptablePortDate) {
+      nextErrors.earliestAcceptablePortDate = 'Wskaz najwczesniejsza akceptowalna date po stronie Biorcy.'
+    } else if (fields.earliestAcceptablePortDate < today) {
+      nextErrors.earliestAcceptablePortDate = 'Najwczesniejsza akceptowalna data nie moze byc z przeszlosci.'
+    }
+    if (fields.linkedWholesaleServiceOnRecipientSide) {
+      if (!fields.hasPowerOfAttorney) nextErrors.hasPowerOfAttorney = WHOLESALE_HELPER
+      if (!fields.infrastructureOperatorId) nextErrors.infrastructureOperatorId = 'Wskaz operatora infrastrukturalnego.'
+    }
+    if (selectedClient?.clientType === 'INDIVIDUAL') {
+      if (!fields.subscriberFirstName.trim()) nextErrors.subscriberFirstName = 'Imie abonenta jest wymagane.'
+      if (!fields.subscriberLastName.trim()) nextErrors.subscriberLastName = 'Nazwisko abonenta jest wymagane.'
+    }
+    if (selectedClient?.clientType === 'BUSINESS' && !fields.subscriberCompanyName.trim()) {
+      nextErrors.subscriberCompanyName = 'Nazwa firmy abonenta jest wymagana.'
+    }
+    if (!fields.identityValue.trim()) nextErrors.identityValue = 'Wartosc identyfikatora jest wymagana.'
+    else if (fields.identityType === 'PESEL' && !/^\d{11}$/.test(fields.identityValue.trim())) nextErrors.identityValue = 'PESEL musi zawierac dokladnie 11 cyfr.'
+    else if (fields.identityType === 'NIP' && !/^\d{10}$/.test(fields.identityValue.replace(/[-\s]/g, ''))) nextErrors.identityValue = 'NIP musi zawierac 10 cyfr.'
+    else if (fields.identityType === 'REGON' && !/^(\d{9}|\d{14})$/.test(fields.identityValue.trim())) nextErrors.identityValue = 'REGON musi zawierac 9 albo 14 cyfr.'
+    if (!fields.correspondenceAddress.trim()) nextErrors.correspondenceAddress = 'Adres korespondencyjny jest wymagany.'
+    return nextErrors
+  }
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (isSaving || !selectedClient) return
+    const validationErrors = validate()
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      return
+    }
+    setIsSaving(true)
+    setErrors({})
+    const payload: CreatePortingRequestDto = {
+      clientId: selectedClient.id,
+      donorOperatorId: fields.donorOperatorId,
+      numberRangeKind: fields.numberRangeKind,
+      primaryNumber: fields.numberRangeKind === 'SINGLE' ? fields.primaryNumber.trim() : undefined,
+      rangeStart: fields.numberRangeKind === 'DDI_RANGE' ? fields.rangeStart.trim() : undefined,
+      rangeEnd: fields.numberRangeKind === 'DDI_RANGE' ? fields.rangeEnd.trim() : undefined,
+      requestDocumentNumber: fields.requestDocumentNumber.trim() || undefined,
+      portingMode: fields.portingMode,
+      requestedPortDate: fields.portingMode === 'DAY' ? fields.requestedPortDate || undefined : undefined,
+      earliestAcceptablePortDate: fields.portingMode !== 'DAY' ? fields.earliestAcceptablePortDate || undefined : undefined,
+      subscriberKind: selectedClient.clientType,
+      subscriberFirstName: selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberFirstName.trim() : undefined,
+      subscriberLastName: selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberLastName.trim() : undefined,
+      subscriberCompanyName: selectedClient.clientType === 'BUSINESS' ? fields.subscriberCompanyName.trim() : undefined,
+      identityType: fields.identityType,
+      identityValue: fields.identityValue.trim(),
+      correspondenceAddress: fields.correspondenceAddress.trim(),
+      hasPowerOfAttorney: fields.hasPowerOfAttorney,
+      linkedWholesaleServiceOnRecipientSide: fields.linkedWholesaleServiceOnRecipientSide,
+      infrastructureOperatorId: fields.linkedWholesaleServiceOnRecipientSide && fields.infrastructureOperatorId ? fields.infrastructureOperatorId : undefined,
+      contactChannel: fields.contactChannel,
+      internalNotes: fields.internalNotes.trim() || undefined,
+    }
+    try {
+      const request = await createPortingRequest(payload)
+      void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.id))
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 409) {
+          setErrors({ _root: (error.response.data as { error?: { message?: string } })?.error?.message ?? 'Dla wskazanej numeracji istnieje juz aktywna sprawa.' })
+        } else if (error.response?.status === 400) {
+          const details = (error.response.data as { error?: { details?: Record<string, string[]> } } )?.error?.details
+          if (details) {
+            const fieldErrors: FormErrors = {}
+            for (const [field, messages] of Object.entries(details)) {
+              if (messages?.[0]) fieldErrors[field as keyof FormErrors] = messages[0]
+            }
+            setErrors(fieldErrors)
+          } else {
+            setErrors({ _root: (error.response.data as { error?: { message?: string } })?.error?.message ?? 'Nieprawidlowe dane. Sprawdz formularz.' })
+          }
+        } else if (error.response?.status === 403) {
+          setErrors({ _root: 'Brak uprawnien do zakladania spraw portowania.' })
+        } else {
+          setErrors({ _root: 'Wystapil blad serwera. Sprobuj ponownie.' })
+        }
+      } else {
+        setErrors({ _root: 'Brak polaczenia z serwerem.' })
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const identityTypeOptions: SubscriberIdentityType[] = isBusiness ? ['NIP', 'REGON', 'OTHER'] : ['PESEL', 'ID_CARD', 'PASSPORT', 'OTHER']
+  const modeDescription = PORTING_MODE_DESCRIPTIONS[fields.portingMode]
+
+  return (
+    <div className="p-6 max-w-4xl">
+      <div className="mb-6">
+        <button onClick={() => void navigate(ROUTES.REQUESTS)} className="text-sm text-gray-500 hover:text-gray-700 mb-2 flex items-center gap-1">
+          {'<-'} Sprawy portowania
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">Nowa sprawa portowania</h1>
+      </div>
+      <form onSubmit={(event) => void handleSubmit(event)} noValidate className="space-y-5">
+        <SectionCard title="1. Klient">
+          {selectedClient ? (
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{selectedClient.displayName}</p>
+                <p className="text-sm text-gray-500 mt-1">{selectedClient.clientType === 'BUSINESS' ? 'Firma / podmiot prawny' : 'Osoba fizyczna'}</p>
+                <p className="text-xs text-gray-500 mt-1">Dane abonenta zostaly wstepnie uzupelnione z kartoteki i mozna je doprecyzowac ponizej.</p>
+              </div>
+              <button type="button" onClick={resetSelectedClient} className="btn-secondary">Zmien klienta</button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <FormField label="Wyszukaj klienta" error={errors.clientId || clientSearchError || undefined}>
+                <input type="search" value={clientQuery} onChange={(event) => setClientQuery(event.target.value)} className={`input-field ${errors.clientId || clientSearchError ? 'input-error' : ''}`} placeholder="Wpisz nazwisko, firme, PESEL albo NIP..." disabled={isLoadingClient} />
+              </FormField>
+              {isSearchingClients && <p className="text-xs text-gray-400">Wyszukiwanie klientow...</p>}
+              {clientResults.length > 0 && (
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  {clientResults.map((client) => (
+                    <button key={client.id} type="button" onClick={() => void handleSelectClient(client.id)} className="w-full text-left px-4 py-3 bg-white hover:bg-blue-50 border-b border-gray-100 last:border-b-0">
+                      <div className="font-medium text-sm text-gray-900">{client.displayName}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{client.identifierMasked ?? 'Brak identyfikatora'}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </SectionCard>
+        <SectionCard title="2. Zakres numeracji">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Typ uslugi dla B3: numer stacjonarny / FNP.</div>
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden w-fit">
+            {(['SINGLE', 'DDI_RANGE'] as PortedNumberKind[]).map((kind) => (
+              <button key={kind} type="button" onClick={() => setFields((previous) => ({ ...previous, numberRangeKind: kind }))} className={`px-6 py-2 text-sm font-medium transition-colors ${fields.numberRangeKind === kind ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
+                {PORTED_NUMBER_KIND_LABELS[kind]}
+              </button>
+            ))}
+          </div>
+          {fields.numberRangeKind === 'SINGLE' ? (
+            <FormField label="Numer glowny" error={errors.primaryNumber}>
+              <input className={`input-field font-mono ${errors.primaryNumber ? 'input-error' : ''}`} value={fields.primaryNumber} onChange={setTextField('primaryNumber')} placeholder="+48 22 123 45 67" />
+            </FormField>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField label="Numer poczatkowy zakresu" error={errors.rangeStart}>
+                <input className={`input-field font-mono ${errors.rangeStart ? 'input-error' : ''}`} value={fields.rangeStart} onChange={setTextField('rangeStart')} placeholder="+48 22 555 10 00" />
+              </FormField>
+              <FormField label="Numer koncowy zakresu" error={errors.rangeEnd}>
+                <input className={`input-field font-mono ${errors.rangeEnd ? 'input-error' : ''}`} value={fields.rangeEnd} onChange={setTextField('rangeEnd')} placeholder="+48 22 555 10 99" />
+              </FormField>
+            </div>
+          )}
+          <FormField label="Numer wniosku / dokumentu (opcjonalnie)" error={errors.requestDocumentNumber}>
+            <input className={`input-field ${errors.requestDocumentNumber ? 'input-error' : ''}`} value={fields.requestDocumentNumber} onChange={setTextField('requestDocumentNumber')} placeholder="np. WN-2026/03/001" />
+          </FormField>
+        </SectionCard>
+
+        <SectionCard title="3. Operatorzy">
+          <FormField label="Operator oddajacy" error={errors.donorOperatorId}>
+            <select value={fields.donorOperatorId} onChange={setTextField('donorOperatorId')} className={`input-field ${errors.donorOperatorId ? 'input-error' : ''}`} disabled={operatorsLoading}>
+              <option value="">Wybierz operatora oddajacego</option>
+              {donorOptions.map((operator) => (
+                <option key={operator.id} value={operator.id}>
+                  {operator.name} ({operator.routingNumber})
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {operatorsError && <p className="text-sm text-red-600">{operatorsError}</p>}
+        </SectionCard>
+
+        <SectionCard title="4. Tryb i termin">
+          <div className="flex flex-wrap rounded-lg border border-gray-300 overflow-hidden w-fit">
+            {(['DAY', 'END', 'EOP'] as PortingMode[]).map((mode) => (
+              <button key={mode} type="button" onClick={() => handleModeChange(mode)} className={`px-6 py-2 text-sm font-medium transition-colors ${fields.portingMode === mode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
+                {PORTING_MODE_LABELS[mode]}
+              </button>
+            ))}
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">{modeDescription}</div>
+          {fields.portingMode === 'DAY' ? (
+            <>
+              <FormField label="Wnioskowany dzien przeniesienia" error={errors.requestedPortDate}>
+                <input type="date" value={fields.requestedPortDate} onChange={setTextField('requestedPortDate')} className={`input-field ${errors.requestedPortDate ? 'input-error' : ''}`} />
+              </FormField>
+              <p className="text-xs text-gray-500">Klient wskazuje konkretny termin przeniesienia. Data nie moze wypasc w weekend.</p>
+            </>
+          ) : (
+            <>
+              <FormField label={getDeferredModeDateLabel(fields.portingMode)} error={errors.earliestAcceptablePortDate}>
+                <input type="date" value={fields.earliestAcceptablePortDate} onChange={setTextField('earliestAcceptablePortDate')} className={`input-field ${errors.earliestAcceptablePortDate ? 'input-error' : ''}`} />
+              </FormField>
+              <p className="text-xs text-gray-500">{getDeferredModeHelperText(fields.portingMode)}</p>
+            </>
+          )}
+        </SectionCard>
+
+        <SectionCard title="5. Dane abonenta / identyfikacyjne">
+          {!selectedClient && <p className="text-sm text-gray-500">Najpierw wybierz klienta z kartoteki.</p>}
+          {selectedClient && (
+            <>
+              {selectedClient.clientType === 'INDIVIDUAL' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField label="Imie abonenta" error={errors.subscriberFirstName}>
+                    <input className={`input-field ${errors.subscriberFirstName ? 'input-error' : ''}`} value={fields.subscriberFirstName} onChange={setTextField('subscriberFirstName')} />
+                  </FormField>
+                  <FormField label="Nazwisko abonenta" error={errors.subscriberLastName}>
+                    <input className={`input-field ${errors.subscriberLastName ? 'input-error' : ''}`} value={fields.subscriberLastName} onChange={setTextField('subscriberLastName')} />
+                  </FormField>
+                </div>
+              ) : (
+                <FormField label="Nazwa firmy abonenta" error={errors.subscriberCompanyName}>
+                  <input className={`input-field ${errors.subscriberCompanyName ? 'input-error' : ''}`} value={fields.subscriberCompanyName} onChange={setTextField('subscriberCompanyName')} />
+                </FormField>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Typ identyfikatora" error={errors.identityType}>
+                  <select value={fields.identityType} onChange={setTextField('identityType')} className={`input-field ${errors.identityType ? 'input-error' : ''}`}>
+                    {identityTypeOptions.map((identityType) => (
+                      <option key={identityType} value={identityType}>
+                        {SUBSCRIBER_IDENTITY_TYPE_LABELS[identityType]}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField label="Wartosc identyfikatora" error={errors.identityValue}>
+                  <input className={`input-field font-mono ${errors.identityValue ? 'input-error' : ''}`} value={fields.identityValue} onChange={setTextField('identityValue')} />
+                </FormField>
+              </div>
+              <FormField label="Adres korespondencyjny" error={errors.correspondenceAddress}>
+                <textarea value={fields.correspondenceAddress} onChange={setTextField('correspondenceAddress')} className={`input-field min-h-24 ${errors.correspondenceAddress ? 'input-error' : ''}`} />
+              </FormField>
+            </>
+          )}
+        </SectionCard>
+        <SectionCard title="6. Upowaznienie i proces">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={fields.hasPowerOfAttorney} onChange={setCheckboxField('hasPowerOfAttorney')} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+            <span className="text-sm text-gray-700">Klient udzielil pelnomocnictwa</span>
+          </label>
+          {errors.hasPowerOfAttorney && <p className="error-message">{errors.hasPowerOfAttorney}</p>}
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={fields.linkedWholesaleServiceOnRecipientSide} onChange={setCheckboxField('linkedWholesaleServiceOnRecipientSide')} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+            <span className="text-sm text-gray-700">Sprawa jest powiazana z Usluga Hurtowa po stronie Biorcy</span>
+          </label>
+
+          {fields.linkedWholesaleServiceOnRecipientSide && (
+            <>
+              <p className="text-xs text-amber-700">{WHOLESALE_HELPER}</p>
+              <FormField label="Operator infrastrukturalny" error={errors.infrastructureOperatorId}>
+                <select value={fields.infrastructureOperatorId} onChange={setTextField('infrastructureOperatorId')} className={`input-field ${errors.infrastructureOperatorId ? 'input-error' : ''}`}>
+                  <option value="">Wybierz operatora infrastrukturalnego</option>
+                  {infrastructureOptions.map((operator) => (
+                    <option key={operator.id} value={operator.id}>
+                      {operator.name} ({operator.routingNumber})
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            </>
+          )}
+
+          <FormField label="Preferowany kanal kontaktu" error={errors.contactChannel}>
+            <select value={fields.contactChannel} onChange={setTextField('contactChannel')} className={`input-field ${errors.contactChannel ? 'input-error' : ''}`}>
+              {(['EMAIL', 'SMS', 'LETTER'] as ContactChannel[]).map((channel) => (
+                <option key={channel} value={channel}>
+                  {CONTACT_CHANNEL_LABELS[channel]}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        </SectionCard>
+
+        <SectionCard title="7. Uwagi">
+          <FormField label="Notatki wewnetrzne (opcjonalnie)" error={errors.internalNotes}>
+            <textarea value={fields.internalNotes} onChange={setTextField('internalNotes')} className={`input-field min-h-28 ${errors.internalNotes ? 'input-error' : ''}`} placeholder="Dodatkowe informacje operacyjne, ustalenia z klientem, kontekst sprawy..." />
+          </FormField>
+        </SectionCard>
+
+        {errors._root && (
+          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <span className="text-red-500 text-sm mt-0.5">!</span>
+            <p className="text-sm text-red-700">{errors._root}</p>
+          </div>
+        )}
+
+        <div className="flex gap-3 justify-end pt-2">
+          <button type="button" onClick={() => void navigate(ROUTES.REQUESTS)} className="btn-secondary" disabled={isSaving}>
+            Anuluj
+          </button>
+          <button type="submit" className="btn-primary" disabled={isSaving || operatorsLoading}>
+            {isSaving ? (
+              <>
+                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Zapisywanie...
+              </>
+            ) : (
+              'Zapisz sprawe'
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
