@@ -46,6 +46,12 @@ const createOperatorBodySchema = z.object({
  *   GET  /api/operators          — lista aktywnych operatorów (każdy zalogowany)
  *   POST /api/operators          — utwórz operatora (tylko ADMIN)
  *
+ * Polityka dostępu — świadoma decyzja projektowa:
+ *   GET jest otwarty dla wszystkich uwierzytelnionych ról (nie tylko ADMIN),
+ *   ponieważ BOK_CONSULTANT, BACK_OFFICE i MANAGER muszą widzieć listę
+ *   operatorów przy tworzeniu wniosków portowania (dropdowny w formularzach).
+ *   Zarządzanie słownikiem (POST/PATCH/DELETE) pozostaje wyłącznie dla ADMIN.
+ *
  * Rejestracja w app.ts:
  *   app.register(operatorsRouter, { prefix: '/api/operators' })
  */
