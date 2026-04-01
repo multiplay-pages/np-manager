@@ -672,7 +672,7 @@ async function main() {
   const adminPassword = 'Admin@NP2026!'
   const adminPasswordHash = await bcrypt.hash(adminPassword, 12)
 
-  await prisma.user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { email: 'admin@np-manager.local' },
     update: {
       passwordHash: adminPasswordHash,
@@ -721,7 +721,221 @@ async function main() {
   console.info('   🔑  Hasło:   Bok@NP2026!')
 
   // ----------------------------------------------------------
-  // 6. USTAWIENIA SYSTEMOWE
+  // 6. DANE QA â€” klient i sprawy portowania
+  // ----------------------------------------------------------
+  console.info('Tworzenie minimalnych danych QA dla portowania...')
+
+  const qaClient = await prisma.client.upsert({
+    where: { pesel: '90010112345' },
+    update: {
+      clientType: 'INDIVIDUAL',
+      firstName: 'Jan',
+      lastName: 'Testowy',
+      pesel: '90010112345',
+      companyName: null,
+      nip: null,
+      krs: null,
+      proxyName: null,
+      proxyPesel: null,
+      email: 'jan.testowy@np-manager.local',
+      phoneContact: '600700800',
+      addressStreet: 'ul. Testowa 10/5',
+      addressCity: 'Warszawa',
+      addressZip: '00-001',
+      createdById: adminUser.id,
+    },
+    create: {
+      clientType: 'INDIVIDUAL',
+      firstName: 'Jan',
+      lastName: 'Testowy',
+      pesel: '90010112345',
+      email: 'jan.testowy@np-manager.local',
+      phoneContact: '600700800',
+      addressStreet: 'ul. Testowa 10/5',
+      addressCity: 'Warszawa',
+      addressZip: '00-001',
+      createdById: adminUser.id,
+    },
+  })
+
+  const recipientOperator = await prisma.operator.findUniqueOrThrow({
+    where: { routingNumber: 'GNET' },
+  })
+
+  const donorOperator = await prisma.operator.findUniqueOrThrow({
+    where: { routingNumber: 'ORANGE' },
+  })
+
+  await prisma.portingRequest.upsert({
+    where: { caseNumber: 'FNP-SEED-ACTIVE-001' },
+    update: {
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234567',
+      rangeStart: null,
+      rangeEnd: null,
+      requestDocumentNumber: 'DOC-SEED-ACT-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      infrastructureOperatorId: null,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-04-01T09:00:00.000Z'),
+      requestedPortDate: new Date('2026-04-15T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      earliestAcceptablePortDate: null,
+      confirmedPortDate: null,
+      donorAssignedPortDate: null,
+      donorAssignedPortTime: null,
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      statusPliCbd: null,
+      pliCbdCaseId: null,
+      pliCbdCaseNumber: null,
+      pliCbdPackageId: null,
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      pliCbdLastSyncAt: null,
+      lastExxReceived: null,
+      lastPliCbdStatusCode: null,
+      lastPliCbdStatusDescription: null,
+      rejectionCode: null,
+      rejectionReason: null,
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      subscriberCompanyName: null,
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes: 'Seed QA: aktywna sprawa do testu eksportu i synchronizacji PLI CBD.',
+      createdByUserId: adminUser.id,
+    },
+    create: {
+      caseNumber: 'FNP-SEED-ACTIVE-001',
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234567',
+      requestDocumentNumber: 'DOC-SEED-ACT-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-04-01T09:00:00.000Z'),
+      requestedPortDate: new Date('2026-04-15T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes: 'Seed QA: aktywna sprawa do testu eksportu i synchronizacji PLI CBD.',
+      createdByUserId: adminUser.id,
+    },
+  })
+
+  await prisma.portingRequest.upsert({
+    where: { caseNumber: 'FNP-SEED-PORTED-001' },
+    update: {
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234568',
+      rangeStart: null,
+      rangeEnd: null,
+      requestDocumentNumber: 'DOC-SEED-PRT-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      infrastructureOperatorId: null,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-03-20T08:30:00.000Z'),
+      requestedPortDate: new Date('2026-03-28T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      earliestAcceptablePortDate: null,
+      confirmedPortDate: new Date('2026-03-28T00:00:00.000Z'),
+      donorAssignedPortDate: new Date('2026-03-28T00:00:00.000Z'),
+      donorAssignedPortTime: '08:00',
+      portingMode: 'DAY',
+      statusInternal: 'PORTED',
+      statusPliCbd: 'PORTED',
+      pliCbdCaseId: 'PLI-SEED-PORTED-001',
+      pliCbdCaseNumber: 'PLI-SEED-PORTED-001',
+      pliCbdPackageId: null,
+      pliCbdExportStatus: 'EXPORTED',
+      pliCbdLastSyncAt: new Date('2026-03-28T08:15:00.000Z'),
+      lastExxReceived: null,
+      lastPliCbdStatusCode: 'PORTED',
+      lastPliCbdStatusDescription: 'Seed QA: sprawa zakonczona do testu zablokowanego eksportu.',
+      rejectionCode: null,
+      rejectionReason: null,
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      subscriberCompanyName: null,
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes: 'Seed QA: zakonczona sprawa do testu wpisu ERROR dla zablokowanego eksportu.',
+      createdByUserId: adminUser.id,
+    },
+    create: {
+      caseNumber: 'FNP-SEED-PORTED-001',
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234568',
+      requestDocumentNumber: 'DOC-SEED-PRT-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-03-20T08:30:00.000Z'),
+      requestedPortDate: new Date('2026-03-28T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      confirmedPortDate: new Date('2026-03-28T00:00:00.000Z'),
+      donorAssignedPortDate: new Date('2026-03-28T00:00:00.000Z'),
+      donorAssignedPortTime: '08:00',
+      portingMode: 'DAY',
+      statusInternal: 'PORTED',
+      statusPliCbd: 'PORTED',
+      pliCbdCaseId: 'PLI-SEED-PORTED-001',
+      pliCbdCaseNumber: 'PLI-SEED-PORTED-001',
+      pliCbdExportStatus: 'EXPORTED',
+      pliCbdLastSyncAt: new Date('2026-03-28T08:15:00.000Z'),
+      lastPliCbdStatusCode: 'PORTED',
+      lastPliCbdStatusDescription: 'Seed QA: sprawa zakonczona do testu zablokowanego eksportu.',
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes: 'Seed QA: zakonczona sprawa do testu wpisu ERROR dla zablokowanego eksportu.',
+      createdByUserId: adminUser.id,
+    },
+  })
+  console.info('Dodano klienta QA oraz 2 sprawy portowania (aktywna + zakonczona)')
+
+  // ----------------------------------------------------------
+  // 7. USTAWIENIA SYSTEMOWE
   // ----------------------------------------------------------
   console.info('⚙️  Tworzenie ustawień systemowych...')
 
@@ -780,7 +994,7 @@ async function main() {
   console.info(`   ✓ Utworzono ${settings.length} ustawień systemowych`)
 
   // ----------------------------------------------------------
-  // 7. KALENDARZ ŚWIĄT 2026
+  // 8. KALENDARZ ŚWIĄT 2026
   // ----------------------------------------------------------
   console.info('📅 Tworzenie kalendarza dni wolnych 2026...')
 
