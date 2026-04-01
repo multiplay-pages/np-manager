@@ -17,7 +17,6 @@ import {
   PLI_CBD_EXPORT_STATUS_LABELS,
   PORTED_NUMBER_KIND_LABELS,
   PORTING_CASE_STATUS_ACTION_LABELS,
-  PORTING_CASE_STATUS_CONFIRMATION_TARGETS,
   PORTING_CASE_STATUS_LABELS,
   PORTING_MODE_LABELS,
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
@@ -184,26 +183,30 @@ export function RequestDetailPage() {
     }
   }
 
-  const getConfirmationMessage = (targetStatus: PortingCaseStatus): string => {
-    switch (targetStatus) {
-      case 'REJECTED':
-        return 'Czy na pewno chcesz oznaczyc sprawe jako odrzucona?'
-      case 'CANCELLED':
-        return 'Czy na pewno chcesz anulowac te sprawe?'
-      case 'PORTED':
-        return 'Czy na pewno chcesz oznaczyc sprawe jako przeniesiona?'
-      case 'ERROR':
-        return 'Czy na pewno chcesz oznaczyc te sprawe jako blad?'
-      default:
-        return 'Czy na pewno chcesz zmienic status sprawy?'
-    }
-  }
-
   const handleStatusChange = async (targetStatus: PortingCaseStatus) => {
     if (!id || !request || !canManageStatus || isUpdatingStatus) return
 
-    if (PORTING_CASE_STATUS_CONFIRMATION_TARGETS.includes(targetStatus)) {
-      const isConfirmed = window.confirm(getConfirmationMessage(targetStatus))
+    if (targetStatus === 'REJECTED') {
+      const isConfirmed = window.confirm(
+        'Czy na pewno chcesz oznaczyc sprawe jako odrzucona?',
+      )
+      if (!isConfirmed) return
+    }
+
+    if (targetStatus === 'CANCELLED') {
+      const isConfirmed = window.confirm('Czy na pewno chcesz anulowac te sprawe?')
+      if (!isConfirmed) return
+    }
+
+    if (targetStatus === 'ERROR') {
+      const isConfirmed = window.confirm('Czy na pewno chcesz oznaczyc te sprawe jako blad?')
+      if (!isConfirmed) return
+    }
+
+    if (targetStatus === 'PORTED') {
+      const isConfirmed = window.confirm(
+        'Czy na pewno chcesz oznaczyc sprawe jako przeniesiona?',
+      )
       if (!isConfirmed) return
     }
 
@@ -344,7 +347,7 @@ export function RequestDetailPage() {
       </Section>
 
       <Section title="Meta i status">
-        <Field label="Status wewnetrzny" value={PORTING_CASE_STATUS_LABELS[request.statusInternal]} />
+        <Field label="Status wewnętrzny" value={getPortingStatusMeta(request.statusInternal).label} />
         <Field label="Status PLI CBD (legacy)" value={request.statusPliCbd} mono />
         <Field label="Kod odrzucenia" value={request.rejectionCode} mono />
         <WideField label="Powod odrzucenia" value={request.rejectionReason} />
