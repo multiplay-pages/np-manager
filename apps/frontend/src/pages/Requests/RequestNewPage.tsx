@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
 import { getClientById, searchClients } from '@/services/clients.api'
@@ -140,6 +140,7 @@ function FormField({
 
 export function RequestNewPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { operators, isLoading: operatorsLoading, error: operatorsError } = useOperators()
   const [clientQuery, setClientQuery] = useState('')
   const [clientResults, setClientResults] = useState<ClientSearchItemDto[]>([])
@@ -147,12 +148,33 @@ export function RequestNewPage() {
   const [clientSearchError, setClientSearchError] = useState<string | null>(null)
   const [selectedClient, setSelectedClient] = useState<ClientDetailDto | null>(null)
   const [isLoadingClient, setIsLoadingClient] = useState(false)
+  const [initializedClientId, setInitializedClientId] = useState<string | null>(null)
   const [fields, setFields] = useState<FormFields>(EMPTY_FORM)
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSaving, setIsSaving] = useState(false)
   const isBusiness = selectedClient?.clientType === 'BUSINESS'
+  const selectedClientIdFromQuery = searchParams.get('clientId')
+  const showCreatedClientSuccess = searchParams.get('requestCreatedClient') === '1'
   const donorOptions = useMemo(() => operators.filter((operator) => operator.isActive), [operators])
   const infrastructureOptions = donorOptions
+  const createClientHref = `${ROUTES.CLIENT_NEW}?returnTo=${encodeURIComponent(ROUTES.REQUEST_NEW)}`
+
+  const syncSelectedClientParams = useCallback(
+    (clientId: string | null, showSuccessMessage = false) => {
+      const nextParams = new URLSearchParams(searchParams)
+
+      if (clientId) nextParams.set('clientId', clientId)
+      else nextParams.delete('clientId')
+
+      if (showSuccessMessage) nextParams.set('requestCreatedClient', '1')
+      else nextParams.delete('requestCreatedClient')
+
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams, { replace: true })
+      }
+    },
+    [searchParams, setSearchParams],
+  )
 
   useEffect(() => {
     if (selectedClient || clientQuery.trim().length < 2) {
@@ -205,7 +227,10 @@ export function RequestNewPage() {
     }))
   }
 
-  const handleSelectClient = async (clientId: string) => {
+  const handleSelectClient = useCallback(async (
+    clientId: string,
+    options?: { showSuccessMessage?: boolean },
+  ) => {
     setIsLoadingClient(true)
     setClientSearchError(null)
     try {
@@ -215,15 +240,41 @@ export function RequestNewPage() {
       setClientResults([])
       setErrors((previous) => ({ ...previous, clientId: undefined }))
       applyClientSnapshot(client)
+      syncSelectedClientParams(client.id, options?.showSuccessMessage ?? false)
     } catch {
       setClientSearchError('Nie udalo sie pobrac pelnych danych wybranego klienta.')
     } finally {
       setIsLoadingClient(false)
     }
-  }
+  }, [syncSelectedClientParams])
+
+  useEffect(() => {
+    if (
+      !selectedClientIdFromQuery ||
+      initializedClientId === selectedClientIdFromQuery ||
+      selectedClient?.id === selectedClientIdFromQuery ||
+      isLoadingClient
+    ) {
+      return
+    }
+
+    setInitializedClientId(selectedClientIdFromQuery)
+    void handleSelectClient(selectedClientIdFromQuery, {
+      showSuccessMessage: showCreatedClientSuccess,
+    })
+  }, [
+    handleSelectClient,
+    initializedClientId,
+    isLoadingClient,
+    selectedClient?.id,
+    selectedClientIdFromQuery,
+    showCreatedClientSuccess,
+  ])
 
   const resetSelectedClient = () => {
     setSelectedClient(null)
+    setInitializedClientId(null)
+    syncSelectedClientParams(null)
     setFields((previous) => ({
       ...EMPTY_FORM,
       donorOperatorId: previous.donorOperatorId,
@@ -388,6 +439,11 @@ export function RequestNewPage() {
               <div>
                 <p className="text-sm font-semibold text-gray-900">{selectedClient.displayName}</p>
                 <p className="text-sm text-gray-500 mt-1">{selectedClient.clientType === 'BUSINESS' ? 'Firma / podmiot prawny' : 'Osoba fizyczna'}</p>
+                {showCreatedClientSuccess && (
+                  <p className="mt-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                    Klient zostal utworzony i zostal podpiety do nowej sprawy portowania.
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">Dane abonenta zostaly wstepnie uzupelnione z kartoteki i mozna je doprecyzowac ponizej.</p>
               </div>
               <button type="button" onClick={resetSelectedClient} className="btn-secondary">Zmien klienta</button>
@@ -397,6 +453,13 @@ export function RequestNewPage() {
               <FormField label="Wyszukaj klienta" error={errors.clientId || clientSearchError || undefined}>
                 <input type="search" value={clientQuery} onChange={(event) => setClientQuery(event.target.value)} className={`input-field ${errors.clientId || clientSearchError ? 'input-error' : ''}`} placeholder="Wpisz nazwisko, firme, PESEL albo NIP..." disabled={isLoadingClient} />
               </FormField>
+              <button
+                type="button"
+                onClick={() => void navigate(createClientHref)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                Nie ma klienta? Dodaj nowego klienta
+              </button>
               {isSearchingClients && <p className="text-xs text-gray-400">Wyszukiwanie klientow...</p>}
               {clientResults.length > 0 && (
                 <div className="rounded-lg border border-gray-200 overflow-hidden">
