@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import axios from 'axios'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
@@ -7,17 +8,25 @@ import {
   getPortingRequestById,
   getPortingRequestTimeline,
   syncPortingRequest,
+  updatePortingRequestStatus,
 } from '@/services/portingRequests.api'
 import {
   CONTACT_CHANNEL_LABELS,
+  getAllowedPortingCaseStatusTransitions,
   NUMBER_TYPE_LABELS,
   PLI_CBD_EXPORT_STATUS_LABELS,
   PORTED_NUMBER_KIND_LABELS,
+  PORTING_CASE_STATUS_ACTION_LABELS,
+  PORTING_CASE_STATUS_CONFIRMATION_TARGETS,
   PORTING_CASE_STATUS_LABELS,
   PORTING_MODE_LABELS,
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
 } from '@np-manager/shared'
-import type { PortingRequestDetailDto, PortingTimelineItemDto } from '@np-manager/shared'
+import type {
+  PortingCaseStatus,
+  PortingRequestDetailDto,
+  PortingTimelineItemDto,
+} from '@np-manager/shared'
 import { PortingTimeline } from '@/components/PortingTimeline/PortingTimeline'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 
@@ -75,14 +84,30 @@ export function RequestDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+  const [statusActionError, setStatusActionError] = useState<string | null>(null)
+  const [statusActionSuccess, setStatusActionSuccess] = useState<string | null>(null)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [timelineItems, setTimelineItems] = useState<PortingTimelineItemDto[]>([])
   const [isTimelineLoading, setIsTimelineLoading] = useState(true)
 
+  const canManageStatus = useMemo(
+    () =>
+      ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(
+        user?.role ?? '',
+      ),
+    [user?.role],
+  )
+
   const canTriggerPliCbdActions = useMemo(
     () => user?.role === 'ADMIN',
     [user?.role],
+  )
+
+  const allowedStatusActions = useMemo(
+    () => (request ? getAllowedPortingCaseStatusTransitions(request.statusInternal) : []),
+    [request],
   )
 
   const loadTimeline = useCallback(async () => {
@@ -156,6 +181,50 @@ export function RequestDetailPage() {
       setActionError('Nie udalo sie uruchomic foundation synchronizacji z PLI CBD.')
     } finally {
       setIsSyncing(false)
+    }
+  }
+
+  const getConfirmationMessage = (targetStatus: PortingCaseStatus): string => {
+    switch (targetStatus) {
+      case 'REJECTED':
+        return 'Czy na pewno chcesz oznaczyc sprawe jako odrzucona?'
+      case 'CANCELLED':
+        return 'Czy na pewno chcesz anulowac te sprawe?'
+      case 'PORTED':
+        return 'Czy na pewno chcesz oznaczyc sprawe jako przeniesiona?'
+      case 'ERROR':
+        return 'Czy na pewno chcesz oznaczyc te sprawe jako blad?'
+      default:
+        return 'Czy na pewno chcesz zmienic status sprawy?'
+    }
+  }
+
+  const handleStatusChange = async (targetStatus: PortingCaseStatus) => {
+    if (!id || !request || !canManageStatus || isUpdatingStatus) return
+
+    if (PORTING_CASE_STATUS_CONFIRMATION_TARGETS.includes(targetStatus)) {
+      const isConfirmed = window.confirm(getConfirmationMessage(targetStatus))
+      if (!isConfirmed) return
+    }
+
+    setIsUpdatingStatus(true)
+    setStatusActionError(null)
+    setStatusActionSuccess(null)
+
+    try {
+      const updatedRequest = await updatePortingRequestStatus(id, { targetStatus })
+      setRequest(updatedRequest)
+      void loadTimeline()
+      setStatusActionSuccess('Status sprawy został zmieniony.')
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const message = (err.response?.data as { error?: { message?: string } })?.error?.message
+        setStatusActionError(message ?? 'Nie można wykonać tej zmiany statusu.')
+      } else {
+        setStatusActionError('Nie można wykonać tej zmiany statusu.')
+      }
+    } finally {
+      setIsUpdatingStatus(false)
     }
   }
 
@@ -280,6 +349,53 @@ export function RequestDetailPage() {
         <Field label="Kod odrzucenia" value={request.rejectionCode} mono />
         <WideField label="Powod odrzucenia" value={request.rejectionReason} />
       </Section>
+
+      {canManageStatus && (
+        <div className="card p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">
+              Akcje operacyjne
+            </h2>
+            <p className="text-sm text-gray-500">
+              Dostepne akcje zalezne od biezacego statusu sprawy.
+            </p>
+          </div>
+
+          {allowedStatusActions.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {allowedStatusActions.map((targetStatus) => (
+                <button
+                  key={targetStatus}
+                  type="button"
+                  onClick={() => void handleStatusChange(targetStatus)}
+                  className="btn-secondary"
+                  disabled={isUpdatingStatus || isExporting || isSyncing}
+                >
+                  {isUpdatingStatus
+                    ? 'Zapisywanie...'
+                    : (PORTING_CASE_STATUS_ACTION_LABELS[targetStatus] ?? PORTING_CASE_STATUS_LABELS[targetStatus])}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              Dla tego statusu nie ma dostępnych akcji.
+            </div>
+          )}
+
+          {statusActionSuccess && (
+            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {statusActionSuccess}
+            </div>
+          )}
+
+          {statusActionError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {statusActionError}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card p-5 space-y-4">
         <div className="flex items-start justify-between gap-4">

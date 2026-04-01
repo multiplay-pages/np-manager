@@ -5,6 +5,7 @@ import { authorize } from '../../shared/middleware/authorize'
 import {
   createPortingRequestSchema,
   portingRequestListQuerySchema,
+  updatePortingRequestStatusSchema,
 } from './porting-requests.schema'
 import {
   createPortingRequest,
@@ -12,6 +13,7 @@ import {
   getPortingRequest,
   listPortingRequests,
   syncPortingRequestFromPliCbd,
+  updatePortingRequestStatus,
 } from './porting-requests.service'
 import { getPortingRequestTimeline } from './porting-events.service'
 
@@ -68,6 +70,23 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
       )
 
       return reply.status(201).send({ success: true, data: { request: portingRequest } })
+    },
+  )
+
+  app.patch<{ Params: { id: string } }>(
+    '/:id/status',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const body = updatePortingRequestStatusSchema.parse(request.body)
+      const portingRequest = await updatePortingRequestStatus(
+        request.params.id,
+        body,
+        request.user.id,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
     },
   )
 

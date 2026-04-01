@@ -76,6 +76,10 @@ export interface CreatePortingRequestDto {
   internalNotes?: string
 }
 
+export interface UpdatePortingRequestStatusDto {
+  targetStatus: PortingCaseStatus
+}
+
 // ============================================================
 // SZCZEGÓŁY
 // ============================================================

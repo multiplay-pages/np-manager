@@ -5,10 +5,12 @@ import type {
   PortingRequestListQueryDto,
   PortingRequestListResultDto,
   PortingTimelineResultDto,
+  UpdatePortingRequestStatusDto,
 } from '@np-manager/shared'
 
 export type GetPortingRequestsParams = PortingRequestListQueryDto
 export type CreatePortingRequestPayload = CreatePortingRequestDto
+export type UpdatePortingRequestStatusPayload = UpdatePortingRequestStatusDto
 
 export async function getPortingRequests(
   params: GetPortingRequestsParams = {},
@@ -46,6 +48,18 @@ export async function createPortingRequest(
     success: true
     data: { request: PortingRequestDetailDto }
   }>('/porting-requests', data)
+
+  return response.data.data.request
+}
+
+export async function updatePortingRequestStatus(
+  id: string,
+  data: UpdatePortingRequestStatusPayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/status`, data)
 
   return response.data.data.request
 }

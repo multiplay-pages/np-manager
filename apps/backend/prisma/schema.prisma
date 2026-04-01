@@ -141,6 +141,7 @@ enum PortingEventSource {
 
 enum PortingEventType {
   REQUEST_CREATED
+  STATUS_CHANGED
   PLI_EXPORT_TRIGGERED
   PLI_EXPORT_STATE_UPDATED
   PLI_SYNC_TRIGGERED
@@ -169,10 +170,10 @@ model User {
 
   auditLogs              AuditLog[]
   comments               Comment[]
-  uploadedDocuments      Document[]       @relation("UploadedBy")
-  verifiedDocuments      Document[]       @relation("VerifiedBy")
-  createdTasks           Task[]           @relation("TaskCreatedBy")
-  assignedTasks          Task[]           @relation("TaskAssignedTo")
+  uploadedDocuments      Document[]            @relation("UploadedBy")
+  verifiedDocuments      Document[]            @relation("VerifiedBy")
+  createdTasks           Task[]                @relation("TaskCreatedBy")
+  assignedTasks          Task[]                @relation("TaskAssignedTo")
   statusHistories        StatusHistory[]
   notifications          Notification[]
   createdPortingRequests PortingRequest[]      @relation("PortingRequestCreatedBy")

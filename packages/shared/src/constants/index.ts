@@ -220,6 +220,45 @@ export const PORTING_CASE_STATUS_LABELS: Record<PortingCaseStatus, string> = {
   ERROR: 'Blad',
 }
 
+export const PORTING_CASE_STATUS_TRANSITIONS: Record<
+  PortingCaseStatus,
+  PortingCaseStatus[]
+> = {
+  DRAFT: ['SUBMITTED', 'CANCELLED'],
+  SUBMITTED: ['PENDING_DONOR', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'ERROR'],
+  PENDING_DONOR: ['CONFIRMED', 'REJECTED', 'CANCELLED', 'ERROR'],
+  CONFIRMED: ['PORTED', 'CANCELLED', 'ERROR'],
+  REJECTED: [],
+  CANCELLED: [],
+  PORTED: [],
+  ERROR: [],
+}
+
+export const PORTING_CASE_STATUS_ACTION_LABELS: Partial<
+  Record<PortingCaseStatus, string>
+> = {
+  SUBMITTED: 'Zloz sprawe',
+  PENDING_DONOR: 'Oczekiwanie na dawce',
+  CONFIRMED: 'Potwierdz',
+  REJECTED: 'Odrzuc',
+  CANCELLED: 'Anuluj',
+  ERROR: 'Oznacz blad',
+  PORTED: 'Oznacz jako przeniesiona',
+}
+
+export const PORTING_CASE_STATUS_CONFIRMATION_TARGETS: PortingCaseStatus[] = [
+  'REJECTED',
+  'CANCELLED',
+  'PORTED',
+  'ERROR',
+]
+
+export function getAllowedPortingCaseStatusTransitions(
+  status: PortingCaseStatus,
+): PortingCaseStatus[] {
+  return PORTING_CASE_STATUS_TRANSITIONS[status] ?? []
+}
+
 // ============================================================
 // KODY EXX Z PLI CBD
 // ============================================================

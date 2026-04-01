@@ -330,6 +330,12 @@ export const createPortingRequestSchema = z
 
 export type CreatePortingRequestBody = z.infer<typeof createPortingRequestSchema>
 
+export const updatePortingRequestStatusSchema = z.object({
+  targetStatus: statusEnum,
+})
+
+export type UpdatePortingRequestStatusBody = z.infer<typeof updatePortingRequestStatusSchema>
+
 export const portingRequestListQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   status: statusEnum.optional(),

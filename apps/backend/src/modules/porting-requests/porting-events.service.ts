@@ -169,6 +169,14 @@ type StatusHistoryRow = {
 function mapEventToTimelineItem(event: NonNullable<EventRow>): PortingTimelineItemDto {
   const kind: PortingTimelineItemKind =
     event.eventSource === 'PLI_CBD' ? 'PLI_EVENT' : 'SYSTEM_EVENT'
+  const statusBefore =
+    event.statusBefore
+      ? ((PORTING_CASE_STATUS_LABELS as Record<string, string>)[event.statusBefore] ?? event.statusBefore)
+      : null
+  const statusAfter =
+    event.statusAfter
+      ? ((PORTING_CASE_STATUS_LABELS as Record<string, string>)[event.statusAfter] ?? event.statusAfter)
+      : null
 
   return {
     id: event.id,
@@ -176,9 +184,9 @@ function mapEventToTimelineItem(event: NonNullable<EventRow>): PortingTimelineIt
     timestamp: event.occurredAt.toISOString(),
     title: event.title,
     description: event.description,
-    badge: event.eventType,
-    statusBefore: event.statusBefore,
-    statusAfter: event.statusAfter,
+    badge: event.eventType === 'STATUS_CHANGED' ? event.statusAfter : event.eventType,
+    statusBefore,
+    statusAfter,
     exxType: event.exxType,
     statusCode: event.statusCode,
     authorDisplayName: event.createdBy

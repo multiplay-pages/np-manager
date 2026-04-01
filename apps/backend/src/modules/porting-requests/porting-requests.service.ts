@@ -10,9 +10,14 @@ import type {
   PortingRequestListResultDto,
   PliCbdExxType,
 } from '@np-manager/shared'
+import {
+  getAllowedPortingCaseStatusTransitions,
+  PORTING_CASE_STATUS_LABELS,
+} from '@np-manager/shared'
 import type {
   CreatePortingRequestBody,
   PortingRequestListQuery,
+  UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
 
 const CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
@@ -138,6 +143,13 @@ type OperatorRow = Prisma.OperatorGetPayload<{ select: typeof OPERATOR_SELECT }>
 type ListRow = Prisma.PortingRequestGetPayload<{ select: typeof LIST_SELECT }>
 type DetailRow = Prisma.PortingRequestGetPayload<{ select: typeof DETAIL_SELECT }>
 type PliCbdTriggerRow = Prisma.PortingRequestGetPayload<{ select: typeof PLI_CBD_TRIGGER_SELECT }>
+type StatusChangeRow = Prisma.PortingRequestGetPayload<{
+  select: {
+    id: true
+    caseNumber: true
+    statusInternal: true
+  }
+}>
 
 interface PortingRequestPliCbdAdapterResult {
   exportStatus?: PliCbdExportStatus
@@ -377,6 +389,46 @@ async function getPortingRequestForPliCbdOrThrow(requestId: string): Promise<Pli
   }
 
   return request
+}
+
+async function getPortingRequestForStatusChangeOrThrow(
+  requestId: string,
+): Promise<StatusChangeRow> {
+  const request = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: {
+      id: true,
+      caseNumber: true,
+      statusInternal: true,
+    },
+  })
+
+  if (!request) {
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
+  }
+
+  return request
+}
+
+function assertStatusTransitionAllowed(
+  currentStatus: PortingCaseStatus,
+  targetStatus: PortingCaseStatus,
+): void {
+  if (currentStatus === targetStatus) {
+    throw AppError.badRequest(
+      'Sprawa ma juz wskazany status.',
+      'PORTING_REQUEST_STATUS_UNCHANGED',
+    )
+  }
+
+  const allowedTransitions = getAllowedPortingCaseStatusTransitions(currentStatus)
+
+  if (!allowedTransitions.includes(targetStatus)) {
+    throw AppError.badRequest(
+      'Nie mozna wykonac tej zmiany statusu.',
+      'PORTING_REQUEST_STATUS_TRANSITION_NOT_ALLOWED',
+    )
+  }
 }
 
 function toListItem(row: ListRow): PortingRequestListItemDto {
@@ -622,6 +674,55 @@ export async function getPortingRequest(id: string): Promise<PortingRequestDetai
   }
 
   return toDetailDto(request)
+}
+
+export async function updatePortingRequestStatus(
+  requestId: string,
+  body: UpdatePortingRequestStatusBody,
+  userId: string,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const request = await getPortingRequestForStatusChangeOrThrow(requestId)
+  const currentStatus = request.statusInternal
+  const targetStatus = body.targetStatus
+
+  assertStatusTransitionAllowed(currentStatus, targetStatus)
+
+  await prisma.$transaction([
+    prisma.portingRequest.update({
+      where: { id: requestId },
+      data: {
+        statusInternal: targetStatus,
+      },
+    }),
+    prisma.portingRequestEvent.create({
+      data: {
+        request: { connect: { id: requestId } },
+        eventSource: 'INTERNAL',
+        eventType: 'STATUS_CHANGED',
+        title: `Zmiana statusu na: ${PORTING_CASE_STATUS_LABELS[targetStatus]}`,
+        description: `Status sprawy zostal zmieniony z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[targetStatus]}.`,
+        statusBefore: currentStatus,
+        statusAfter: targetStatus,
+        createdBy: { connect: { id: userId } },
+      },
+    }),
+  ])
+
+  await logAuditEvent({
+    action: 'STATUS_CHANGE',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    oldValue: currentStatus,
+    newValue: targetStatus,
+    ipAddress,
+    userAgent,
+  })
+
+  return getPortingRequest(requestId)
 }
 
 export async function exportPortingRequestToPliCbd(
