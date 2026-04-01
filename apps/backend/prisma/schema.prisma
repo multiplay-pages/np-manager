@@ -133,6 +133,24 @@ enum PliCbdExportStatus {
   SYNC_ERROR
 }
 
+enum PortingEventSource {
+  INTERNAL
+  PLI_CBD
+  SYSTEM
+}
+
+enum PortingEventType {
+  REQUEST_CREATED
+  PLI_EXPORT_TRIGGERED
+  PLI_EXPORT_STATE_UPDATED
+  PLI_SYNC_TRIGGERED
+  PLI_SYNC_STATE_UPDATED
+  PLI_MESSAGE_RECEIVED
+  PLI_MESSAGE_PARSED
+  PLI_STATUS_UPDATED
+  NOTE
+}
+
 // ============================================================
 // USERS — Użytkownicy systemu
 // ============================================================
@@ -157,7 +175,8 @@ model User {
   assignedTasks          Task[]           @relation("TaskAssignedTo")
   statusHistories        StatusHistory[]
   notifications          Notification[]
-  createdPortingRequests PortingRequest[] @relation("PortingRequestCreatedBy")
+  createdPortingRequests PortingRequest[]      @relation("PortingRequestCreatedBy")
+  portingRequestEvents   PortingRequestEvent[] @relation("PortingEventCreatedBy")
 
   @@map("users")
 }
@@ -334,6 +353,7 @@ model PortingRequest {
   statusHistory StatusHistory[]
   tasks         Task[]
   auditLogs     AuditLog[]
+  events        PortingRequestEvent[]
 
   @@index([clientId])
   @@index([statusInternal])
@@ -542,6 +562,35 @@ model WorkingCalendar {
 
   @@index([year])
   @@map("working_calendar")
+}
+
+// ============================================================
+// PORTING REQUEST EVENTS — Zdarzenia timeline sprawy portowania
+// ============================================================
+
+model PortingRequestEvent {
+  id              String             @id @default(uuid())
+  requestId       String
+  eventSource     PortingEventSource
+  eventType       PortingEventType
+  exxType         String?            @db.VarChar(10)
+  title           String             @db.VarChar(200)
+  description     String?            @db.Text
+  statusBefore    String?            @db.VarChar(50)
+  statusAfter     String?            @db.VarChar(50)
+  statusCode      String?            @db.VarChar(100)
+  technicalCode   String?            @db.VarChar(100)
+  payloadSummary  String?            @db.VarChar(500)
+  createdByUserId String?
+  occurredAt      DateTime           @default(now())
+  createdAt       DateTime           @default(now())
+
+  request   PortingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  createdBy User?          @relation("PortingEventCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([requestId])
+  @@index([requestId, occurredAt])
+  @@map("porting_request_events")
 }
 
 // ============================================================

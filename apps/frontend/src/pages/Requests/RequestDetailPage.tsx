@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import {
   exportPortingRequest,
   getPortingRequestById,
+  getPortingRequestTimeline,
   syncPortingRequest,
 } from '@/services/portingRequests.api'
 import {
@@ -16,7 +17,8 @@ import {
   PORTING_MODE_LABELS,
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
 } from '@np-manager/shared'
-import type { PortingRequestDetailDto } from '@np-manager/shared'
+import type { PortingRequestDetailDto, PortingTimelineItemDto } from '@np-manager/shared'
+import { PortingTimeline } from '@/components/PortingTimeline/PortingTimeline'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -73,6 +75,8 @@ export function RequestDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [timelineItems, setTimelineItems] = useState<PortingTimelineItemDto[]>([])
+  const [isTimelineLoading, setIsTimelineLoading] = useState(true)
 
   const canTriggerPliCbdActions = useMemo(
     () =>
@@ -81,6 +85,19 @@ export function RequestDetailPage() {
       ),
     [user?.role],
   )
+
+  const loadTimeline = async () => {
+    if (!id) return
+    setIsTimelineLoading(true)
+    try {
+      const result = await getPortingRequestTimeline(id)
+      setTimelineItems(result.items)
+    } catch {
+      // Timeline errors are non-blocking
+    } finally {
+      setIsTimelineLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -99,6 +116,7 @@ export function RequestDetailPage() {
     }
 
     void load()
+    void loadTimeline()
   }, [id])
 
   const formatDateTime = (iso: string) =>
@@ -116,6 +134,7 @@ export function RequestDetailPage() {
     setActionError(null)
     try {
       setRequest(await exportPortingRequest(id))
+      void loadTimeline()
     } catch {
       setActionError('Nie udalo sie uruchomic foundation eksportu do PLI CBD.')
     } finally {
@@ -129,6 +148,7 @@ export function RequestDetailPage() {
     setActionError(null)
     try {
       setRequest(await syncPortingRequest(id))
+      void loadTimeline()
     } catch {
       setActionError('Nie udalo sie uruchomic foundation synchronizacji z PLI CBD.')
     } finally {
@@ -318,15 +338,7 @@ export function RequestDetailPage() {
         </div>
       </div>
 
-      <div className="card p-5 border-dashed">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
-          Historia statusow i komunikatow
-        </h2>
-        <p className="text-sm text-gray-500">
-          W kolejnym kroku dojdzie timeline zmian sprawy, historia eksportow i mapowanie
-          komunikatow Exx.
-        </p>
-      </div>
+      <PortingTimeline items={timelineItems} isLoading={isTimelineLoading} />
 
       <div className="text-xs text-gray-400 space-y-0.5 pt-1">
         <p>Utworzono: {formatDateTime(request.createdAt)}</p>
