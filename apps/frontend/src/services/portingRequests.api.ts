@@ -17,6 +17,7 @@ export async function getPortingRequests(
 
   if (params.search) query.set('search', params.search)
   if (params.status) query.set('status', params.status)
+  if (params.portingMode) query.set('portingMode', params.portingMode)
   if (params.donorOperatorId) query.set('donorOperatorId', params.donorOperatorId)
   if (params.page) query.set('page', String(params.page))
   if (params.pageSize) query.set('pageSize', String(params.pageSize))

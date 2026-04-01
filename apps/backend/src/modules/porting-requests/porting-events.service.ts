@@ -233,7 +233,8 @@ export async function getPortingRequestTimeline(
   const eventItems = events.map((e) => mapEventToTimelineItem(e as unknown as NonNullable<EventRow>))
 
   const statusItems: PortingTimelineItemDto[] = statusHistory.map((entry, index) => {
-    const previousStatusCode = index > 0 ? statusHistory[index - 1].status.code : null
+    const previousStatusEntry = index > 0 ? statusHistory[index - 1] : undefined
+    const previousStatusCode = previousStatusEntry?.status.code ?? null
     return mapStatusHistoryToTimelineItem(entry, previousStatusCode)
   })
 

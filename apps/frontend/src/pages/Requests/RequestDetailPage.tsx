@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
@@ -19,6 +19,7 @@ import {
 } from '@np-manager/shared'
 import type { PortingRequestDetailDto, PortingTimelineItemDto } from '@np-manager/shared'
 import { PortingTimeline } from '@/components/PortingTimeline/PortingTimeline'
+import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -73,20 +74,18 @@ export function RequestDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [timelineItems, setTimelineItems] = useState<PortingTimelineItemDto[]>([])
   const [isTimelineLoading, setIsTimelineLoading] = useState(true)
 
   const canTriggerPliCbdActions = useMemo(
-    () =>
-      ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(
-        user?.role ?? '',
-      ),
+    () => user?.role === 'ADMIN',
     [user?.role],
   )
 
-  const loadTimeline = async () => {
+  const loadTimeline = useCallback(async () => {
     if (!id) return
     setIsTimelineLoading(true)
     try {
@@ -97,7 +96,7 @@ export function RequestDetailPage() {
     } finally {
       setIsTimelineLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     if (!id) return
@@ -109,7 +108,7 @@ export function RequestDetailPage() {
       try {
         setRequest(await getPortingRequestById(id))
       } catch {
-        setError('Nie udalo sie zaladowac szczegolow sprawy portowania.')
+        setError('Nie udało się załadować szczegółów sprawy portowania.')
       } finally {
         setIsLoading(false)
       }
@@ -117,7 +116,7 @@ export function RequestDetailPage() {
 
     void load()
     void loadTimeline()
-  }, [id])
+  }, [id, loadTimeline])
 
   const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('pl-PL', {
@@ -132,9 +131,11 @@ export function RequestDetailPage() {
     if (!id || !canTriggerPliCbdActions || isExporting) return
     setIsExporting(true)
     setActionError(null)
+    setActionSuccess(null)
     try {
       setRequest(await exportPortingRequest(id))
       void loadTimeline()
+      setActionSuccess('Eksport do PLI CBD zostal wyzwolony pomyslnie.')
     } catch {
       setActionError('Nie udalo sie uruchomic foundation eksportu do PLI CBD.')
     } finally {
@@ -146,9 +147,11 @@ export function RequestDetailPage() {
     if (!id || !canTriggerPliCbdActions || isSyncing) return
     setIsSyncing(true)
     setActionError(null)
+    setActionSuccess(null)
     try {
       setRequest(await syncPortingRequest(id))
       void loadTimeline()
+      setActionSuccess('Synchronizacja z PLI CBD zakonczona pomyslnie.')
     } catch {
       setActionError('Nie udalo sie uruchomic foundation synchronizacji z PLI CBD.')
     } finally {
@@ -170,7 +173,7 @@ export function RequestDetailPage() {
         <div className="card p-8 text-center">
           <p className="text-red-500 text-sm mb-4">{error ?? 'Sprawa nie zostala znaleziona.'}</p>
           <button onClick={() => void navigate(ROUTES.REQUESTS)} className="btn-secondary">
-            Wroc do listy
+            Wróć do listy
           </button>
         </div>
       </div>
@@ -189,8 +192,16 @@ export function RequestDetailPage() {
           </button>
           <h1 className="text-2xl font-bold text-gray-900">{request.caseNumber}</h1>
           <div className="flex flex-wrap items-center gap-3 mt-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-              {PORTING_CASE_STATUS_LABELS[request.statusInternal]}
+            {(() => {
+              const meta = getPortingStatusMeta(request.statusInternal)
+              return (
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${meta.className}`}>
+                  {meta.label}
+                </span>
+              )
+            })()}
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+              {PORTING_MODE_LABELS[request.portingMode]}
             </span>
             <span className="text-sm text-gray-500">{request.client.displayName}</span>
             <span className="text-sm text-gray-500">{request.numberDisplay}</span>
@@ -286,17 +297,17 @@ export function RequestDetailPage() {
                 type="button"
                 onClick={() => void handleExport()}
                 className="btn-secondary"
-                disabled={isExporting}
+                disabled={isExporting || isSyncing}
               >
-                {isExporting ? 'Eksport...' : 'Manualny eksport'}
+                {isExporting ? 'Eksportowanie...' : 'Manualny eksport'}
               </button>
               <button
                 type="button"
                 onClick={() => void handleSync()}
                 className="btn-secondary"
-                disabled={isSyncing || request.pliCbdExportStatus === 'NOT_EXPORTED'}
+                disabled={isSyncing || isExporting || request.pliCbdExportStatus === 'NOT_EXPORTED'}
               >
-                {isSyncing ? 'Synchronizacja...' : 'Manualna synchronizacja'}
+                {isSyncing ? 'Synchronizowanie...' : 'Manualna synchronizacja'}
               </button>
             </div>
           )}
@@ -325,6 +336,12 @@ export function RequestDetailPage() {
             />
           </dl>
         </div>
+
+        {actionSuccess && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {actionSuccess}
+          </div>
+        )}
 
         {actionError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

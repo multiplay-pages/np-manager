@@ -333,6 +333,7 @@ export type CreatePortingRequestBody = z.infer<typeof createPortingRequestSchema
 export const portingRequestListQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   status: statusEnum.optional(),
+  portingMode: z.enum(['DAY', 'END', 'EOP']).optional(),
   donorOperatorId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),

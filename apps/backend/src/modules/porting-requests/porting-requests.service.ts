@@ -560,6 +560,10 @@ export async function listPortingRequests(
     where.statusInternal = query.status
   }
 
+  if (query.portingMode) {
+    where.portingMode = query.portingMode
+  }
+
   if (query.donorOperatorId) {
     where.donorOperatorId = query.donorOperatorId
   }

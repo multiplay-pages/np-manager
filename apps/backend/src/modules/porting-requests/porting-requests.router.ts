@@ -25,6 +25,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     'AUDITOR',
   ]
   const writeRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
+  const pliCbdRoles: UserRole[] = ['ADMIN']
 
   app.get(
     '/',
@@ -72,7 +73,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { id: string } }>(
     '/:id/export',
-    { preHandler: [authenticate, authorize(writeRoles)] },
+    { preHandler: [authenticate, authorize(pliCbdRoles)] },
     async (request, reply) => {
       const portingRequest = await exportPortingRequestToPliCbd(
         request.params.id,
@@ -95,7 +96,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { id: string } }>(
     '/:id/sync',
-    { preHandler: [authenticate, authorize(writeRoles)] },
+    { preHandler: [authenticate, authorize(pliCbdRoles)] },
     async (request, reply) => {
       const portingRequest = await syncPortingRequestFromPliCbd(
         request.params.id,

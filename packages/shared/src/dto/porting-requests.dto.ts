@@ -17,6 +17,7 @@ import type {
 export interface PortingRequestListQueryDto {
   search?: string
   status?: PortingCaseStatus
+  portingMode?: PortingMode
   donorOperatorId?: string
   page?: number
   pageSize?: number

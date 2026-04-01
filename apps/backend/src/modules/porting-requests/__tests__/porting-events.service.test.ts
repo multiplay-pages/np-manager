@@ -167,9 +167,7 @@ describe('porting-events timeline mapping', () => {
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )
 
-      expect(sorted[0].title).toBe('third')
-      expect(sorted[1].title).toBe('second')
-      expect(sorted[2].title).toBe('first')
+      expect(sorted.map((item) => item.title)).toEqual(['third', 'second', 'first'])
     })
   })
 })
