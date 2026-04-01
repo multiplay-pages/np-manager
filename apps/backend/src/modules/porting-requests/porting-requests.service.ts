@@ -1,4 +1,4 @@
-import { Prisma, type PliCbdExportStatus, type PortingCaseStatus } from '@prisma/client'
+import { Prisma, type PortingCaseStatus } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { AppError } from '../../shared/errors/app-error'
 import { logAuditEvent } from '../../shared/audit/audit.service'
@@ -6,9 +6,9 @@ import { PortingEvents } from './porting-events.service'
 import type {
   CreatePortingRequestDto,
   PortingRequestDetailDto,
+  PliCbdIntegrationEventsResultDto,
   PortingRequestListItemDto,
   PortingRequestListResultDto,
-  PliCbdExxType,
 } from '@np-manager/shared'
 import {
   getAllowedPortingCaseStatusTransitions,
@@ -19,6 +19,15 @@ import type {
   PortingRequestListQuery,
   UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
+import {
+  PLI_CBD_TRIGGER_SELECT,
+  type PliCbdTriggerRow,
+  portingRequestPliCbdAdapter,
+} from '../pli-cbd/pli-cbd.adapter'
+import {
+  getPliCbdIntegrationEvents,
+  withPliCbdIntegrationTracking,
+} from '../pli-cbd/pli-cbd.integration-tracker'
 
 const CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
 
@@ -110,39 +119,10 @@ const DETAIL_SELECT = {
   infrastructureOperator: { select: OPERATOR_SELECT },
 } as const
 
-const PLI_CBD_TRIGGER_SELECT = {
-  id: true,
-  caseNumber: true,
-  numberType: true,
-  numberRangeKind: true,
-  primaryNumber: true,
-  rangeStart: true,
-  rangeEnd: true,
-  portingMode: true,
-  requestedPortDate: true,
-  earliestAcceptablePortDate: true,
-  statusInternal: true,
-  pliCbdCaseId: true,
-  pliCbdCaseNumber: true,
-  pliCbdExportStatus: true,
-  donorAssignedPortDate: true,
-  donorAssignedPortTime: true,
-  lastExxReceived: true,
-  lastPliCbdStatusCode: true,
-  lastPliCbdStatusDescription: true,
-  donorOperator: {
-    select: { id: true, name: true, routingNumber: true },
-  },
-  recipientOperator: {
-    select: { id: true, name: true, routingNumber: true },
-  },
-} as const
-
 type ClientRow = Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>
 type OperatorRow = Prisma.OperatorGetPayload<{ select: typeof OPERATOR_SELECT }>
 type ListRow = Prisma.PortingRequestGetPayload<{ select: typeof LIST_SELECT }>
 type DetailRow = Prisma.PortingRequestGetPayload<{ select: typeof DETAIL_SELECT }>
-type PliCbdTriggerRow = Prisma.PortingRequestGetPayload<{ select: typeof PLI_CBD_TRIGGER_SELECT }>
 type StatusChangeRow = Prisma.PortingRequestGetPayload<{
   select: {
     id: true
@@ -150,39 +130,6 @@ type StatusChangeRow = Prisma.PortingRequestGetPayload<{
     statusInternal: true
   }
 }>
-
-interface PortingRequestPliCbdAdapterResult {
-  exportStatus?: PliCbdExportStatus
-  pliCbdCaseId?: string | null
-  pliCbdCaseNumber?: string | null
-  pliCbdLastSyncAt?: Date | null
-  donorAssignedPortDate?: Date | null
-  donorAssignedPortTime?: string | null
-  lastPliCbdMessageType?: PliCbdExxType | null
-  lastPliCbdStatusCode?: string | null
-  lastPliCbdStatusDescription?: string | null
-}
-
-interface PortingRequestPliCbdAdapter {
-  exportPortingRequestToPliCbd(request: PliCbdTriggerRow): Promise<PortingRequestPliCbdAdapterResult>
-  syncPortingRequestFromPliCbd(request: PliCbdTriggerRow): Promise<PortingRequestPliCbdAdapterResult>
-}
-
-class ManualPliCbdAdapter implements PortingRequestPliCbdAdapter {
-  async exportPortingRequestToPliCbd(): Promise<PortingRequestPliCbdAdapterResult> {
-    return {
-      exportStatus: 'EXPORT_PENDING',
-    }
-  }
-
-  async syncPortingRequestFromPliCbd(): Promise<PortingRequestPliCbdAdapterResult> {
-    return {
-      pliCbdLastSyncAt: new Date(),
-    }
-  }
-}
-
-const portingRequestPliCbdAdapter: PortingRequestPliCbdAdapter = new ManualPliCbdAdapter()
 
 function getClientDisplayName(client: {
   clientType: string
@@ -676,6 +623,13 @@ export async function getPortingRequest(id: string): Promise<PortingRequestDetai
   return toDetailDto(request)
 }
 
+export async function getPortingRequestIntegrationEvents(
+  requestId: string,
+): Promise<PliCbdIntegrationEventsResultDto> {
+  await getPortingRequestForPliCbdOrThrow(requestId)
+  return getPliCbdIntegrationEvents(requestId)
+}
+
 export async function updatePortingRequestStatus(
   requestId: string,
   body: UpdatePortingRequestStatusBody,
@@ -742,7 +696,14 @@ export async function exportPortingRequestToPliCbd(
 
   await PortingEvents.exportTriggered(requestId, userId)
 
-  const adapterResult = await portingRequestPliCbdAdapter.exportPortingRequestToPliCbd(request)
+  const adapterResult = await withPliCbdIntegrationTracking(
+    requestId,
+    userId,
+    'EXPORT',
+    request,
+    'MANUAL_FOUNDATION_TRIGGER',
+    () => portingRequestPliCbdAdapter.exportPortingRequestToPliCbd(request),
+  )
 
   const resolvedExportStatus = adapterResult.exportStatus ?? request.pliCbdExportStatus
 
@@ -812,7 +773,14 @@ export async function syncPortingRequestFromPliCbd(
 
   await PortingEvents.syncTriggered(requestId, userId)
 
-  const adapterResult = await portingRequestPliCbdAdapter.syncPortingRequestFromPliCbd(request)
+  const adapterResult = await withPliCbdIntegrationTracking(
+    requestId,
+    userId,
+    'SYNC',
+    request,
+    'MANUAL_FOUNDATION_TRIGGER',
+    () => portingRequestPliCbdAdapter.syncPortingRequestFromPliCbd(request),
+  )
 
   const resolvedSyncAt = adapterResult.pliCbdLastSyncAt ?? new Date()
 
