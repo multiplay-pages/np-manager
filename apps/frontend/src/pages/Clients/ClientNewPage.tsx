@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ChangeEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 import { ROUTES, buildPath } from '@/constants/routes'
 import { createClient, type CreateClientPayload } from '@/services/clients.api'
@@ -38,10 +38,14 @@ const EMPTY_FORM: FormFields = {
 
 export function ClientNewPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [clientType, setClientType] = useState<ClientType>('INDIVIDUAL')
   const [fields, setFields] = useState<FormFields>(EMPTY_FORM)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [isLoading, setIsLoading] = useState(false)
+  const returnTo = searchParams.get('returnTo')
+  const isRequestCreationFlow = returnTo === ROUTES.REQUEST_NEW
+  const cancelTarget = isRequestCreationFlow ? ROUTES.REQUEST_NEW : ROUTES.CLIENTS
 
   const setField = (key: keyof FormFields) => (e: ChangeEvent<HTMLInputElement>) => {
     setFields((prev) => ({ ...prev, [key]: e.target.value }))
@@ -143,7 +147,15 @@ export function ClientNewPage() {
 
     try {
       const client = await createClient(payload)
-      void navigate(buildPath(ROUTES.CLIENT_DETAIL, client.id))
+      if (isRequestCreationFlow) {
+        const nextParams = new URLSearchParams({
+          clientId: client.id,
+          requestCreatedClient: '1',
+        })
+        void navigate(`${ROUTES.REQUEST_NEW}?${nextParams.toString()}`)
+      } else {
+        void navigate(buildPath(ROUTES.CLIENT_DETAIL, client.id))
+      }
     } catch (err) {
       if (axios.isAxiosError(err)) {
         if (err.response?.status === 409) {
@@ -185,12 +197,17 @@ export function ClientNewPage() {
       {/* Nagłówek */}
       <div className="mb-6">
         <button
-          onClick={() => void navigate(ROUTES.CLIENTS)}
+          onClick={() => void navigate(cancelTarget)}
           className="text-sm text-gray-500 hover:text-gray-700 mb-2 flex items-center gap-1"
         >
           ← Kartoteka klientów
         </button>
         <h1 className="text-2xl font-bold text-gray-900">Nowy klient</h1>
+        {isRequestCreationFlow && (
+          <p className="mt-2 text-sm text-gray-500">
+            Po zapisaniu klient zostanie automatycznie podpiety do nowej sprawy portowania.
+          </p>
+        )}
       </div>
 
       <form onSubmit={(e) => void handleSubmit(e)} noValidate className="space-y-5">
@@ -334,7 +351,7 @@ export function ClientNewPage() {
         <div className="flex gap-3 justify-end pt-2">
           <button
             type="button"
-            onClick={() => void navigate(ROUTES.CLIENTS)}
+            onClick={() => void navigate(cancelTarget)}
             className="btn-secondary"
             disabled={isLoading}
           >

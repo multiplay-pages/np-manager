@@ -50,6 +50,7 @@ export function ClientDetailPage() {
   }
 
   const editPath = buildPath(ROUTES.CLIENT_EDIT, client.id)
+  const requestNewPath = `${ROUTES.REQUEST_NEW}?clientId=${encodeURIComponent(client.id)}`
   const isIndividual = client.clientType === 'INDIVIDUAL'
   const hasProxy = client.proxyName || client.proxyPesel
 
@@ -59,7 +60,7 @@ export function ClientDetailPage() {
   return (
     <div className="p-6 space-y-4 max-w-4xl">
       {/* Nagłówek */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <button
             onClick={() => void navigate(ROUTES.CLIENTS)}
@@ -86,9 +87,14 @@ export function ClientDetailPage() {
             )}
           </div>
         </div>
-        <Link to={editPath} className="btn-primary flex-shrink-0">
-          Edytuj klienta
-        </Link>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-start">
+          <Link to={requestNewPath} className="btn-secondary text-center">
+            Nowa sprawa portowania
+          </Link>
+          <Link to={editPath} className="btn-primary text-center">
+            Edytuj klienta
+          </Link>
+        </div>
       </div>
 
       {/* Dane podstawowe */}
