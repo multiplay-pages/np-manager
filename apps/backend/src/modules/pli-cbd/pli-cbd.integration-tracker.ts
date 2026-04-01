@@ -108,6 +108,28 @@ export async function withPliCbdIntegrationTracking(
   }
 }
 
+export async function createFailedIntegrationAttempt(
+  portingRequestId: string,
+  triggeredByUserId: string | null,
+  operationType: IntegrationOperationType,
+  requestPayload: PliCbdTriggerRow,
+  actionName: string,
+  errorMessage: string,
+): Promise<void> {
+  await prisma.pliCbdIntegrationEvent.create({
+    data: {
+      portingRequestId,
+      operationType,
+      operationStatus: 'ERROR',
+      actionName,
+      requestPayloadJson: toSerializableJsonValue(requestPayload),
+      errorMessage,
+      triggeredByUserId,
+      completedAt: new Date(),
+    },
+  })
+}
+
 export async function getPliCbdIntegrationEvents(
   portingRequestId: string,
 ): Promise<PliCbdIntegrationEventsResultDto> {

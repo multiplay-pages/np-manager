@@ -25,11 +25,13 @@ import {
   portingRequestPliCbdAdapter,
 } from '../pli-cbd/pli-cbd.adapter'
 import {
+  createFailedIntegrationAttempt,
   getPliCbdIntegrationEvents,
   withPliCbdIntegrationTracking,
 } from '../pli-cbd/pli-cbd.integration-tracker'
 
 const CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
+const PLI_CBD_MANUAL_TRIGGER_ACTION = 'MANUAL_FOUNDATION_TRIGGER'
 
 const CLIENT_SELECT = {
   id: true,
@@ -378,6 +380,28 @@ function assertStatusTransitionAllowed(
   }
 }
 
+async function throwBlockedPliCbdIntegrationAttempt(
+  request: PliCbdTriggerRow,
+  userId: string,
+  operationType: 'EXPORT' | 'SYNC',
+  error: AppError,
+): Promise<never> {
+  try {
+    await createFailedIntegrationAttempt(
+      request.id,
+      userId,
+      operationType,
+      request,
+      PLI_CBD_MANUAL_TRIGGER_ACTION,
+      error.message,
+    )
+  } catch {
+    // Audit failure must not mask the original business error returned to UI/API.
+  }
+
+  throw error
+}
+
 function toListItem(row: ListRow): PortingRequestListItemDto {
   return {
     id: row.id,
@@ -688,23 +712,15 @@ export async function exportPortingRequestToPliCbd(
   const request = await getPortingRequestForPliCbdOrThrow(requestId)
 
   if (CLOSED_STATUSES.includes(request.statusInternal)) {
-    const error = AppError.badRequest(
-      'Nie mozna eksportowac do PLI CBD sprawy zakonczonej lub zamknietej.',
-      'PORTING_REQUEST_ALREADY_CLOSED',
+    await throwBlockedPliCbdIntegrationAttempt(
+      request,
+      userId,
+      'EXPORT',
+      AppError.badRequest(
+        'Nie mozna eksportowac do PLI CBD sprawy zakonczonej lub zamknietej.',
+        'PORTING_REQUEST_ALREADY_CLOSED',
+      ),
     )
-
-    await prisma.pliCbdIntegrationEvent.create({
-      data: {
-        portingRequestId: request.id,
-        operationType: 'EXPORT',
-        operationStatus: 'ERROR',
-        actionName: PLI_CBD_MANUAL_TRIGGER_ACTION,
-        errorMessage: error.message,
-        triggeredByUserId: userId,
-      },
-    })
-
-    throw error
   }
 
   await PortingEvents.exportTriggered(requestId, userId)
@@ -714,7 +730,7 @@ export async function exportPortingRequestToPliCbd(
     userId,
     'EXPORT',
     request,
-    'MANUAL_FOUNDATION_TRIGGER',
+    PLI_CBD_MANUAL_TRIGGER_ACTION,
     () => portingRequestPliCbdAdapter.exportPortingRequestToPliCbd(request),
   )
 
@@ -778,23 +794,15 @@ export async function syncPortingRequestFromPliCbd(
   const request = await getPortingRequestForPliCbdOrThrow(requestId)
 
   if (request.pliCbdExportStatus === 'NOT_EXPORTED') {
-    const error = AppError.badRequest(
-      'Nie mozna synchronizowac sprawy, ktora nie zostala jeszcze wyeksportowana do PLI CBD.',
-      'PORTING_REQUEST_NOT_EXPORTED',
+    await throwBlockedPliCbdIntegrationAttempt(
+      request,
+      userId,
+      'SYNC',
+      AppError.badRequest(
+        'Nie mozna synchronizowac sprawy, ktora nie zostala jeszcze wyeksportowana do PLI CBD.',
+        'PORTING_REQUEST_NOT_EXPORTED',
+      ),
     )
-
-    await prisma.pliCbdIntegrationEvent.create({
-      data: {
-        portingRequestId: request.id,
-        operationType: 'SYNC',
-        operationStatus: 'ERROR',
-        actionName: PLI_CBD_MANUAL_TRIGGER_ACTION,
-        errorMessage: error.message,
-        triggeredByUserId: userId,
-      },
-    })
-
-    throw error
   }
 
   await PortingEvents.syncTriggered(requestId, userId)
@@ -804,7 +812,7 @@ export async function syncPortingRequestFromPliCbd(
     userId,
     'SYNC',
     request,
-    'MANUAL_FOUNDATION_TRIGGER',
+    PLI_CBD_MANUAL_TRIGGER_ACTION,
     () => portingRequestPliCbdAdapter.syncPortingRequestFromPliCbd(request),
   )
 
