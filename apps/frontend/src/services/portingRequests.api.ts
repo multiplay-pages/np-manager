@@ -4,6 +4,7 @@ import type {
   PortingRequestDetailDto,
   PortingRequestListQueryDto,
   PortingRequestListResultDto,
+  PortingTimelineResultDto,
 } from '@np-manager/shared'
 
 export type GetPortingRequestsParams = PortingRequestListQueryDto
@@ -64,4 +65,13 @@ export async function syncPortingRequest(id: string): Promise<PortingRequestDeta
   }>(`/porting-requests/${id}/sync`)
 
   return response.data.data.request
+}
+
+export async function getPortingRequestTimeline(id: string): Promise<PortingTimelineResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingTimelineResultDto
+  }>(`/porting-requests/${id}/timeline`)
+
+  return response.data.data
 }

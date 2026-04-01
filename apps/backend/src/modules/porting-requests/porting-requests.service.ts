@@ -2,6 +2,7 @@ import { Prisma, type PliCbdExportStatus, type PortingCaseStatus } from '@prisma
 import { prisma } from '../../config/database'
 import { AppError } from '../../shared/errors/app-error'
 import { logAuditEvent } from '../../shared/audit/audit.service'
+import { PortingEvents } from './porting-events.service'
 import type {
   CreatePortingRequestDto,
   PortingRequestDetailDto,
@@ -545,6 +546,8 @@ export async function createPortingRequest(
     userAgent,
   })
 
+  await PortingEvents.requestCreated(request.id, request.caseNumber, createdByUserId)
+
   return toDetailDto(request)
 }
 
@@ -632,12 +635,16 @@ export async function exportPortingRequestToPliCbd(
     )
   }
 
+  await PortingEvents.exportTriggered(requestId, userId)
+
   const adapterResult = await portingRequestPliCbdAdapter.exportPortingRequestToPliCbd(request)
+
+  const resolvedExportStatus = adapterResult.exportStatus ?? request.pliCbdExportStatus
 
   await prisma.portingRequest.update({
     where: { id: requestId },
     data: {
-      pliCbdExportStatus: adapterResult.exportStatus ?? request.pliCbdExportStatus,
+      pliCbdExportStatus: resolvedExportStatus,
       pliCbdCaseId: adapterResult.pliCbdCaseId ?? request.pliCbdCaseId,
       pliCbdCaseNumber: adapterResult.pliCbdCaseNumber ?? request.pliCbdCaseNumber,
       pliCbdLastSyncAt:
@@ -666,6 +673,8 @@ export async function exportPortingRequestToPliCbd(
           : adapterResult.lastPliCbdStatusDescription,
     },
   })
+
+  await PortingEvents.exportStateUpdated(requestId, userId, resolvedExportStatus)
 
   await logAuditEvent({
     action: 'EXPORT',
@@ -696,7 +705,11 @@ export async function syncPortingRequestFromPliCbd(
     )
   }
 
+  await PortingEvents.syncTriggered(requestId, userId)
+
   const adapterResult = await portingRequestPliCbdAdapter.syncPortingRequestFromPliCbd(request)
+
+  const resolvedSyncAt = adapterResult.pliCbdLastSyncAt ?? new Date()
 
   await prisma.portingRequest.update({
     where: { id: requestId },
@@ -704,7 +717,7 @@ export async function syncPortingRequestFromPliCbd(
       pliCbdExportStatus: adapterResult.exportStatus ?? request.pliCbdExportStatus,
       pliCbdCaseId: adapterResult.pliCbdCaseId ?? request.pliCbdCaseId,
       pliCbdCaseNumber: adapterResult.pliCbdCaseNumber ?? request.pliCbdCaseNumber,
-      pliCbdLastSyncAt: adapterResult.pliCbdLastSyncAt ?? new Date(),
+      pliCbdLastSyncAt: resolvedSyncAt,
       donorAssignedPortDate:
         adapterResult.donorAssignedPortDate === undefined
           ? undefined
@@ -727,6 +740,8 @@ export async function syncPortingRequestFromPliCbd(
           : adapterResult.lastPliCbdStatusDescription,
     },
   })
+
+  await PortingEvents.syncStateUpdated(requestId, userId, resolvedSyncAt.toISOString())
 
   await logAuditEvent({
     action: 'UPDATE',

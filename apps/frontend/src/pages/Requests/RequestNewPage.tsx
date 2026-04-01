@@ -107,8 +107,8 @@ function getDeferredModeDateLabel(mode: PortingMode): string {
 
 function getDeferredModeHelperText(mode: PortingMode): string {
   return mode === 'EOP'
-    ? 'Finalna date przeniesienia wyznaczy Dawca zgodnie z koncem okresu promocyjnego. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy.'
-    : 'Finalna date przeniesienia wyznaczy Dawca zgodnie z okresem wypowiedzenia. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy.'
+    ? 'Finalna date przeniesienia wyznaczy Dawca zgodnie z koncem okresu promocyjnego. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy i nie moze wskazywac daty z przeszlosci.'
+    : 'Finalna date przeniesienia wyznaczy Dawca zgodnie z okresem wypowiedzenia. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy i nie moze wskazywac daty z przeszlosci.'
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -465,14 +465,14 @@ export function RequestNewPage() {
           {fields.portingMode === 'DAY' ? (
             <>
               <FormField label="Wnioskowany dzien przeniesienia" error={errors.requestedPortDate}>
-                <input type="date" value={fields.requestedPortDate} onChange={setTextField('requestedPortDate')} className={`input-field ${errors.requestedPortDate ? 'input-error' : ''}`} />
+                <input type="date" value={fields.requestedPortDate} onChange={setTextField('requestedPortDate')} min={todayString()} className={`input-field ${errors.requestedPortDate ? 'input-error' : ''}`} />
               </FormField>
-              <p className="text-xs text-gray-500">Klient wskazuje konkretny termin przeniesienia. Data nie moze wypasc w weekend.</p>
+              <p className="text-xs text-gray-500">Klient wskazuje konkretny termin przeniesienia. Data nie moze byc z przeszlosci i nie moze wypasc w weekend.</p>
             </>
           ) : (
             <>
               <FormField label={getDeferredModeDateLabel(fields.portingMode)} error={errors.earliestAcceptablePortDate}>
-                <input type="date" value={fields.earliestAcceptablePortDate} onChange={setTextField('earliestAcceptablePortDate')} className={`input-field ${errors.earliestAcceptablePortDate ? 'input-error' : ''}`} />
+                <input type="date" value={fields.earliestAcceptablePortDate} onChange={setTextField('earliestAcceptablePortDate')} min={todayString()} className={`input-field ${errors.earliestAcceptablePortDate ? 'input-error' : ''}`} />
               </FormField>
               <p className="text-xs text-gray-500">{getDeferredModeHelperText(fields.portingMode)}</p>
             </>

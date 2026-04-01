@@ -13,6 +13,7 @@ import {
   listPortingRequests,
   syncPortingRequestFromPliCbd,
 } from './porting-requests.service'
+import { getPortingRequestTimeline } from './porting-events.service'
 
 export async function portingRequestsRouter(app: FastifyInstance): Promise<void> {
   const readRoles: UserRole[] = [
@@ -31,6 +32,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const query = portingRequestListQuerySchema.parse(request.query)
       const result = await listPortingRequests(query)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/timeline',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const result = await getPortingRequestTimeline(request.params.id)
       return reply.status(200).send({ success: true, data: result })
     },
   )

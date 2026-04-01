@@ -10,3 +10,4 @@ export * from './types'
 // DTOs
 export * from './dto/operators.dto'
 export * from './dto/porting-requests.dto'
+export * from './dto/porting-timeline.dto'
