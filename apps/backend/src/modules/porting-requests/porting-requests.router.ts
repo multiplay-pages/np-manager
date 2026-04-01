@@ -10,6 +10,7 @@ import {
 import {
   createPortingRequest,
   exportPortingRequestToPliCbd,
+  getPortingRequestIntegrationEvents,
   getPortingRequest,
   listPortingRequests,
   syncPortingRequestFromPliCbd,
@@ -44,6 +45,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     { preHandler: [authenticate, authorize(readRoles)] },
     async (request, reply) => {
       const result = await getPortingRequestTimeline(request.params.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/integration-events',
+    { preHandler: [authenticate, authorize(pliCbdRoles)] },
+    async (request, reply) => {
+      const result = await getPortingRequestIntegrationEvents(request.params.id)
       return reply.status(200).send({ success: true, data: result })
     },
   )

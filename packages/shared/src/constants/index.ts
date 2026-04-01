@@ -191,6 +191,40 @@ export const PLI_CBD_EXPORT_STATUS_LABELS: Record<PliCbdExportStatus, string> = 
   SYNC_ERROR: 'Blad synchronizacji z PLI CBD',
 }
 
+export const PLI_CBD_INTEGRATION_DIRECTIONS = {
+  EXPORT: 'EXPORT',
+  SYNC: 'SYNC',
+} as const
+
+export type PliCbdIntegrationDirection =
+  (typeof PLI_CBD_INTEGRATION_DIRECTIONS)[keyof typeof PLI_CBD_INTEGRATION_DIRECTIONS]
+
+export const PLI_CBD_INTEGRATION_DIRECTION_LABELS: Record<
+  PliCbdIntegrationDirection,
+  string
+> = {
+  EXPORT: 'Eksport',
+  SYNC: 'Synchronizacja',
+}
+
+export const PLI_CBD_INTEGRATION_STATUSES = {
+  PENDING: 'PENDING',
+  SUCCESS: 'SUCCESS',
+  ERROR: 'ERROR',
+} as const
+
+export type PliCbdIntegrationStatus =
+  (typeof PLI_CBD_INTEGRATION_STATUSES)[keyof typeof PLI_CBD_INTEGRATION_STATUSES]
+
+export const PLI_CBD_INTEGRATION_STATUS_LABELS: Record<
+  PliCbdIntegrationStatus,
+  string
+> = {
+  PENDING: 'W toku',
+  SUCCESS: 'Sukces',
+  ERROR: 'Blad',
+}
+
 // ============================================================
 // STATUSY WEWNETRZNE SPRAWY PORTOWANIA
 // ============================================================

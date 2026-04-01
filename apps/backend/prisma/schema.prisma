@@ -152,6 +152,17 @@ enum PortingEventType {
   NOTE
 }
 
+enum PliCbdIntegrationDirection {
+  EXPORT
+  SYNC
+}
+
+enum PliCbdIntegrationStatus {
+  PENDING
+  SUCCESS
+  ERROR
+}
+
 // ============================================================
 // USERS — Użytkownicy systemu
 // ============================================================
@@ -168,16 +179,17 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  auditLogs              AuditLog[]
-  comments               Comment[]
-  uploadedDocuments      Document[]            @relation("UploadedBy")
-  verifiedDocuments      Document[]            @relation("VerifiedBy")
-  createdTasks           Task[]                @relation("TaskCreatedBy")
-  assignedTasks          Task[]                @relation("TaskAssignedTo")
-  statusHistories        StatusHistory[]
-  notifications          Notification[]
-  createdPortingRequests PortingRequest[]      @relation("PortingRequestCreatedBy")
-  portingRequestEvents   PortingRequestEvent[] @relation("PortingEventCreatedBy")
+  auditLogs               AuditLog[]
+  comments                Comment[]
+  uploadedDocuments       Document[]               @relation("UploadedBy")
+  verifiedDocuments       Document[]               @relation("VerifiedBy")
+  createdTasks            Task[]                   @relation("TaskCreatedBy")
+  assignedTasks           Task[]                   @relation("TaskAssignedTo")
+  statusHistories         StatusHistory[]
+  notifications           Notification[]
+  createdPortingRequests  PortingRequest[]         @relation("PortingRequestCreatedBy")
+  portingRequestEvents    PortingRequestEvent[]    @relation("PortingEventCreatedBy")
+  pliCbdIntegrationEvents PliCbdIntegrationEvent[] @relation("PliCbdIntegrationTriggeredBy")
 
   @@map("users")
 }
@@ -348,13 +360,14 @@ model PortingRequest {
   infrastructureOperator Operator? @relation("InfrastructureOperator", fields: [infrastructureOperatorId], references: [id])
   createdByUser          User      @relation("PortingRequestCreatedBy", fields: [createdByUserId], references: [id])
 
-  phoneNumbers  PhoneNumber[]
-  documents     Document[]
-  comments      Comment[]
-  statusHistory StatusHistory[]
-  tasks         Task[]
-  auditLogs     AuditLog[]
-  events        PortingRequestEvent[]
+  phoneNumbers            PhoneNumber[]
+  documents               Document[]
+  comments                Comment[]
+  statusHistory           StatusHistory[]
+  tasks                   Task[]
+  auditLogs               AuditLog[]
+  events                  PortingRequestEvent[]
+  pliCbdIntegrationEvents PliCbdIntegrationEvent[]
 
   @@index([clientId])
   @@index([statusInternal])
@@ -597,6 +610,27 @@ model PortingRequestEvent {
 // ============================================================
 // SYSTEM SETTINGS — Konfiguracja systemu
 // ============================================================
+
+model PliCbdIntegrationEvent {
+  id                  String                     @id @default(uuid())
+  portingRequestId    String
+  operationType       PliCbdIntegrationDirection
+  operationStatus     PliCbdIntegrationStatus
+  actionName          String?                    @db.VarChar(100)
+  requestPayloadJson  Json?
+  responsePayloadJson Json?
+  errorMessage        String?                    @db.Text
+  triggeredByUserId   String?
+  createdAt           DateTime                   @default(now())
+  completedAt         DateTime?
+
+  portingRequest PortingRequest @relation(fields: [portingRequestId], references: [id], onDelete: Cascade)
+  triggeredBy    User?          @relation("PliCbdIntegrationTriggeredBy", fields: [triggeredByUserId], references: [id])
+
+  @@index([portingRequestId])
+  @@index([portingRequestId, createdAt])
+  @@map("pli_cbd_integration_events")
+}
 
 model SystemSetting {
   id        String   @id @default(uuid())

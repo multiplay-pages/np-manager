@@ -1,6 +1,7 @@
 import { apiClient } from './api.client'
 import type {
   CreatePortingRequestDto,
+  PliCbdIntegrationEventsResultDto,
   PortingRequestDetailDto,
   PortingRequestListQueryDto,
   PortingRequestListResultDto,
@@ -87,6 +88,17 @@ export async function getPortingRequestTimeline(id: string): Promise<PortingTime
     success: true
     data: PortingTimelineResultDto
   }>(`/porting-requests/${id}/timeline`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestIntegrationEvents(
+  id: string,
+): Promise<PliCbdIntegrationEventsResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PliCbdIntegrationEventsResultDto
+  }>(`/porting-requests/${id}/integration-events`)
 
   return response.data.data
 }

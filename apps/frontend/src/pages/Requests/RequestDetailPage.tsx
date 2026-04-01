@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import {
   exportPortingRequest,
   getPortingRequestById,
+  getPortingRequestIntegrationEvents,
   getPortingRequestTimeline,
   syncPortingRequest,
   updatePortingRequestStatus,
@@ -23,11 +24,13 @@ import {
 } from '@np-manager/shared'
 import type {
   PortingCaseStatus,
+  PliCbdIntegrationEventDto,
   PortingRequestDetailDto,
   PortingTimelineItemDto,
 } from '@np-manager/shared'
 import { PortingTimeline } from '@/components/PortingTimeline/PortingTimeline'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
+import { PliCbdIntegrationHistory } from '@/components/PliCbdIntegrationHistory/PliCbdIntegrationHistory'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -90,6 +93,8 @@ export function RequestDetailPage() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [timelineItems, setTimelineItems] = useState<PortingTimelineItemDto[]>([])
   const [isTimelineLoading, setIsTimelineLoading] = useState(true)
+  const [integrationEvents, setIntegrationEvents] = useState<PliCbdIntegrationEventDto[]>([])
+  const [isIntegrationEventsLoading, setIsIntegrationEventsLoading] = useState(true)
 
   const canManageStatus = useMemo(
     () =>
@@ -122,6 +127,24 @@ export function RequestDetailPage() {
     }
   }, [id])
 
+  const loadIntegrationEvents = useCallback(async () => {
+    if (!id || !canTriggerPliCbdActions) {
+      setIntegrationEvents([])
+      setIsIntegrationEventsLoading(false)
+      return
+    }
+
+    setIsIntegrationEventsLoading(true)
+    try {
+      const result = await getPortingRequestIntegrationEvents(id)
+      setIntegrationEvents(result.items)
+    } catch {
+      setIntegrationEvents([])
+    } finally {
+      setIsIntegrationEventsLoading(false)
+    }
+  }, [canTriggerPliCbdActions, id])
+
   useEffect(() => {
     if (!id) return
 
@@ -140,7 +163,8 @@ export function RequestDetailPage() {
 
     void load()
     void loadTimeline()
-  }, [id, loadTimeline])
+    void loadIntegrationEvents()
+  }, [id, loadIntegrationEvents, loadTimeline])
 
   const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('pl-PL', {
@@ -159,8 +183,10 @@ export function RequestDetailPage() {
     try {
       setRequest(await exportPortingRequest(id))
       void loadTimeline()
+      void loadIntegrationEvents()
       setActionSuccess('Eksport do PLI CBD zostal wyzwolony pomyslnie.')
     } catch {
+      void loadIntegrationEvents()
       setActionError('Nie udalo sie uruchomic foundation eksportu do PLI CBD.')
     } finally {
       setIsExporting(false)
@@ -175,8 +201,10 @@ export function RequestDetailPage() {
     try {
       setRequest(await syncPortingRequest(id))
       void loadTimeline()
+      void loadIntegrationEvents()
       setActionSuccess('Synchronizacja z PLI CBD zakonczona pomyslnie.')
     } catch {
+      void loadIntegrationEvents()
       setActionError('Nie udalo sie uruchomic foundation synchronizacji z PLI CBD.')
     } finally {
       setIsSyncing(false)
@@ -473,6 +501,13 @@ export function RequestDetailPage() {
           integracji SOAP/XML z PLI CBD.
         </div>
       </div>
+
+      {canTriggerPliCbdActions && (
+        <PliCbdIntegrationHistory
+          items={integrationEvents}
+          isLoading={isIntegrationEventsLoading}
+        />
+      )}
 
       <PortingTimeline items={timelineItems} isLoading={isTimelineLoading} />
 
