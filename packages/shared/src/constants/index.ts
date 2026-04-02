@@ -415,3 +415,75 @@ export const SYSTEM_SETTING_KEYS = {
 } as const
 
 export type SystemSettingKey = (typeof SYSTEM_SETTING_KEYS)[keyof typeof SYSTEM_SETTING_KEYS]
+
+// ============================================================
+// ETAPY PROCESU FNP W PLI CBD
+// ============================================================
+
+export const FNP_PROCESS_STAGES = {
+  NOT_IN_PROCESS: 'NOT_IN_PROCESS',
+  EXPORT_PENDING: 'EXPORT_PENDING',
+  AWAITING_DONOR_E06: 'AWAITING_DONOR_E06',
+  AWAITING_E12: 'AWAITING_E12',
+  AWAITING_E13: 'AWAITING_E13',
+  READY_TO_PORT: 'READY_TO_PORT',
+  COMPLETED: 'COMPLETED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
+  PROCESS_ERROR: 'PROCESS_ERROR',
+} as const
+
+export type FnpProcessStage = (typeof FNP_PROCESS_STAGES)[keyof typeof FNP_PROCESS_STAGES]
+
+export const FNP_PROCESS_STAGE_LABELS: Record<FnpProcessStage, string> = {
+  NOT_IN_PROCESS: 'Poza procesem PLI CBD',
+  EXPORT_PENDING: 'Oczekuje na rejestracje w PLI CBD',
+  AWAITING_DONOR_E06: 'Oczekuje na odpowiedz Dawcy (E06)',
+  AWAITING_E12: 'Wymagane potwierdzenie terminu (E12)',
+  AWAITING_E13: 'Oczekuje na potwierdzenie terminu przez Dawce (E13)',
+  READY_TO_PORT: 'Termin uzgodniony — gotowe do przeniesienia',
+  COMPLETED: 'Przeniesienie zakonczone',
+  REJECTED: 'Wniosek odrzucony',
+  CANCELLED: 'Wniosek anulowany',
+  PROCESS_ERROR: 'Blad procesu',
+}
+
+// ============================================================
+// KOMUNIKATY EXX — OPISY DOMENOWE
+// ============================================================
+
+export const FNP_EXX_MESSAGES = {
+  E03: 'E03',
+  E06: 'E06',
+  E12: 'E12',
+  E13: 'E13',
+  E16: 'E16',
+  E18: 'E18',
+  E23: 'E23',
+} as const
+
+export type FnpExxMessage = (typeof FNP_EXX_MESSAGES)[keyof typeof FNP_EXX_MESSAGES]
+
+export const FNP_EXX_MESSAGE_LABELS: Record<FnpExxMessage, string> = {
+  E03: 'E03 — Wniosek przeniesienia numeru',
+  E06: 'E06 — Odpowiedz Dawcy na wniosek',
+  E12: 'E12 — Potwierdzenie terminu przez Biorca',
+  E13: 'E13 — Potwierdzenie terminu przez Dawce',
+  E16: 'E16 — Komunikat bladu / odrzucenia walidacyjnego',
+  E18: 'E18 — Potwierdzenie wykonania przeniesienia',
+  E23: 'E23 — Anulowanie wniosku',
+}
+
+export const FNP_EXX_MESSAGE_DESCRIPTIONS: Record<FnpExxMessage, string> = {
+  E03: 'Biorca inicjuje proces przeniesienia numeru. Komunikat trafia do PLI CBD, skad jest przekazywany do Dawcy.',
+  E06: 'Dawca odpowiada na wniosek E03. Moze zawierac akceptacje z proponowana data przeniesienia lub odrzucenie z kodem bledu.',
+  E12: 'Biorca potwierdza date przeniesienia zaproponowana przez Dawce w E06. Po E12 inicjowana jest finalizacja procesu.',
+  E13: 'Dawca potwierdza ostateczny termin przeniesienia. Po E13 data jest wiazaca dla obu stron.',
+  E16: 'Komunikat walidacyjny lub blad procesu. Moze byc wysylany przez dowolna strone w odpowiedzi na niepoprawne dane.',
+  E18: 'Biorca potwierdza zakonczone przeniesienie numeru do systemu PLI CBD po realizacji technicznej.',
+  E23: 'Anulowanie aktywnego wniosku przeniesienia. Moze byc wysylane przez Biorca lub Dawce.',
+}
+
+// Parametry terminu dla trybow portowania (wartosci orientacyjne dla sieci stacjonarnych)
+export const FNP_DAY_MODE_MIN_LEAD_DAYS = 3
+export const FNP_DAY_MODE_WHOLESALE_MIN_LEAD_DAYS = 5

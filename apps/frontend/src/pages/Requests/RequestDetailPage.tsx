@@ -7,6 +7,7 @@ import {
   exportPortingRequest,
   getPortingRequestById,
   getPortingRequestIntegrationEvents,
+  getPortingRequestProcessSnapshot,
   getPortingRequestTimeline,
   syncPortingRequest,
   updatePortingRequestStatus,
@@ -23,14 +24,16 @@ import {
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
 } from '@np-manager/shared'
 import type {
-  PortingCaseStatus,
   PliCbdIntegrationEventDto,
+  PliCbdProcessSnapshotDto,
+  PortingCaseStatus,
   PortingRequestDetailDto,
   PortingTimelineItemDto,
 } from '@np-manager/shared'
 import { PortingTimeline } from '@/components/PortingTimeline/PortingTimeline'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import { PliCbdIntegrationHistory } from '@/components/PliCbdIntegrationHistory/PliCbdIntegrationHistory'
+import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbdProcessSnapshot'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -95,6 +98,8 @@ export function RequestDetailPage() {
   const [isTimelineLoading, setIsTimelineLoading] = useState(true)
   const [integrationEvents, setIntegrationEvents] = useState<PliCbdIntegrationEventDto[]>([])
   const [isIntegrationEventsLoading, setIsIntegrationEventsLoading] = useState(true)
+  const [processSnapshot, setProcessSnapshot] = useState<PliCbdProcessSnapshotDto | null>(null)
+  const [isProcessSnapshotLoading, setIsProcessSnapshotLoading] = useState(true)
 
   const canManageStatus = useMemo(
     () =>
@@ -124,6 +129,19 @@ export function RequestDetailPage() {
       // Timeline errors are non-blocking
     } finally {
       setIsTimelineLoading(false)
+    }
+  }, [id])
+
+  const loadProcessSnapshot = useCallback(async () => {
+    if (!id) return
+    setIsProcessSnapshotLoading(true)
+    try {
+      const snapshot = await getPortingRequestProcessSnapshot(id)
+      setProcessSnapshot(snapshot)
+    } catch {
+      setProcessSnapshot(null)
+    } finally {
+      setIsProcessSnapshotLoading(false)
     }
   }, [id])
 
@@ -164,7 +182,8 @@ export function RequestDetailPage() {
     void load()
     void loadTimeline()
     void loadIntegrationEvents()
-  }, [id, loadIntegrationEvents, loadTimeline])
+    void loadProcessSnapshot()
+  }, [id, loadIntegrationEvents, loadProcessSnapshot, loadTimeline])
 
   const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('pl-PL', {
@@ -501,6 +520,11 @@ export function RequestDetailPage() {
           integracji SOAP/XML z PLI CBD.
         </div>
       </div>
+
+      <PliCbdProcessSnapshot
+        snapshot={processSnapshot}
+        isLoading={isProcessSnapshotLoading}
+      />
 
       {canTriggerPliCbdActions && (
         <PliCbdIntegrationHistory
