@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import {
   exportPortingRequest,
   getPortingRequestById,
+  getPortingRequestE03Draft,
   getPortingRequestIntegrationEvents,
   getPortingRequestProcessSnapshot,
   getPortingRequestTimeline,
@@ -24,6 +25,7 @@ import {
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
 } from '@np-manager/shared'
 import type {
+  PliCbdE03DraftBuildResultDto,
   PliCbdIntegrationEventDto,
   PliCbdProcessSnapshotDto,
   PortingCaseStatus,
@@ -34,6 +36,7 @@ import { PortingTimeline } from '@/components/PortingTimeline/PortingTimeline'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import { PliCbdIntegrationHistory } from '@/components/PliCbdIntegrationHistory/PliCbdIntegrationHistory'
 import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbdProcessSnapshot'
+import { PliCbdE03DraftPreview } from '@/components/PliCbdE03DraftPreview/PliCbdE03DraftPreview'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -100,6 +103,9 @@ export function RequestDetailPage() {
   const [isIntegrationEventsLoading, setIsIntegrationEventsLoading] = useState(true)
   const [processSnapshot, setProcessSnapshot] = useState<PliCbdProcessSnapshotDto | null>(null)
   const [isProcessSnapshotLoading, setIsProcessSnapshotLoading] = useState(true)
+  const [e03DraftResult, setE03DraftResult] =
+    useState<PliCbdE03DraftBuildResultDto | null>(null)
+  const [isE03DraftLoading, setIsE03DraftLoading] = useState(true)
 
   const canManageStatus = useMemo(
     () =>
@@ -145,6 +151,19 @@ export function RequestDetailPage() {
     }
   }, [id])
 
+  const loadE03Draft = useCallback(async () => {
+    if (!id) return
+    setIsE03DraftLoading(true)
+    try {
+      const result = await getPortingRequestE03Draft(id)
+      setE03DraftResult(result)
+    } catch {
+      setE03DraftResult(null)
+    } finally {
+      setIsE03DraftLoading(false)
+    }
+  }, [id])
+
   const loadIntegrationEvents = useCallback(async () => {
     if (!id || !canTriggerPliCbdActions) {
       setIntegrationEvents([])
@@ -183,7 +202,8 @@ export function RequestDetailPage() {
     void loadTimeline()
     void loadIntegrationEvents()
     void loadProcessSnapshot()
-  }, [id, loadIntegrationEvents, loadProcessSnapshot, loadTimeline])
+    void loadE03Draft()
+  }, [id, loadE03Draft, loadIntegrationEvents, loadProcessSnapshot, loadTimeline])
 
   const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('pl-PL', {
@@ -203,9 +223,13 @@ export function RequestDetailPage() {
       setRequest(await exportPortingRequest(id))
       void loadTimeline()
       void loadIntegrationEvents()
+      void loadProcessSnapshot()
+      void loadE03Draft()
       setActionSuccess('Eksport do PLI CBD zostal wyzwolony pomyslnie.')
     } catch {
       void loadIntegrationEvents()
+      void loadProcessSnapshot()
+      void loadE03Draft()
       setActionError('Nie udalo sie uruchomic foundation eksportu do PLI CBD.')
     } finally {
       setIsExporting(false)
@@ -221,9 +245,13 @@ export function RequestDetailPage() {
       setRequest(await syncPortingRequest(id))
       void loadTimeline()
       void loadIntegrationEvents()
+      void loadProcessSnapshot()
+      void loadE03Draft()
       setActionSuccess('Synchronizacja z PLI CBD zakonczona pomyslnie.')
     } catch {
       void loadIntegrationEvents()
+      void loadProcessSnapshot()
+      void loadE03Draft()
       setActionError('Nie udalo sie uruchomic foundation synchronizacji z PLI CBD.')
     } finally {
       setIsSyncing(false)
@@ -265,6 +293,8 @@ export function RequestDetailPage() {
       const updatedRequest = await updatePortingRequestStatus(id, { targetStatus })
       setRequest(updatedRequest)
       void loadTimeline()
+      void loadProcessSnapshot()
+      void loadE03Draft()
       setStatusActionSuccess('Status sprawy został zmieniony.')
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -524,6 +554,11 @@ export function RequestDetailPage() {
       <PliCbdProcessSnapshot
         snapshot={processSnapshot}
         isLoading={isProcessSnapshotLoading}
+      />
+
+      <PliCbdE03DraftPreview
+        result={e03DraftResult}
+        isLoading={isE03DraftLoading}
       />
 
       {canTriggerPliCbdActions && (
