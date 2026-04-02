@@ -1,8 +1,11 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { AppError } from '../../shared/errors/app-error'
 import type {
   FnpBlockingReason,
   FnpMessageReadiness,
+  PliCbdE03DraftBuildResultDto,
+  PliCbdE03DraftDto,
   PliCbdProcessSnapshotDto,
 } from '@np-manager/shared'
 import {
@@ -38,6 +41,58 @@ const FNP_PROCESS_SELECT = {
   requestedPortDate: true,
   donorAssignedPortDate: true,
 } as const
+
+const DRAFT_OPERATOR_SELECT = {
+  id: true,
+  name: true,
+  shortName: true,
+  routingNumber: true,
+} as const
+
+const E03_DRAFT_SELECT = {
+  id: true,
+  caseNumber: true,
+  clientId: true,
+  numberType: true,
+  numberRangeKind: true,
+  primaryNumber: true,
+  rangeStart: true,
+  rangeEnd: true,
+  requestDocumentNumber: true,
+  portingMode: true,
+  requestedPortDate: true,
+  earliestAcceptablePortDate: true,
+  subscriberKind: true,
+  subscriberFirstName: true,
+  subscriberLastName: true,
+  subscriberCompanyName: true,
+  identityType: true,
+  identityValue: true,
+  correspondenceAddress: true,
+  hasPowerOfAttorney: true,
+  linkedWholesaleServiceOnRecipientSide: true,
+  contactChannel: true,
+  client: {
+    select: {
+      id: true,
+      clientType: true,
+      firstName: true,
+      lastName: true,
+      companyName: true,
+    },
+  },
+  donorOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  recipientOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  infrastructureOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+} as const
+
+type E03DraftRow = Prisma.PortingRequestGetPayload<{ select: typeof E03_DRAFT_SELECT }>
 
 // ============================================================
 // POMOCNIK — mapowanie PliCbdExxType → FnpExxMessage | null
@@ -184,6 +239,77 @@ export async function getPortingRequestProcessSnapshot(
 // POMOCNIK — podglad pol dla konkretnego komunikatu
 // ============================================================
 
+export async function buildE03DraftForPortingRequest(
+  requestId: string,
+): Promise<PliCbdE03DraftBuildResultDto> {
+  const snapshot = await getPortingRequestProcessSnapshot(requestId)
+
+  if (!snapshot.allowedNextMessages.includes('E03')) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons:
+        snapshot.blockingReasons.length > 0
+          ? snapshot.blockingReasons
+          : [
+              {
+                code: 'E03_NOT_ALLOWED_AT_CURRENT_STAGE',
+                message: `Komunikat E03 nie jest dostepny na aktualnym etapie procesu: ${snapshot.currentStageLabel}.`,
+                field: 'currentStage',
+              },
+            ],
+      draft: null,
+    }
+  }
+
+  const e03Readiness = snapshot.draftableMessages.find(
+    (message) => message.messageType === 'E03',
+  )
+
+  if (!e03Readiness) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: [
+        {
+          code: 'E03_READINESS_NOT_AVAILABLE',
+          message: 'Nie udalo sie wyznaczyc gotowosci draftu E03 dla tej sprawy.',
+        },
+      ],
+      draft: null,
+    }
+  }
+
+  if (!e03Readiness.ready) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: e03Readiness.blockingReasons,
+      draft: null,
+    }
+  }
+
+  const row = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: E03_DRAFT_SELECT,
+  })
+
+  if (!row) {
+    throw AppError.notFound(`Sprawa o id "${requestId}" nie istnieje.`)
+  }
+
+  return {
+    requestId: row.id,
+    caseNumber: row.caseNumber,
+    isReady: true,
+    blockingReasons: [],
+    draft: buildE03Draft(row),
+  }
+}
+
 function buildSummaryFields(
   messageType: string,
   row: FnpValidationRequest & { id: string; caseNumber: string },
@@ -210,4 +336,107 @@ function buildSummaryFields(
     default:
       return {}
   }
+}
+
+function buildE03Draft(row: E03DraftRow): PliCbdE03DraftDto {
+  return {
+    messageType: 'E03',
+    serviceType: 'FNP',
+    requestId: row.id,
+    caseNumber: row.caseNumber,
+    clientId: row.clientId,
+    clientDisplayName: getClientDisplayName(row.client),
+    subscriberKind: row.subscriberKind,
+    subscriberDisplayName: getSubscriberDisplayName(row),
+    subscriberFirstName: row.subscriberFirstName,
+    subscriberLastName: row.subscriberLastName,
+    subscriberCompanyName: row.subscriberCompanyName,
+    numberType: row.numberType,
+    portedNumberKind: row.numberRangeKind,
+    primaryNumber: row.primaryNumber,
+    rangeStart: row.rangeStart,
+    rangeEnd: row.rangeEnd,
+    numberDisplay: getNumberDisplay(row),
+    portingMode: row.portingMode,
+    requestedPortDate: toDateOnlyString(row.requestedPortDate),
+    earliestAcceptablePortDate: toDateOnlyString(row.earliestAcceptablePortDate),
+    requestDocumentNumber: row.requestDocumentNumber ?? '',
+    donorOperator: toDraftOperator(row.donorOperator),
+    recipientOperator: toDraftOperator(row.recipientOperator),
+    infrastructureOperator: row.infrastructureOperator
+      ? toDraftOperator(row.infrastructureOperator)
+      : null,
+    identity: {
+      type: row.identityType,
+      value: row.identityValue,
+    },
+    correspondenceAddress: row.correspondenceAddress,
+    hasPowerOfAttorney: row.hasPowerOfAttorney,
+    linkedWholesaleServiceOnRecipientSide:
+      row.linkedWholesaleServiceOnRecipientSide,
+    contactChannel: row.contactChannel,
+    technicalHints: {
+      portDateSource:
+        row.portingMode === 'DAY'
+          ? 'REQUESTED_PORT_DATE'
+          : 'EARLIEST_ACCEPTABLE_PORT_DATE',
+      numberSelectionSource:
+        row.numberRangeKind === 'DDI_RANGE'
+          ? 'NUMBER_RANGE'
+          : 'PRIMARY_NUMBER',
+    },
+  }
+}
+
+function toDateOnlyString(value: Date | null): string | null {
+  return value ? value.toISOString().slice(0, 10) : null
+}
+
+function toDraftOperator(
+  operator: E03DraftRow['donorOperator'],
+): PliCbdE03DraftDto['donorOperator'] {
+  return {
+    id: operator.id,
+    name: operator.name,
+    shortName: operator.shortName,
+    routingNumber: operator.routingNumber,
+  }
+}
+
+function getClientDisplayName(client: E03DraftRow['client']): string {
+  if (client.clientType === 'BUSINESS') {
+    return client.companyName ?? 'Firma (brak nazwy)'
+  }
+
+  const parts = [client.firstName, client.lastName].filter(Boolean)
+  return parts.length > 0 ? parts.join(' ') : 'Brak danych'
+}
+
+function getSubscriberDisplayName(request: {
+  subscriberKind: string
+  subscriberFirstName: string | null
+  subscriberLastName: string | null
+  subscriberCompanyName: string | null
+}): string {
+  if (request.subscriberKind === 'BUSINESS') {
+    return request.subscriberCompanyName ?? 'Firma (brak nazwy)'
+  }
+
+  const parts = [request.subscriberFirstName, request.subscriberLastName].filter(
+    Boolean,
+  )
+  return parts.length > 0 ? parts.join(' ') : 'Brak danych'
+}
+
+function getNumberDisplay(request: {
+  numberRangeKind: string
+  primaryNumber: string | null
+  rangeStart: string | null
+  rangeEnd: string | null
+}): string {
+  if (request.numberRangeKind === 'DDI_RANGE') {
+    return `${request.rangeStart ?? '-'} - ${request.rangeEnd ?? '-'}`
+  }
+
+  return request.primaryNumber ?? '-'
 }
