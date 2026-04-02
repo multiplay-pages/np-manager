@@ -86,7 +86,8 @@ export function deriveFnpProcessStage(fields: {
  * - E06 i E13 sa wychodzace od Dawcy — nie sa tutaj uwzglednianie.
  * - E23 (anulowanie) jest dostepne na wiekszosci aktywnych etapow.
  * - E03 odpowiada aktualnej operacji "eksport".
- * - E12 i E18 beda zaimplementowane w kolejnych iteracjach.
+ * - E12 odpowiada potwierdzeniu terminu po stronie Biorcy.
+ * - E18 pozostaje poza zakresem biezacej iteracji draftow.
  */
 export function getAllowedNextMessages(stage: FnpProcessStage): FnpExxMessage[] {
   switch (stage) {

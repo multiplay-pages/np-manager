@@ -7,6 +7,7 @@ import {
   exportPortingRequest,
   getPortingRequestById,
   getPortingRequestE03Draft,
+  getPortingRequestE12Draft,
   getPortingRequestIntegrationEvents,
   getPortingRequestProcessSnapshot,
   getPortingRequestTimeline,
@@ -26,6 +27,7 @@ import {
 } from '@np-manager/shared'
 import type {
   PliCbdE03DraftBuildResultDto,
+  PliCbdE12DraftBuildResultDto,
   PliCbdIntegrationEventDto,
   PliCbdProcessSnapshotDto,
   PortingCaseStatus,
@@ -37,6 +39,7 @@ import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import { PliCbdIntegrationHistory } from '@/components/PliCbdIntegrationHistory/PliCbdIntegrationHistory'
 import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbdProcessSnapshot'
 import { PliCbdE03DraftPreview } from '@/components/PliCbdE03DraftPreview/PliCbdE03DraftPreview'
+import { PliCbdE12DraftPreview } from '@/components/PliCbdE12DraftPreview/PliCbdE12DraftPreview'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -66,13 +69,7 @@ function Field({
   )
 }
 
-function WideField({
-  label,
-  value,
-}: {
-  label: string
-  value: string | null | undefined
-}) {
+function WideField({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="sm:col-span-2">
       <dt className="text-xs text-gray-500 mb-0.5">{label}</dt>
@@ -103,22 +100,17 @@ export function RequestDetailPage() {
   const [isIntegrationEventsLoading, setIsIntegrationEventsLoading] = useState(true)
   const [processSnapshot, setProcessSnapshot] = useState<PliCbdProcessSnapshotDto | null>(null)
   const [isProcessSnapshotLoading, setIsProcessSnapshotLoading] = useState(true)
-  const [e03DraftResult, setE03DraftResult] =
-    useState<PliCbdE03DraftBuildResultDto | null>(null)
+  const [e03DraftResult, setE03DraftResult] = useState<PliCbdE03DraftBuildResultDto | null>(null)
   const [isE03DraftLoading, setIsE03DraftLoading] = useState(true)
+  const [e12DraftResult, setE12DraftResult] = useState<PliCbdE12DraftBuildResultDto | null>(null)
+  const [isE12DraftLoading, setIsE12DraftLoading] = useState(true)
 
   const canManageStatus = useMemo(
-    () =>
-      ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(
-        user?.role ?? '',
-      ),
+    () => ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(user?.role ?? ''),
     [user?.role],
   )
 
-  const canTriggerPliCbdActions = useMemo(
-    () => user?.role === 'ADMIN',
-    [user?.role],
-  )
+  const canTriggerPliCbdActions = useMemo(() => user?.role === 'ADMIN', [user?.role])
 
   const allowedStatusActions = useMemo(
     () => (request ? getAllowedPortingCaseStatusTransitions(request.statusInternal) : []),
@@ -164,6 +156,24 @@ export function RequestDetailPage() {
     }
   }, [id])
 
+  const loadE12Draft = useCallback(async () => {
+    if (!id) return
+    setIsE12DraftLoading(true)
+    try {
+      const result = await getPortingRequestE12Draft(id)
+      setE12DraftResult(result)
+    } catch {
+      setE12DraftResult(null)
+    } finally {
+      setIsE12DraftLoading(false)
+    }
+  }, [id])
+
+  const refreshDraftPreviews = useCallback(() => {
+    void loadE03Draft()
+    void loadE12Draft()
+  }, [loadE03Draft, loadE12Draft])
+
   const loadIntegrationEvents = useCallback(async () => {
     if (!id || !canTriggerPliCbdActions) {
       setIntegrationEvents([])
@@ -202,8 +212,8 @@ export function RequestDetailPage() {
     void loadTimeline()
     void loadIntegrationEvents()
     void loadProcessSnapshot()
-    void loadE03Draft()
-  }, [id, loadE03Draft, loadIntegrationEvents, loadProcessSnapshot, loadTimeline])
+    refreshDraftPreviews()
+  }, [id, loadIntegrationEvents, loadProcessSnapshot, loadTimeline, refreshDraftPreviews])
 
   const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('pl-PL', {
@@ -224,12 +234,12 @@ export function RequestDetailPage() {
       void loadTimeline()
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionSuccess('Eksport do PLI CBD zostal wyzwolony pomyslnie.')
     } catch {
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionError('Nie udalo sie uruchomic foundation eksportu do PLI CBD.')
     } finally {
       setIsExporting(false)
@@ -246,12 +256,12 @@ export function RequestDetailPage() {
       void loadTimeline()
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionSuccess('Synchronizacja z PLI CBD zakonczona pomyslnie.')
     } catch {
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionError('Nie udalo sie uruchomic foundation synchronizacji z PLI CBD.')
     } finally {
       setIsSyncing(false)
@@ -262,9 +272,7 @@ export function RequestDetailPage() {
     if (!id || !request || !canManageStatus || isUpdatingStatus) return
 
     if (targetStatus === 'REJECTED') {
-      const isConfirmed = window.confirm(
-        'Czy na pewno chcesz oznaczyc sprawe jako odrzucona?',
-      )
+      const isConfirmed = window.confirm('Czy na pewno chcesz oznaczyc sprawe jako odrzucona?')
       if (!isConfirmed) return
     }
 
@@ -279,9 +287,7 @@ export function RequestDetailPage() {
     }
 
     if (targetStatus === 'PORTED') {
-      const isConfirmed = window.confirm(
-        'Czy na pewno chcesz oznaczyc sprawe jako przeniesiona?',
-      )
+      const isConfirmed = window.confirm('Czy na pewno chcesz oznaczyc sprawe jako przeniesiona?')
       if (!isConfirmed) return
     }
 
@@ -294,7 +300,7 @@ export function RequestDetailPage() {
       setRequest(updatedRequest)
       void loadTimeline()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setStatusActionSuccess('Status sprawy został zmieniony.')
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -344,7 +350,9 @@ export function RequestDetailPage() {
             {(() => {
               const meta = getPortingStatusMeta(request.statusInternal)
               return (
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${meta.className}`}>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${meta.className}`}
+                >
                   {meta.label}
                 </span>
               )
@@ -365,7 +373,9 @@ export function RequestDetailPage() {
         <Field label="Kartoteka klienta" value={request.client.displayName} />
         <Field
           label="Typ klienta"
-          value={request.client.clientType === 'INDIVIDUAL' ? 'Osoba fizyczna' : 'Firma / podmiot prawny'}
+          value={
+            request.client.clientType === 'INDIVIDUAL' ? 'Osoba fizyczna' : 'Firma / podmiot prawny'
+          }
         />
       </Section>
 
@@ -424,7 +434,10 @@ export function RequestDetailPage() {
       </Section>
 
       <Section title="Meta i status">
-        <Field label="Status wewnętrzny" value={getPortingStatusMeta(request.statusInternal).label} />
+        <Field
+          label="Status wewnętrzny"
+          value={getPortingStatusMeta(request.statusInternal).label}
+        />
         <Field label="Status PLI CBD (legacy)" value={request.statusPliCbd} mono />
         <Field label="Kod odrzucenia" value={request.rejectionCode} mono />
         <WideField label="Powod odrzucenia" value={request.rejectionReason} />
@@ -453,7 +466,8 @@ export function RequestDetailPage() {
                 >
                   {isUpdatingStatus
                     ? 'Zapisywanie...'
-                    : (PORTING_CASE_STATUS_ACTION_LABELS[targetStatus] ?? PORTING_CASE_STATUS_LABELS[targetStatus])}
+                    : (PORTING_CASE_STATUS_ACTION_LABELS[targetStatus] ??
+                      PORTING_CASE_STATUS_LABELS[targetStatus])}
                 </button>
               ))}
             </div>
@@ -515,13 +529,20 @@ export function RequestDetailPage() {
               label="Status eksportu"
               value={PLI_CBD_EXPORT_STATUS_LABELS[request.pliCbdExportStatus]}
             />
-            <Field label="Ostatnia synchronizacja" value={request.pliCbdLastSyncAt ? formatDateTime(request.pliCbdLastSyncAt) : null} />
+            <Field
+              label="Ostatnia synchronizacja"
+              value={request.pliCbdLastSyncAt ? formatDateTime(request.pliCbdLastSyncAt) : null}
+            />
             <Field label="PLI CBD case ID" value={request.pliCbdCaseId} mono />
             <Field label="PLI CBD case number" value={request.pliCbdCaseNumber} mono />
             <Field label="PLI CBD package ID" value={request.pliCbdPackageId} mono />
             <Field label="Ostatni typ komunikatu" value={request.lastPliCbdMessageType} mono />
             <Field label="Ostatni kod statusu" value={request.lastPliCbdStatusCode} mono />
-            <Field label="Godzina wyznaczona przez Dawce" value={request.donorAssignedPortTime} mono />
+            <Field
+              label="Godzina wyznaczona przez Dawce"
+              value={request.donorAssignedPortTime}
+              mono
+            />
             <WideField
               label="Opis ostatniego statusu PLI CBD"
               value={
@@ -551,15 +572,11 @@ export function RequestDetailPage() {
         </div>
       </div>
 
-      <PliCbdProcessSnapshot
-        snapshot={processSnapshot}
-        isLoading={isProcessSnapshotLoading}
-      />
+      <PliCbdProcessSnapshot snapshot={processSnapshot} isLoading={isProcessSnapshotLoading} />
 
-      <PliCbdE03DraftPreview
-        result={e03DraftResult}
-        isLoading={isE03DraftLoading}
-      />
+      <PliCbdE03DraftPreview result={e03DraftResult} isLoading={isE03DraftLoading} />
+
+      <PliCbdE12DraftPreview result={e12DraftResult} isLoading={isE12DraftLoading} />
 
       {canTriggerPliCbdActions && (
         <PliCbdIntegrationHistory
