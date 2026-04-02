@@ -2,6 +2,7 @@ import { apiClient } from './api.client'
 import type {
   CreatePortingRequestDto,
   PliCbdE03DraftBuildResultDto,
+  PliCbdE23DraftBuildResultDto,
   PliCbdIntegrationEventsResultDto,
   PliCbdProcessSnapshotDto,
   PortingRequestDetailDto,
@@ -105,13 +106,20 @@ export async function getPortingRequestProcessSnapshot(
   return response.data.data
 }
 
-export async function getPortingRequestE03Draft(
-  id: string,
-): Promise<PliCbdE03DraftBuildResultDto> {
+export async function getPortingRequestE03Draft(id: string): Promise<PliCbdE03DraftBuildResultDto> {
   const response = await apiClient.get<{
     success: true
     data: PliCbdE03DraftBuildResultDto
   }>(`/porting-requests/${id}/pli-cbd-drafts/e03`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestE23Draft(id: string): Promise<PliCbdE23DraftBuildResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PliCbdE23DraftBuildResultDto
+  }>(`/porting-requests/${id}/pli-cbd-drafts/e23`)
 
   return response.data.data
 }
