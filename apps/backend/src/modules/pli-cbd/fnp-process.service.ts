@@ -92,7 +92,17 @@ export async function getPortingRequestProcessSnapshot(
       where: { date: dateForCalendar },
       select: { isWorkingDay: true },
     })
-    isWorkingDay = calendarEntry?.isWorkingDay ?? null
+
+    if (calendarEntry !== null) {
+      // Wynik z bazy — wiazacy
+      isWorkingDay = calendarEntry.isWorkingDay
+    } else {
+      // Brak wpisu w kalendarzu — fallback na dzien tygodnia:
+      // weekend (sobota=6, niedziela=0) na pewno nie jest dniem roboczym;
+      // dni powszednie bez wpisu zostawiamy jako null (moze byc swieto)
+      const dayOfWeek = dateForCalendar.getDay()
+      isWorkingDay = dayOfWeek === 0 || dayOfWeek === 6 ? false : null
+    }
   }
 
   const today = new Date()
