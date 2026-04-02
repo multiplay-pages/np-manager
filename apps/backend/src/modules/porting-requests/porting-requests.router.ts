@@ -17,6 +17,7 @@ import {
   updatePortingRequestStatus,
 } from './porting-requests.service'
 import { getPortingRequestTimeline } from './porting-events.service'
+import { getPortingRequestProcessSnapshot } from '../pli-cbd/fnp-process.service'
 
 export async function portingRequestsRouter(app: FastifyInstance): Promise<void> {
   const readRoles: UserRole[] = [
@@ -55,6 +56,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const result = await getPortingRequestIntegrationEvents(request.params.id)
       return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/pli-cbd-process',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const snapshot = await getPortingRequestProcessSnapshot(request.params.id)
+      return reply.status(200).send({ success: true, data: snapshot })
     },
   )
 
