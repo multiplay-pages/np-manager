@@ -6,6 +6,8 @@ import type {
   FnpMessageReadiness,
   PliCbdE03DraftBuildResultDto,
   PliCbdE03DraftDto,
+  PliCbdE12DraftBuildResultDto,
+  PliCbdE12DraftDto,
   PliCbdProcessSnapshotDto,
 } from '@np-manager/shared'
 import {
@@ -13,6 +15,7 @@ import {
   FNP_EXX_MESSAGE_LABELS,
   FNP_PROCESS_STAGE_LABELS,
   PORTING_MODE_LABELS,
+  PORTING_CASE_STATUS_LABELS,
 } from '@np-manager/shared'
 import { deriveFnpProcessStage, getAllowedNextMessages } from './fnp-process.domain'
 import {
@@ -93,6 +96,44 @@ const E03_DRAFT_SELECT = {
 } as const
 
 type E03DraftRow = Prisma.PortingRequestGetPayload<{ select: typeof E03_DRAFT_SELECT }>
+
+const E12_DRAFT_SELECT = {
+  id: true,
+  caseNumber: true,
+  clientId: true,
+  numberType: true,
+  numberRangeKind: true,
+  primaryNumber: true,
+  rangeStart: true,
+  rangeEnd: true,
+  portingMode: true,
+  statusInternal: true,
+  pliCbdExportStatus: true,
+  lastExxReceived: true,
+  donorAssignedPortDate: true,
+  donorAssignedPortTime: true,
+  client: {
+    select: {
+      id: true,
+      clientType: true,
+      firstName: true,
+      lastName: true,
+      companyName: true,
+    },
+  },
+  donorOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  recipientOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  subscriberKind: true,
+  subscriberFirstName: true,
+  subscriberLastName: true,
+  subscriberCompanyName: true,
+} as const
+
+type E12DraftRow = Prisma.PortingRequestGetPayload<{ select: typeof E12_DRAFT_SELECT }>
 
 // ============================================================
 // POMOCNIK — mapowanie PliCbdExxType → FnpExxMessage | null
@@ -263,9 +304,7 @@ export async function buildE03DraftForPortingRequest(
     }
   }
 
-  const e03Readiness = snapshot.draftableMessages.find(
-    (message) => message.messageType === 'E03',
-  )
+  const e03Readiness = snapshot.draftableMessages.find((message) => message.messageType === 'E03')
 
   if (!e03Readiness) {
     return {
@@ -307,6 +346,75 @@ export async function buildE03DraftForPortingRequest(
     isReady: true,
     blockingReasons: [],
     draft: buildE03Draft(row),
+  }
+}
+
+export async function buildE12DraftForPortingRequest(
+  requestId: string,
+): Promise<PliCbdE12DraftBuildResultDto> {
+  const snapshot = await getPortingRequestProcessSnapshot(requestId)
+
+  if (!snapshot.allowedNextMessages.includes('E12')) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons:
+        snapshot.blockingReasons.length > 0
+          ? snapshot.blockingReasons
+          : [
+              {
+                code: 'E12_NOT_ALLOWED_AT_CURRENT_STAGE',
+                message: `Komunikat E12 nie jest dostepny na aktualnym etapie procesu: ${snapshot.currentStageLabel}.`,
+                field: 'currentStage',
+              },
+            ],
+      draft: null,
+    }
+  }
+
+  const e12Readiness = snapshot.draftableMessages.find((message) => message.messageType === 'E12')
+
+  if (!e12Readiness) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: [
+        {
+          code: 'E12_READINESS_NOT_AVAILABLE',
+          message: 'Nie udalo sie wyznaczyc gotowosci draftu E12 dla tej sprawy.',
+        },
+      ],
+      draft: null,
+    }
+  }
+
+  if (!e12Readiness.ready) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: e12Readiness.blockingReasons,
+      draft: null,
+    }
+  }
+
+  const row = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: E12_DRAFT_SELECT,
+  })
+
+  if (!row) {
+    throw AppError.notFound(`Sprawa o id "${requestId}" nie istnieje.`)
+  }
+
+  return {
+    requestId: row.id,
+    caseNumber: row.caseNumber,
+    isReady: true,
+    blockingReasons: [],
+    draft: buildE12Draft(row, snapshot),
   }
 }
 
@@ -372,18 +480,51 @@ function buildE03Draft(row: E03DraftRow): PliCbdE03DraftDto {
     },
     correspondenceAddress: row.correspondenceAddress,
     hasPowerOfAttorney: row.hasPowerOfAttorney,
-    linkedWholesaleServiceOnRecipientSide:
-      row.linkedWholesaleServiceOnRecipientSide,
+    linkedWholesaleServiceOnRecipientSide: row.linkedWholesaleServiceOnRecipientSide,
     contactChannel: row.contactChannel,
     technicalHints: {
       portDateSource:
-        row.portingMode === 'DAY'
-          ? 'REQUESTED_PORT_DATE'
-          : 'EARLIEST_ACCEPTABLE_PORT_DATE',
+        row.portingMode === 'DAY' ? 'REQUESTED_PORT_DATE' : 'EARLIEST_ACCEPTABLE_PORT_DATE',
       numberSelectionSource:
-        row.numberRangeKind === 'DDI_RANGE'
-          ? 'NUMBER_RANGE'
-          : 'PRIMARY_NUMBER',
+        row.numberRangeKind === 'DDI_RANGE' ? 'NUMBER_RANGE' : 'PRIMARY_NUMBER',
+    },
+  }
+}
+
+function buildE12Draft(row: E12DraftRow, snapshot: PliCbdProcessSnapshotDto): PliCbdE12DraftDto {
+  const lastReceivedMessageType = toFnpLastExx(row.lastExxReceived)
+
+  return {
+    messageType: 'E12',
+    serviceType: 'FNP',
+    portingRequestId: row.id,
+    caseNumber: row.caseNumber,
+    clientId: row.clientId,
+    clientDisplayName: getClientDisplayName(row.client),
+    subscriberDisplayName: getSubscriberDisplayName(row),
+    donorOperator: toDraftOperator(row.donorOperator),
+    recipientOperator: toDraftOperator(row.recipientOperator),
+    portingMode: row.portingMode,
+    numberType: row.numberType,
+    numberRangeKind: row.numberRangeKind,
+    numberDisplay: getNumberDisplay(row),
+    confirmationContext: {
+      currentStage: snapshot.currentStage,
+      currentStageLabel: snapshot.currentStageLabel,
+      statusInternal: row.statusInternal,
+      statusInternalLabel: PORTING_CASE_STATUS_LABELS[row.statusInternal],
+      exportStatus: row.pliCbdExportStatus,
+      lastReceivedMessageType,
+      donorAssignedPortDate: toDateOnlyString(row.donorAssignedPortDate),
+      donorAssignedPortTime: row.donorAssignedPortTime,
+    },
+    reasonHints: buildE12ReasonHints(row, snapshot, lastReceivedMessageType),
+    technicalHints: {
+      dataSource: 'CURRENT_CASE_AND_PROCESS_SNAPSHOT',
+      portDateSource: 'DONOR_ASSIGNED_PORT_DATE',
+      numberSelectionSource:
+        row.numberRangeKind === 'DDI_RANGE' ? 'NUMBER_RANGE' : 'PRIMARY_NUMBER',
+      allowedMessagesAtStage: snapshot.allowedNextMessages,
     },
   }
 }
@@ -401,6 +542,30 @@ function toDraftOperator(
     shortName: operator.shortName,
     routingNumber: operator.routingNumber,
   }
+}
+
+function buildE12ReasonHints(
+  row: E12DraftRow,
+  snapshot: PliCbdProcessSnapshotDto,
+  lastReceivedMessageType: PliCbdE12DraftDto['confirmationContext']['lastReceivedMessageType'],
+): string[] {
+  const hints = [
+    `Proces FNP znajduje sie obecnie na etapie: ${snapshot.currentStageLabel}.`,
+    'Draft E12 reprezentuje potwierdzenie terminu po stronie Biorcy.',
+  ]
+
+  if (lastReceivedMessageType) {
+    hints.push(
+      `Ostatni komunikat uwzgledniony w modelu procesu: ${FNP_EXX_MESSAGE_LABELS[lastReceivedMessageType]}.`,
+    )
+  }
+
+  if (row.donorAssignedPortDate) {
+    const date = toDateOnlyString(row.donorAssignedPortDate)
+    hints.push(`Termin przekazany przez Dawce do potwierdzenia: ${date}.`)
+  }
+
+  return hints
 }
 
 function getClientDisplayName(client: E03DraftRow['client']): string {
@@ -422,9 +587,7 @@ function getSubscriberDisplayName(request: {
     return request.subscriberCompanyName ?? 'Firma (brak nazwy)'
   }
 
-  const parts = [request.subscriberFirstName, request.subscriberLastName].filter(
-    Boolean,
-  )
+  const parts = [request.subscriberFirstName, request.subscriberLastName].filter(Boolean)
   return parts.length > 0 ? parts.join(' ') : 'Brak danych'
 }
 
