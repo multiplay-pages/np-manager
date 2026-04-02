@@ -19,6 +19,7 @@ import {
 import { getPortingRequestTimeline } from './porting-events.service'
 import {
   buildE03DraftForPortingRequest,
+  buildE23DraftForPortingRequest,
   getPortingRequestProcessSnapshot,
 } from '../pli-cbd/fnp-process.service'
 
@@ -34,15 +35,11 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
   const writeRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
   const pliCbdRoles: UserRole[] = ['ADMIN']
 
-  app.get(
-    '/',
-    { preHandler: [authenticate, authorize(readRoles)] },
-    async (request, reply) => {
-      const query = portingRequestListQuerySchema.parse(request.query)
-      const result = await listPortingRequests(query)
-      return reply.status(200).send({ success: true, data: result })
-    },
-  )
+  app.get('/', { preHandler: [authenticate, authorize(readRoles)] }, async (request, reply) => {
+    const query = portingRequestListQuerySchema.parse(request.query)
+    const result = await listPortingRequests(query)
+    return reply.status(200).send({ success: true, data: result })
+  })
 
   app.get<{ Params: { id: string } }>(
     '/:id/timeline',
@@ -81,6 +78,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
   )
 
   app.get<{ Params: { id: string } }>(
+    '/:id/pli-cbd-drafts/e23',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const result = await buildE23DraftForPortingRequest(request.params.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
     '/:id',
     { preHandler: [authenticate, authorize(readRoles)] },
     async (request, reply) => {
@@ -89,21 +95,17 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     },
   )
 
-  app.post(
-    '/',
-    { preHandler: [authenticate, authorize(writeRoles)] },
-    async (request, reply) => {
-      const body = createPortingRequestSchema.parse(request.body)
-      const portingRequest = await createPortingRequest(
-        body,
-        request.user.id,
-        request.ip,
-        request.headers['user-agent'],
-      )
+  app.post('/', { preHandler: [authenticate, authorize(writeRoles)] }, async (request, reply) => {
+    const body = createPortingRequestSchema.parse(request.body)
+    const portingRequest = await createPortingRequest(
+      body,
+      request.user.id,
+      request.ip,
+      request.headers['user-agent'],
+    )
 
-      return reply.status(201).send({ success: true, data: { request: portingRequest } })
-    },
-  )
+    return reply.status(201).send({ success: true, data: { request: portingRequest } })
+  })
 
   app.patch<{ Params: { id: string } }>(
     '/:id/status',
