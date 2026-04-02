@@ -1,8 +1,12 @@
 import type {
   ClientType,
   ContactChannel,
+  FnpExxMessage,
+  FnpProcessStage,
   NumberType,
+  PliCbdExportStatus,
   PortedNumberKind,
+  PortingCaseStatus,
   PortingMode,
   SubscriberIdentityType,
 } from '../constants'
@@ -66,3 +70,39 @@ export interface PliCbdE03DraftDto {
 
 export interface PliCbdE03DraftBuildResultDto
   extends PliCbdDraftBuildResultDto<PliCbdE03DraftDto> {}
+
+export interface PliCbdE18DraftDto {
+  messageType: 'E18'
+  serviceType: 'FNP'
+  requestId: string
+  caseNumber: string
+  clientId: string
+  clientDisplayName: string
+  subscriberDisplayName: string
+  donorOperator: PliCbdDraftOperatorDto
+  recipientOperator: PliCbdDraftOperatorDto
+  portingMode: PortingMode
+  numberType: NumberType
+  numberRangeKind: PortedNumberKind
+  numberDisplay: string
+  completionContext: {
+    currentStage: FnpProcessStage
+    currentStageLabel: string
+    statusInternal: PortingCaseStatus
+    statusInternalLabel: string
+    exportStatus: PliCbdExportStatus
+    lastReceivedMessageType: FnpExxMessage | null
+    confirmedPortDate: string | null
+    donorAssignedPortDate: string | null
+    donorAssignedPortTime: string | null
+  }
+  reasonHints: string[]
+  technicalHints: {
+    dataSource: 'CURRENT_CASE_AND_PROCESS_SNAPSHOT'
+    numberSelectionSource: 'PRIMARY_NUMBER' | 'NUMBER_RANGE'
+    allowedMessagesAtStage: FnpExxMessage[]
+  }
+}
+
+export interface PliCbdE18DraftBuildResultDto
+  extends PliCbdDraftBuildResultDto<PliCbdE18DraftDto> {}

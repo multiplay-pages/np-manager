@@ -6,12 +6,15 @@ import type {
   FnpMessageReadiness,
   PliCbdE03DraftBuildResultDto,
   PliCbdE03DraftDto,
+  PliCbdE18DraftBuildResultDto,
+  PliCbdE18DraftDto,
   PliCbdProcessSnapshotDto,
 } from '@np-manager/shared'
 import {
   FNP_EXX_MESSAGE_DESCRIPTIONS,
   FNP_EXX_MESSAGE_LABELS,
   FNP_PROCESS_STAGE_LABELS,
+  PORTING_CASE_STATUS_LABELS,
   PORTING_MODE_LABELS,
 } from '@np-manager/shared'
 import { deriveFnpProcessStage, getAllowedNextMessages } from './fnp-process.domain'
@@ -93,6 +96,45 @@ const E03_DRAFT_SELECT = {
 } as const
 
 type E03DraftRow = Prisma.PortingRequestGetPayload<{ select: typeof E03_DRAFT_SELECT }>
+
+const E18_DRAFT_SELECT = {
+  id: true,
+  caseNumber: true,
+  clientId: true,
+  numberType: true,
+  numberRangeKind: true,
+  primaryNumber: true,
+  rangeStart: true,
+  rangeEnd: true,
+  portingMode: true,
+  statusInternal: true,
+  pliCbdExportStatus: true,
+  lastExxReceived: true,
+  confirmedPortDate: true,
+  donorAssignedPortDate: true,
+  donorAssignedPortTime: true,
+  client: {
+    select: {
+      id: true,
+      clientType: true,
+      firstName: true,
+      lastName: true,
+      companyName: true,
+    },
+  },
+  donorOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  recipientOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  subscriberKind: true,
+  subscriberFirstName: true,
+  subscriberLastName: true,
+  subscriberCompanyName: true,
+} as const
+
+type E18DraftRow = Prisma.PortingRequestGetPayload<{ select: typeof E18_DRAFT_SELECT }>
 
 // ============================================================
 // POMOCNIK — mapowanie PliCbdExxType → FnpExxMessage | null
@@ -310,6 +352,75 @@ export async function buildE03DraftForPortingRequest(
   }
 }
 
+export async function buildE18DraftForPortingRequest(
+  requestId: string,
+): Promise<PliCbdE18DraftBuildResultDto> {
+  const snapshot = await getPortingRequestProcessSnapshot(requestId)
+
+  if (!snapshot.allowedNextMessages.includes('E18')) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons:
+        snapshot.blockingReasons.length > 0
+          ? snapshot.blockingReasons
+          : [
+              {
+                code: 'E18_NOT_ALLOWED_AT_CURRENT_STAGE',
+                message: `Komunikat E18 nie jest dostepny na aktualnym etapie procesu: ${snapshot.currentStageLabel}.`,
+                field: 'currentStage',
+              },
+            ],
+      draft: null,
+    }
+  }
+
+  const e18Readiness = snapshot.draftableMessages.find((message) => message.messageType === 'E18')
+
+  if (!e18Readiness) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: [
+        {
+          code: 'E18_READINESS_NOT_AVAILABLE',
+          message: 'Nie udalo sie wyznaczyc gotowosci draftu E18 dla tej sprawy.',
+        },
+      ],
+      draft: null,
+    }
+  }
+
+  if (!e18Readiness.ready) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: e18Readiness.blockingReasons,
+      draft: null,
+    }
+  }
+
+  const row = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: E18_DRAFT_SELECT,
+  })
+
+  if (!row) {
+    throw AppError.notFound(`Sprawa o id "${requestId}" nie istnieje.`)
+  }
+
+  return {
+    requestId: row.id,
+    caseNumber: row.caseNumber,
+    isReady: true,
+    blockingReasons: [],
+    draft: buildE18Draft(row, snapshot),
+  }
+}
+
 function buildSummaryFields(
   messageType: string,
   row: FnpValidationRequest & { id: string; caseNumber: string },
@@ -386,6 +497,71 @@ function buildE03Draft(row: E03DraftRow): PliCbdE03DraftDto {
           : 'PRIMARY_NUMBER',
     },
   }
+}
+
+function buildE18Draft(row: E18DraftRow, snapshot: PliCbdProcessSnapshotDto): PliCbdE18DraftDto {
+  const lastReceivedMessageType = toFnpLastExx(row.lastExxReceived)
+
+  return {
+    messageType: 'E18',
+    serviceType: 'FNP',
+    requestId: row.id,
+    caseNumber: row.caseNumber,
+    clientId: row.clientId,
+    clientDisplayName: getClientDisplayName(row.client),
+    subscriberDisplayName: getSubscriberDisplayName(row),
+    donorOperator: toDraftOperator(row.donorOperator),
+    recipientOperator: toDraftOperator(row.recipientOperator),
+    portingMode: row.portingMode,
+    numberType: row.numberType,
+    numberRangeKind: row.numberRangeKind,
+    numberDisplay: getNumberDisplay(row),
+    completionContext: {
+      currentStage: snapshot.currentStage,
+      currentStageLabel: snapshot.currentStageLabel,
+      statusInternal: row.statusInternal,
+      statusInternalLabel: PORTING_CASE_STATUS_LABELS[row.statusInternal],
+      exportStatus: row.pliCbdExportStatus,
+      lastReceivedMessageType,
+      confirmedPortDate: toDateOnlyString(row.confirmedPortDate),
+      donorAssignedPortDate: toDateOnlyString(row.donorAssignedPortDate),
+      donorAssignedPortTime: row.donorAssignedPortTime,
+    },
+    reasonHints: buildE18ReasonHints(row, snapshot, lastReceivedMessageType),
+    technicalHints: {
+      dataSource: 'CURRENT_CASE_AND_PROCESS_SNAPSHOT',
+      numberSelectionSource:
+        row.numberRangeKind === 'DDI_RANGE' ? 'NUMBER_RANGE' : 'PRIMARY_NUMBER',
+      allowedMessagesAtStage: snapshot.allowedNextMessages,
+    },
+  }
+}
+
+function buildE18ReasonHints(
+  row: E18DraftRow,
+  snapshot: PliCbdProcessSnapshotDto,
+  lastReceivedMessageType: PliCbdE18DraftDto['completionContext']['lastReceivedMessageType'],
+): string[] {
+  const hints = [
+    `Proces FNP znajduje sie obecnie na etapie: ${snapshot.currentStageLabel}.`,
+    'Draft E18 reprezentuje potwierdzenie wykonania przeniesienia numeru przez Biorce.',
+  ]
+
+  if (lastReceivedMessageType) {
+    hints.push(
+      `Ostatni komunikat uwzgledniony w modelu procesu: ${FNP_EXX_MESSAGE_LABELS[lastReceivedMessageType]}.`,
+    )
+  }
+
+  if (row.confirmedPortDate) {
+    hints.push(`Potwierdzona data przeniesienia: ${toDateOnlyString(row.confirmedPortDate)}.`)
+  }
+
+  if (row.donorAssignedPortDate) {
+    hints.push(`Data wyznaczona przez Dawce: ${toDateOnlyString(row.donorAssignedPortDate)}.`)
+  }
+
+  return hints
 }
 
 function toDateOnlyString(value: Date | null): string | null {

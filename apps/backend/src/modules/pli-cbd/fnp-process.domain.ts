@@ -14,7 +14,8 @@ import type {
  * Wyprowadza aktualny etap procesu FNP na podstawie pol sprawy.
  *
  * Logika:
- * 1. Statusy terminalne (PORTED, REJECTED, CANCELLED, ERROR) → natychmiast.
+ * 1. Statusy terminalne (REJECTED, CANCELLED, ERROR) → natychmiast.
+ * 1a. PORTED staje sie terminalne dopiero po wyslaniu E18.
  * 2. Niewyeksportowana → NOT_IN_PROCESS.
  * 3. EXPORT_PENDING → czeka na rejestracje w PLI.
  * 4. EXPORTED / SYNC_ERROR → etap zalezy od ostatniego komunikatu Exx.
@@ -27,7 +28,6 @@ export function deriveFnpProcessStage(fields: {
   const { statusInternal, pliCbdExportStatus, lastExxReceived } = fields
 
   // Statusy terminalne — jednoznaczne, niezalezne od PLI CBD
-  if (statusInternal === 'PORTED') return 'COMPLETED'
   if (statusInternal === 'REJECTED') return 'REJECTED'
   if (statusInternal === 'CANCELLED') return 'CANCELLED'
   if (statusInternal === 'ERROR') return 'PROCESS_ERROR'
@@ -67,6 +67,10 @@ export function deriveFnpProcessStage(fields: {
   // E16 — blad walidacyjny, sprawa zawieszona
   if (lastExxReceived === 'E16') return 'PROCESS_ERROR'
 
+  // Po technicznym przeniesieniu numeru, ale przed wyslaniem E18, pozostajemy
+  // w etapie READY_TO_PORT — to stan, w ktorym preview E18 ma byc gotowe.
+  if (statusInternal === 'PORTED') return 'READY_TO_PORT'
+
   // Pozostale Exx (E17, E31, E03 jako echo itp.) — zachowaj etap oparty na statusie
   if (statusInternal === 'CONFIRMED') return 'AWAITING_E13'
   if (statusInternal === 'PENDING_DONOR') return 'AWAITING_E12'
@@ -86,7 +90,8 @@ export function deriveFnpProcessStage(fields: {
  * - E06 i E13 sa wychodzace od Dawcy — nie sa tutaj uwzglednianie.
  * - E23 (anulowanie) jest dostepne na wiekszosci aktywnych etapow.
  * - E03 odpowiada aktualnej operacji "eksport".
- * - E12 i E18 beda zaimplementowane w kolejnych iteracjach.
+ * - E12 odpowiada potwierdzeniu terminu po stronie Biorcy.
+ * - E18 odpowiada potwierdzeniu wykonania przeniesienia po stronie Biorcy.
  */
 export function getAllowedNextMessages(stage: FnpProcessStage): FnpExxMessage[] {
   switch (stage) {

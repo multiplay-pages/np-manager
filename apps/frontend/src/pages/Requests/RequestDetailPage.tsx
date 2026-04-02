@@ -7,6 +7,7 @@ import {
   exportPortingRequest,
   getPortingRequestById,
   getPortingRequestE03Draft,
+  getPortingRequestE18Draft,
   getPortingRequestIntegrationEvents,
   getPortingRequestProcessSnapshot,
   getPortingRequestTimeline,
@@ -26,6 +27,7 @@ import {
 } from '@np-manager/shared'
 import type {
   PliCbdE03DraftBuildResultDto,
+  PliCbdE18DraftBuildResultDto,
   PliCbdIntegrationEventDto,
   PliCbdProcessSnapshotDto,
   PortingCaseStatus,
@@ -37,6 +39,7 @@ import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import { PliCbdIntegrationHistory } from '@/components/PliCbdIntegrationHistory/PliCbdIntegrationHistory'
 import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbdProcessSnapshot'
 import { PliCbdE03DraftPreview } from '@/components/PliCbdE03DraftPreview/PliCbdE03DraftPreview'
+import { PliCbdE18DraftPreview } from '@/components/PliCbdE18DraftPreview/PliCbdE18DraftPreview'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -106,6 +109,9 @@ export function RequestDetailPage() {
   const [e03DraftResult, setE03DraftResult] =
     useState<PliCbdE03DraftBuildResultDto | null>(null)
   const [isE03DraftLoading, setIsE03DraftLoading] = useState(true)
+  const [e18DraftResult, setE18DraftResult] =
+    useState<PliCbdE18DraftBuildResultDto | null>(null)
+  const [isE18DraftLoading, setIsE18DraftLoading] = useState(true)
 
   const canManageStatus = useMemo(
     () =>
@@ -164,6 +170,24 @@ export function RequestDetailPage() {
     }
   }, [id])
 
+  const loadE18Draft = useCallback(async () => {
+    if (!id) return
+    setIsE18DraftLoading(true)
+    try {
+      const result = await getPortingRequestE18Draft(id)
+      setE18DraftResult(result)
+    } catch {
+      setE18DraftResult(null)
+    } finally {
+      setIsE18DraftLoading(false)
+    }
+  }, [id])
+
+  const refreshDraftPreviews = useCallback(() => {
+    void loadE03Draft()
+    void loadE18Draft()
+  }, [loadE03Draft, loadE18Draft])
+
   const loadIntegrationEvents = useCallback(async () => {
     if (!id || !canTriggerPliCbdActions) {
       setIntegrationEvents([])
@@ -202,8 +226,8 @@ export function RequestDetailPage() {
     void loadTimeline()
     void loadIntegrationEvents()
     void loadProcessSnapshot()
-    void loadE03Draft()
-  }, [id, loadE03Draft, loadIntegrationEvents, loadProcessSnapshot, loadTimeline])
+    refreshDraftPreviews()
+  }, [id, loadIntegrationEvents, loadProcessSnapshot, loadTimeline, refreshDraftPreviews])
 
   const formatDateTime = (iso: string) =>
     new Date(iso).toLocaleString('pl-PL', {
@@ -224,12 +248,12 @@ export function RequestDetailPage() {
       void loadTimeline()
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionSuccess('Eksport do PLI CBD zostal wyzwolony pomyslnie.')
     } catch {
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionError('Nie udalo sie uruchomic foundation eksportu do PLI CBD.')
     } finally {
       setIsExporting(false)
@@ -246,12 +270,12 @@ export function RequestDetailPage() {
       void loadTimeline()
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionSuccess('Synchronizacja z PLI CBD zakonczona pomyslnie.')
     } catch {
       void loadIntegrationEvents()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setActionError('Nie udalo sie uruchomic foundation synchronizacji z PLI CBD.')
     } finally {
       setIsSyncing(false)
@@ -294,7 +318,7 @@ export function RequestDetailPage() {
       setRequest(updatedRequest)
       void loadTimeline()
       void loadProcessSnapshot()
-      void loadE03Draft()
+      refreshDraftPreviews()
       setStatusActionSuccess('Status sprawy został zmieniony.')
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -559,6 +583,11 @@ export function RequestDetailPage() {
       <PliCbdE03DraftPreview
         result={e03DraftResult}
         isLoading={isE03DraftLoading}
+      />
+
+      <PliCbdE18DraftPreview
+        result={e18DraftResult}
+        isLoading={isE18DraftLoading}
       />
 
       {canTriggerPliCbdActions && (
