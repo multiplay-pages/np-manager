@@ -20,6 +20,7 @@ import { getPortingRequestTimeline } from './porting-events.service'
 import {
   buildE03DraftForPortingRequest,
   buildE12DraftForPortingRequest,
+  buildE18DraftForPortingRequest,
   getPortingRequestProcessSnapshot,
 } from '../pli-cbd/fnp-process.service'
 
@@ -86,6 +87,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     { preHandler: [authenticate, authorize(readRoles)] },
     async (request, reply) => {
       const result = await buildE12DraftForPortingRequest(request.params.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/pli-cbd-drafts/e18',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const result = await buildE18DraftForPortingRequest(request.params.id)
       return reply.status(200).send({ success: true, data: result })
     },
   )

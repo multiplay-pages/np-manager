@@ -11,6 +11,12 @@ describe('fnp-process domain', () => {
       expect(getAllowedNextMessages('AWAITING_E13')).not.toContain('E12')
       expect(getAllowedNextMessages('READY_TO_PORT')).not.toContain('E12')
     })
+
+    it('allows E18 only on ready to port stage', () => {
+      expect(getAllowedNextMessages('READY_TO_PORT')).toContain('E18')
+      expect(getAllowedNextMessages('AWAITING_E13')).not.toContain('E18')
+      expect(getAllowedNextMessages('COMPLETED')).not.toContain('E18')
+    })
   })
 
   describe('deriveFnpProcessStage', () => {
@@ -22,6 +28,26 @@ describe('fnp-process domain', () => {
           lastExxReceived: 'E06',
         }),
       ).toBe('AWAITING_E12')
+    })
+
+    it('keeps ported request with last donor confirmation on ready to port stage for E18', () => {
+      expect(
+        deriveFnpProcessStage({
+          statusInternal: 'PORTED',
+          pliCbdExportStatus: 'EXPORTED',
+          lastExxReceived: 'E13',
+        }),
+      ).toBe('READY_TO_PORT')
+    })
+
+    it('maps ported request with sent E18 to completed stage', () => {
+      expect(
+        deriveFnpProcessStage({
+          statusInternal: 'PORTED',
+          pliCbdExportStatus: 'EXPORTED',
+          lastExxReceived: 'E18',
+        }),
+      ).toBe('COMPLETED')
     })
   })
 })

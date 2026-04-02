@@ -8,6 +8,7 @@ import {
   getPortingRequestById,
   getPortingRequestE03Draft,
   getPortingRequestE12Draft,
+  getPortingRequestE18Draft,
   getPortingRequestIntegrationEvents,
   getPortingRequestProcessSnapshot,
   getPortingRequestTimeline,
@@ -28,6 +29,7 @@ import {
 import type {
   PliCbdE03DraftBuildResultDto,
   PliCbdE12DraftBuildResultDto,
+  PliCbdE18DraftBuildResultDto,
   PliCbdIntegrationEventDto,
   PliCbdProcessSnapshotDto,
   PortingCaseStatus,
@@ -40,6 +42,7 @@ import { PliCbdIntegrationHistory } from '@/components/PliCbdIntegrationHistory/
 import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbdProcessSnapshot'
 import { PliCbdE03DraftPreview } from '@/components/PliCbdE03DraftPreview/PliCbdE03DraftPreview'
 import { PliCbdE12DraftPreview } from '@/components/PliCbdE12DraftPreview/PliCbdE12DraftPreview'
+import { PliCbdE18DraftPreview } from '@/components/PliCbdE18DraftPreview/PliCbdE18DraftPreview'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -104,6 +107,9 @@ export function RequestDetailPage() {
   const [isE03DraftLoading, setIsE03DraftLoading] = useState(true)
   const [e12DraftResult, setE12DraftResult] = useState<PliCbdE12DraftBuildResultDto | null>(null)
   const [isE12DraftLoading, setIsE12DraftLoading] = useState(true)
+  const [e18DraftResult, setE18DraftResult] =
+    useState<PliCbdE18DraftBuildResultDto | null>(null)
+  const [isE18DraftLoading, setIsE18DraftLoading] = useState(true)
 
   const canManageStatus = useMemo(
     () => ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(user?.role ?? ''),
@@ -169,10 +175,24 @@ export function RequestDetailPage() {
     }
   }, [id])
 
+  const loadE18Draft = useCallback(async () => {
+    if (!id) return
+    setIsE18DraftLoading(true)
+    try {
+      const result = await getPortingRequestE18Draft(id)
+      setE18DraftResult(result)
+    } catch {
+      setE18DraftResult(null)
+    } finally {
+      setIsE18DraftLoading(false)
+    }
+  }, [id])
+
   const refreshDraftPreviews = useCallback(() => {
     void loadE03Draft()
     void loadE12Draft()
-  }, [loadE03Draft, loadE12Draft])
+    void loadE18Draft()
+  }, [loadE03Draft, loadE12Draft, loadE18Draft])
 
   const loadIntegrationEvents = useCallback(async () => {
     if (!id || !canTriggerPliCbdActions) {
@@ -577,6 +597,11 @@ export function RequestDetailPage() {
       <PliCbdE03DraftPreview result={e03DraftResult} isLoading={isE03DraftLoading} />
 
       <PliCbdE12DraftPreview result={e12DraftResult} isLoading={isE12DraftLoading} />
+
+      <PliCbdE18DraftPreview
+        result={e18DraftResult}
+        isLoading={isE18DraftLoading}
+      />
 
       {canTriggerPliCbdActions && (
         <PliCbdIntegrationHistory

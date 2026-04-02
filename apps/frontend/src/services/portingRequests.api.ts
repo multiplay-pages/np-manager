@@ -3,6 +3,7 @@ import type {
   CreatePortingRequestDto,
   PliCbdE03DraftBuildResultDto,
   PliCbdE12DraftBuildResultDto,
+  PliCbdE18DraftBuildResultDto,
   PliCbdIntegrationEventsResultDto,
   PliCbdProcessSnapshotDto,
   PortingRequestDetailDto,
@@ -106,7 +107,9 @@ export async function getPortingRequestProcessSnapshot(
   return response.data.data
 }
 
-export async function getPortingRequestE03Draft(id: string): Promise<PliCbdE03DraftBuildResultDto> {
+export async function getPortingRequestE03Draft(
+  id: string,
+): Promise<PliCbdE03DraftBuildResultDto> {
   const response = await apiClient.get<{
     success: true
     data: PliCbdE03DraftBuildResultDto
@@ -115,11 +118,24 @@ export async function getPortingRequestE03Draft(id: string): Promise<PliCbdE03Dr
   return response.data.data
 }
 
-export async function getPortingRequestE12Draft(id: string): Promise<PliCbdE12DraftBuildResultDto> {
+export async function getPortingRequestE12Draft(
+  id: string,
+): Promise<PliCbdE12DraftBuildResultDto> {
   const response = await apiClient.get<{
     success: true
     data: PliCbdE12DraftBuildResultDto
   }>(`/porting-requests/${id}/pli-cbd-drafts/e12`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestE18Draft(
+  id: string,
+): Promise<PliCbdE18DraftBuildResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PliCbdE18DraftBuildResultDto
+  }>(`/porting-requests/${id}/pli-cbd-drafts/e18`)
 
   return response.data.data
 }

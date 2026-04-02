@@ -10,6 +10,11 @@
  *  6. Ustawienia systemowe
  *  7. Kalendarz świąt 2026
  *
+ * Sprawy testowe:
+ *  - FNP-SEED-ACTIVE-001: aktywna, pre-export (SUBMITTED)
+ *  - FNP-SEED-PORTED-001: zakończona po E18 (blocked)
+ *  - FNP-SEED-E18-001:    etap READY_TO_PORT, happy path Draft E18
+ *
  * Seed jest idempotentny — używa upsert, można uruchomić wielokrotnie.
  *
  * Domyślne konto admina:
@@ -875,9 +880,10 @@ async function main() {
       pliCbdPackageId: null,
       pliCbdExportStatus: 'EXPORTED',
       pliCbdLastSyncAt: new Date('2026-03-28T08:15:00.000Z'),
-      lastExxReceived: null,
-      lastPliCbdStatusCode: 'PORTED',
-      lastPliCbdStatusDescription: 'Seed QA: sprawa zakonczona do testu zablokowanego eksportu.',
+      lastExxReceived: 'E18',
+      lastPliCbdStatusCode: 'COMPLETED',
+      lastPliCbdStatusDescription:
+        'Seed QA: sprawa zakonczona po E18 do testu terminalnego stanu procesu.',
       rejectionCode: null,
       rejectionReason: null,
       subscriberKind: 'INDIVIDUAL',
@@ -890,7 +896,7 @@ async function main() {
       hasPowerOfAttorney: false,
       linkedWholesaleServiceOnRecipientSide: false,
       contactChannel: 'EMAIL',
-      internalNotes: 'Seed QA: zakonczona sprawa do testu wpisu ERROR dla zablokowanego eksportu.',
+      internalNotes: 'Seed QA: zakonczona sprawa po E18 do testu terminalnego, zablokowanego preview.',
       createdByUserId: adminUser.id,
     },
     create: {
@@ -917,8 +923,10 @@ async function main() {
       pliCbdCaseNumber: 'PLI-SEED-PORTED-001',
       pliCbdExportStatus: 'EXPORTED',
       pliCbdLastSyncAt: new Date('2026-03-28T08:15:00.000Z'),
-      lastPliCbdStatusCode: 'PORTED',
-      lastPliCbdStatusDescription: 'Seed QA: sprawa zakonczona do testu zablokowanego eksportu.',
+      lastExxReceived: 'E18',
+      lastPliCbdStatusCode: 'COMPLETED',
+      lastPliCbdStatusDescription:
+        'Seed QA: sprawa zakonczona po E18 do testu terminalnego stanu procesu.',
       subscriberKind: 'INDIVIDUAL',
       subscriberFirstName: 'Jan',
       subscriberLastName: 'Testowy',
@@ -928,11 +936,106 @@ async function main() {
       hasPowerOfAttorney: false,
       linkedWholesaleServiceOnRecipientSide: false,
       contactChannel: 'EMAIL',
-      internalNotes: 'Seed QA: zakonczona sprawa do testu wpisu ERROR dla zablokowanego eksportu.',
+      internalNotes: 'Seed QA: zakonczona sprawa po E18 do testu terminalnego, zablokowanego preview.',
       createdByUserId: adminUser.id,
     },
   })
-  console.info('Dodano klienta QA oraz 2 sprawy portowania (aktywna + zakonczona)')
+
+  await prisma.portingRequest.upsert({
+    where: { caseNumber: 'FNP-SEED-E18-001' },
+    update: {
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234570',
+      rangeStart: null,
+      rangeEnd: null,
+      requestDocumentNumber: 'DOC-SEED-E18-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      infrastructureOperatorId: null,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-03-24T08:45:00.000Z'),
+      requestedPortDate: new Date('2026-04-14T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      earliestAcceptablePortDate: null,
+      confirmedPortDate: new Date('2026-04-14T00:00:00.000Z'),
+      donorAssignedPortDate: new Date('2026-04-14T00:00:00.000Z'),
+      donorAssignedPortTime: '07:00',
+      portingMode: 'DAY',
+      statusInternal: 'PORTED',
+      statusPliCbd: 'READY_TO_PORT',
+      pliCbdCaseId: 'PLI-SEED-E18-001',
+      pliCbdCaseNumber: 'PLI-SEED-E18-001',
+      pliCbdPackageId: null,
+      pliCbdExportStatus: 'EXPORTED',
+      pliCbdLastSyncAt: new Date('2026-04-14T07:15:00.000Z'),
+      lastExxReceived: 'E13',
+      lastPliCbdStatusCode: 'READY_TO_PORT',
+      lastPliCbdStatusDescription:
+        'Seed QA: termin uzgodniony po E13, numer przeniesiony technicznie, oczekuje na potwierdzenie E18.',
+      rejectionCode: null,
+      rejectionReason: null,
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Maria',
+      subscriberLastName: 'Nowak',
+      subscriberCompanyName: null,
+      identityType: 'PESEL',
+      identityValue: '88080834567',
+      correspondenceAddress: 'ul. Lacznosci 18/4, 00-120 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes:
+        'Seed QA: sprawa READY_TO_PORT / PORTED do testu happy path preview Draft E18.',
+      createdByUserId: adminUser.id,
+    },
+    create: {
+      caseNumber: 'FNP-SEED-E18-001',
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234570',
+      requestDocumentNumber: 'DOC-SEED-E18-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-03-24T08:45:00.000Z'),
+      requestedPortDate: new Date('2026-04-14T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      confirmedPortDate: new Date('2026-04-14T00:00:00.000Z'),
+      donorAssignedPortDate: new Date('2026-04-14T00:00:00.000Z'),
+      donorAssignedPortTime: '07:00',
+      portingMode: 'DAY',
+      statusInternal: 'PORTED',
+      statusPliCbd: 'READY_TO_PORT',
+      pliCbdCaseId: 'PLI-SEED-E18-001',
+      pliCbdCaseNumber: 'PLI-SEED-E18-001',
+      pliCbdExportStatus: 'EXPORTED',
+      pliCbdLastSyncAt: new Date('2026-04-14T07:15:00.000Z'),
+      lastExxReceived: 'E13',
+      lastPliCbdStatusCode: 'READY_TO_PORT',
+      lastPliCbdStatusDescription:
+        'Seed QA: termin uzgodniony po E13, numer przeniesiony technicznie, oczekuje na potwierdzenie E18.',
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Maria',
+      subscriberLastName: 'Nowak',
+      identityType: 'PESEL',
+      identityValue: '88080834567',
+      correspondenceAddress: 'ul. Lacznosci 18/4, 00-120 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes:
+        'Seed QA: sprawa READY_TO_PORT / PORTED do testu happy path preview Draft E18.',
+      createdByUserId: adminUser.id,
+    },
+  })
+  console.info(
+    'Dodano klienta QA oraz 3 sprawy portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18)',
+  )
 
   // ----------------------------------------------------------
   // 7. USTAWIENIA SYSTEMOWE
