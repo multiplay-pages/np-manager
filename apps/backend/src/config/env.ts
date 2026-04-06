@@ -3,6 +3,20 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
+const blankStringToUndefined = (value: unknown): unknown => {
+  if (typeof value !== 'string') {
+    return value
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length === 0 ? undefined : trimmed
+}
+
+const optionalEnvString = z.preprocess(
+  blankStringToUndefined,
+  z.string().trim().min(1).optional(),
+)
+
 const envSchema = z.object({
   // Aplikacja
   NODE_ENV: z
@@ -27,12 +41,33 @@ const envSchema = z.object({
   // Logi
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 
+  // Integracja PLI CBD
+  PLI_CBD_TRANSPORT_MODE: z
+    .enum(['DISABLED', 'STUB', 'REAL_SOAP'])
+    .default('STUB'),
+  PLI_CBD_REAL_SOAP_ENDPOINT_URL: z.preprocess(
+    blankStringToUndefined,
+    z.string().trim().url().optional(),
+  ),
+  PLI_CBD_REAL_SOAP_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  PLI_CBD_REAL_SOAP_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(20000),
+  PLI_CBD_REAL_SOAP_CLIENT_CERTIFICATE_PATH: optionalEnvString,
+  PLI_CBD_REAL_SOAP_CLIENT_CERTIFICATE_ALIAS: optionalEnvString,
+  PLI_CBD_REAL_SOAP_CLIENT_KEY_PATH: optionalEnvString,
+  PLI_CBD_REAL_SOAP_CA_CERTIFICATE_PATH: optionalEnvString,
+  PLI_CBD_REAL_SOAP_ENVIRONMENT_NAME: z.string().trim().min(1).default('LOCAL'),
+  PLI_CBD_REAL_SOAP_PROFILE: z.string().trim().min(1).default('LOCAL_DEFAULT'),
+  PLI_CBD_REAL_SOAP_ACTION_E03: z.string().trim().min(1).default('urn:pli-cbd:fnp:E03'),
+  PLI_CBD_REAL_SOAP_ACTION_E12: z.string().trim().min(1).default('urn:pli-cbd:fnp:E12'),
+  PLI_CBD_REAL_SOAP_ACTION_E18: z.string().trim().min(1).default('urn:pli-cbd:fnp:E18'),
+  PLI_CBD_REAL_SOAP_ACTION_E23: z.string().trim().min(1).default('urn:pli-cbd:fnp:E23'),
+
   // Email (opcjonalny na etapie MVP)
-  SMTP_HOST: z.string().optional(),
+  SMTP_HOST: optionalEnvString,
   SMTP_PORT: z.coerce.number().optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().email().optional(),
+  SMTP_USER: optionalEnvString,
+  SMTP_PASS: optionalEnvString,
+  SMTP_FROM: z.preprocess(blankStringToUndefined, z.string().trim().email().optional()),
 })
 
 export type Env = z.infer<typeof envSchema>

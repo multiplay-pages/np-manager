@@ -1,21 +1,23 @@
-import { Prisma, type PortingCaseStatus } from '@prisma/client'
+import { Prisma, type PortingCaseStatus, type UserRole } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { AppError } from '../../shared/errors/app-error'
 import { logAuditEvent } from '../../shared/audit/audit.service'
 import { PortingEvents } from './porting-events.service'
 import type {
   CreatePortingRequestDto,
+  ExecutePortingRequestExternalActionResultDto,
+  PortingCommunicationDto,
   PortingRequestDetailDto,
   PliCbdIntegrationEventsResultDto,
   PortingRequestListItemDto,
   PortingRequestListResultDto,
 } from '@np-manager/shared'
 import {
-  getAllowedPortingCaseStatusTransitions,
   PORTING_CASE_STATUS_LABELS,
 } from '@np-manager/shared'
 import type {
   CreatePortingRequestBody,
+  ExecutePortingRequestExternalActionBody,
   PortingRequestListQuery,
   UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
@@ -29,6 +31,25 @@ import {
   getPliCbdIntegrationEvents,
   withPliCbdIntegrationTracking,
 } from '../pli-cbd/pli-cbd.integration-tracker'
+import {
+  createCaseHistoryEntry,
+} from './porting-request-case-history.service'
+import {
+  getAvailableStatusActions,
+  resolveWorkflowTransition,
+} from './porting-request-workflow'
+import {
+  getAvailableExternalActions,
+  resolveExternalActionPlan,
+} from './porting-request-external-actions'
+import {
+  createPortingCommunicationDraft,
+  getPortingCommunicationHistoryItems,
+} from './porting-request-communication.service'
+import {
+  buildCommunicationSummary,
+  getAvailableCommunicationActionsForRequest,
+} from '../communications/porting-request-communication-policy'
 
 const CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
 const PLI_CBD_MANUAL_TRIGGER_ACTION = 'MANUAL_FOUNDATION_TRIGGER'
@@ -39,6 +60,7 @@ const CLIENT_SELECT = {
   firstName: true,
   lastName: true,
   companyName: true,
+  email: true,
   addressStreet: true,
   addressCity: true,
   addressZip: true,
@@ -82,6 +104,7 @@ const DETAIL_SELECT = {
   requestDocumentNumber: true,
   donorRoutingNumber: true,
   recipientRoutingNumber: true,
+  sentToExternalSystemAt: true,
   portingMode: true,
   requestedPortDate: true,
   requestedPortTime: true,
@@ -130,6 +153,19 @@ type StatusChangeRow = Prisma.PortingRequestGetPayload<{
     id: true
     caseNumber: true
     statusInternal: true
+  }
+}>
+
+type ExternalActionRow = Prisma.PortingRequestGetPayload<{
+  select: {
+    id: true
+    caseNumber: true
+    statusInternal: true
+    sentToExternalSystemAt: true
+    requestedPortDate: true
+    confirmedPortDate: true
+    donorAssignedPortDate: true
+    rejectionReason: true
   }
 }>
 
@@ -182,6 +218,11 @@ function toDateOnlyString(value: Date | null | undefined): string | null {
 function toDateOnlyValue(value?: string): Date | undefined {
   if (!value) return undefined
   return new Date(`${value}T00:00:00.000Z`)
+}
+
+function formatExternalActionDate(value: string | null): string | null {
+  if (!value) return null
+  return value
 }
 
 function normalizeIdentityValue(
@@ -359,24 +400,77 @@ async function getPortingRequestForStatusChangeOrThrow(
   return request
 }
 
-function assertStatusTransitionAllowed(
-  currentStatus: PortingCaseStatus,
-  targetStatus: PortingCaseStatus,
-): void {
-  if (currentStatus === targetStatus) {
-    throw AppError.badRequest(
-      'Sprawa ma juz wskazany status.',
-      'PORTING_REQUEST_STATUS_UNCHANGED',
-    )
+async function getPortingRequestForExternalActionOrThrow(
+  requestId: string,
+): Promise<ExternalActionRow> {
+  const request = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: {
+      id: true,
+      caseNumber: true,
+      statusInternal: true,
+      sentToExternalSystemAt: true,
+      requestedPortDate: true,
+      confirmedPortDate: true,
+      donorAssignedPortDate: true,
+      rejectionReason: true,
+    },
+  })
+
+  if (!request) {
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
   }
 
-  const allowedTransitions = getAllowedPortingCaseStatusTransitions(currentStatus)
+  return request
+}
 
-  if (!allowedTransitions.includes(targetStatus)) {
-    throw AppError.badRequest(
-      'Nie mozna wykonac tej zmiany statusu.',
-      'PORTING_REQUEST_STATUS_TRANSITION_NOT_ALLOWED',
-    )
+function buildExternalActionEvent(
+  actionId: ExecutePortingRequestExternalActionBody['actionId'],
+  payload: {
+    scheduledPortDate?: string | null
+    rejectionReason?: string | null
+    comment?: string | null
+  },
+): { title: string; description: string } {
+  if (actionId === 'MARK_SENT_TO_EXTERNAL_SYSTEM') {
+    return {
+      title: 'Przekazano sprawe do obslugi zewnetrznej',
+      description: payload.comment
+        ? `Sprawa zostala oznaczona jako przekazana do Adescom. ${payload.comment}`
+        : 'Sprawa zostala oznaczona jako przekazana do Adescom.',
+    }
+  }
+
+  if (actionId === 'SET_PORT_DATE') {
+    const scheduledPortDate = formatExternalActionDate(payload.scheduledPortDate ?? null)
+    return {
+      title: 'Ustalono date przeniesienia',
+      description: [
+        scheduledPortDate ? `Data przeniesienia: ${scheduledPortDate}.` : null,
+        payload.comment,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    }
+  }
+
+  if (actionId === 'MARK_DONOR_REJECTION') {
+    return {
+      title: 'Zarejestrowano odrzucenie od dawcy',
+      description: [
+        payload.rejectionReason ? `Powod: ${payload.rejectionReason}.` : null,
+        payload.comment,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    }
+  }
+
+  return {
+    title: 'Oznaczono przeniesienie jako zakonczone',
+    description: payload.comment
+      ? `Przeniesienie numeru zostalo oznaczone jako zakonczone. ${payload.comment}`
+      : 'Przeniesienie numeru zostalo oznaczone jako zakonczone.',
   }
 }
 
@@ -426,7 +520,11 @@ function toOperatorRef(operator: DetailRow['donorOperator']) {
   }
 }
 
-function toDetailDto(row: DetailRow): PortingRequestDetailDto {
+function toDetailDto(
+  row: DetailRow,
+  actorRole: UserRole,
+  communicationHistory: PortingCommunicationDto[],
+): PortingRequestDetailDto {
   return {
     id: row.id,
     caseNumber: row.caseNumber,
@@ -449,6 +547,7 @@ function toDetailDto(row: DetailRow): PortingRequestDetailDto {
       : null,
     donorRoutingNumber: row.donorRoutingNumber,
     recipientRoutingNumber: row.recipientRoutingNumber,
+    sentToExternalSystemAt: row.sentToExternalSystemAt?.toISOString() ?? null,
     portingMode: row.portingMode,
     requestedPortDate: toDateOnlyString(row.requestedPortDate),
     requestedPortTime: row.requestedPortTime,
@@ -484,12 +583,32 @@ function toDetailDto(row: DetailRow): PortingRequestDetailDto {
     createdByUserId: row.createdByUserId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    availableStatusActions: getAvailableStatusActions(row.statusInternal, actorRole),
+    availableExternalActions: getAvailableExternalActions(
+      {
+        statusInternal: row.statusInternal,
+        sentToExternalSystemAt: row.sentToExternalSystemAt,
+      },
+      actorRole,
+    ),
+    availableCommunicationActions: getAvailableCommunicationActionsForRequest(
+      {
+        statusInternal: row.statusInternal,
+        sentToExternalSystemAt: row.sentToExternalSystemAt,
+        confirmedPortDate: row.confirmedPortDate,
+        donorAssignedPortDate: row.donorAssignedPortDate,
+      },
+      actorRole,
+      communicationHistory,
+    ),
+    communicationSummary: buildCommunicationSummary(communicationHistory),
   }
 }
 
 export async function createPortingRequest(
   body: CreatePortingRequestBody,
   createdByUserId: string,
+  actorRole: UserRole,
   ipAddress?: string,
   userAgent?: string,
 ): Promise<PortingRequestDetailDto> {
@@ -518,44 +637,59 @@ export async function createPortingRequest(
 
   const caseNumber = await generateCaseNumber()
 
-  const request = await prisma.portingRequest.create({
-    data: {
-      caseNumber,
-      clientId: client.id,
-      numberType: body.numberType,
-      numberRangeKind: body.numberRangeKind,
-      primaryNumber,
-      rangeStart,
-      rangeEnd,
-      requestDocumentNumber: body.requestDocumentNumber ?? null,
-      donorOperatorId: donorOperator.id,
-      recipientOperatorId: recipientOperator.id,
-      infrastructureOperatorId: infrastructureOperator?.id ?? null,
-      donorRoutingNumber: donorOperator.routingNumber,
-      recipientRoutingNumber: recipientOperator.routingNumber,
-      requestedPortDate: toDateOnlyValue(body.requestedPortDate) ?? null,
-      requestedPortTime: body.portingMode === 'DAY' ? '00:00' : null,
-      earliestAcceptablePortDate: toDateOnlyValue(body.earliestAcceptablePortDate) ?? null,
-      portingMode: body.portingMode,
-      statusInternal: 'DRAFT',
-      pliCbdExportStatus: 'NOT_EXPORTED',
-      subscriberKind: body.subscriberKind,
-      subscriberFirstName:
-        body.subscriberKind === 'INDIVIDUAL' ? body.subscriberFirstName ?? null : null,
-      subscriberLastName:
-        body.subscriberKind === 'INDIVIDUAL' ? body.subscriberLastName ?? null : null,
-      subscriberCompanyName:
-        body.subscriberKind === 'BUSINESS' ? body.subscriberCompanyName ?? null : null,
-      identityType: body.identityType,
-      identityValue: normalizeIdentityValue(body.identityType, body.identityValue),
-      correspondenceAddress: body.correspondenceAddress,
-      hasPowerOfAttorney: body.hasPowerOfAttorney,
-      linkedWholesaleServiceOnRecipientSide: body.linkedWholesaleServiceOnRecipientSide,
-      contactChannel: body.contactChannel,
-      internalNotes: body.internalNotes ?? null,
-      createdByUserId,
-    },
-    select: DETAIL_SELECT,
+  const request = await prisma.$transaction(async (tx) => {
+    const createdRequest = await tx.portingRequest.create({
+      data: {
+        caseNumber,
+        clientId: client.id,
+        numberType: body.numberType,
+        numberRangeKind: body.numberRangeKind,
+        primaryNumber,
+        rangeStart,
+        rangeEnd,
+        requestDocumentNumber: body.requestDocumentNumber ?? null,
+        donorOperatorId: donorOperator.id,
+        recipientOperatorId: recipientOperator.id,
+        infrastructureOperatorId: infrastructureOperator?.id ?? null,
+        donorRoutingNumber: donorOperator.routingNumber,
+        recipientRoutingNumber: recipientOperator.routingNumber,
+        requestedPortDate: toDateOnlyValue(body.requestedPortDate) ?? null,
+        requestedPortTime: body.portingMode === 'DAY' ? '00:00' : null,
+        earliestAcceptablePortDate: toDateOnlyValue(body.earliestAcceptablePortDate) ?? null,
+        portingMode: body.portingMode,
+        statusInternal: 'DRAFT',
+        pliCbdExportStatus: 'NOT_EXPORTED',
+        subscriberKind: body.subscriberKind,
+        subscriberFirstName:
+          body.subscriberKind === 'INDIVIDUAL' ? body.subscriberFirstName ?? null : null,
+        subscriberLastName:
+          body.subscriberKind === 'INDIVIDUAL' ? body.subscriberLastName ?? null : null,
+        subscriberCompanyName:
+          body.subscriberKind === 'BUSINESS' ? body.subscriberCompanyName ?? null : null,
+        identityType: body.identityType,
+        identityValue: normalizeIdentityValue(body.identityType, body.identityValue),
+        correspondenceAddress: body.correspondenceAddress,
+        hasPowerOfAttorney: body.hasPowerOfAttorney,
+        linkedWholesaleServiceOnRecipientSide: body.linkedWholesaleServiceOnRecipientSide,
+        contactChannel: body.contactChannel,
+        internalNotes: body.internalNotes ?? null,
+        createdByUserId,
+      },
+      select: DETAIL_SELECT,
+    })
+
+    await createCaseHistoryEntry(tx, {
+      requestId: createdRequest.id,
+      eventType: 'REQUEST_CREATED',
+      statusAfter: createdRequest.statusInternal,
+      actorUserId: createdByUserId,
+      metadata: {
+        caseNumber: createdRequest.caseNumber,
+        source: 'PORTING_REQUEST_CREATE',
+      },
+    })
+
+    return createdRequest
   })
 
   await logAuditEvent({
@@ -571,7 +705,7 @@ export async function createPortingRequest(
 
   await PortingEvents.requestCreated(request.id, request.caseNumber, createdByUserId)
 
-  return toDetailDto(request)
+  return toDetailDto(request, actorRole, [])
 }
 
 export async function listPortingRequests(
@@ -634,17 +768,23 @@ export async function listPortingRequests(
   }
 }
 
-export async function getPortingRequest(id: string): Promise<PortingRequestDetailDto> {
-  const request = await prisma.portingRequest.findUnique({
-    where: { id },
-    select: DETAIL_SELECT,
-  })
+export async function getPortingRequest(
+  id: string,
+  actorRole: UserRole,
+): Promise<PortingRequestDetailDto> {
+  const [request, communicationHistory] = await Promise.all([
+    prisma.portingRequest.findUnique({
+      where: { id },
+      select: DETAIL_SELECT,
+    }),
+    getPortingCommunicationHistoryItems(id),
+  ])
 
   if (!request) {
     throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
   }
 
-  return toDetailDto(request)
+  return toDetailDto(request, actorRole, communicationHistory)
 }
 
 export async function getPortingRequestIntegrationEvents(
@@ -654,39 +794,58 @@ export async function getPortingRequestIntegrationEvents(
   return getPliCbdIntegrationEvents(requestId)
 }
 
-export async function updatePortingRequestStatus(
+export async function changePortingRequestStatus(
   requestId: string,
   body: UpdatePortingRequestStatusBody,
   userId: string,
+  userRole: UserRole,
   ipAddress?: string,
   userAgent?: string,
-): Promise<PortingRequestDetailDto> {
+): Promise<void> {
   const request = await getPortingRequestForStatusChangeOrThrow(requestId)
   const currentStatus = request.statusInternal
-  const targetStatus = body.targetStatus
+  const { config, reason, comment } = resolveWorkflowTransition(currentStatus, body, userRole)
+  const descriptionLines = [
+    `Status sprawy zostal zmieniony z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[config.targetStatus]}.`,
+    reason ? `Powod: ${reason}.` : null,
+    comment ? `Komentarz: ${comment}` : null,
+  ].filter(Boolean)
 
-  assertStatusTransitionAllowed(currentStatus, targetStatus)
-
-  await prisma.$transaction([
-    prisma.portingRequest.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.portingRequest.update({
       where: { id: requestId },
       data: {
-        statusInternal: targetStatus,
+        statusInternal: config.targetStatus,
       },
-    }),
-    prisma.portingRequestEvent.create({
+    })
+
+    await createCaseHistoryEntry(tx, {
+      requestId,
+      eventType: 'STATUS_CHANGED',
+      statusBefore: currentStatus,
+      statusAfter: config.targetStatus,
+      reason,
+      comment,
+      actorUserId: userId,
+      metadata: {
+        actionId: config.actionId,
+        actionLabel: config.label,
+      },
+    })
+
+    await tx.portingRequestEvent.create({
       data: {
         request: { connect: { id: requestId } },
         eventSource: 'INTERNAL',
         eventType: 'STATUS_CHANGED',
-        title: `Zmiana statusu na: ${PORTING_CASE_STATUS_LABELS[targetStatus]}`,
-        description: `Status sprawy zostal zmieniony z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[targetStatus]}.`,
+        title: `Zmiana statusu na: ${PORTING_CASE_STATUS_LABELS[config.targetStatus]}`,
+        description: descriptionLines.join(' '),
         statusBefore: currentStatus,
-        statusAfter: targetStatus,
+        statusAfter: config.targetStatus,
         createdBy: { connect: { id: userId } },
       },
-    }),
-  ])
+    })
+  })
 
   await logAuditEvent({
     action: 'STATUS_CHANGE',
@@ -695,17 +854,160 @@ export async function updatePortingRequestStatus(
     entityId: requestId,
     requestId,
     oldValue: currentStatus,
-    newValue: targetStatus,
+    newValue: config.targetStatus,
+    ipAddress,
+    userAgent,
+  })
+}
+
+export async function updatePortingRequestStatus(
+  requestId: string,
+  body: UpdatePortingRequestStatusBody,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  await changePortingRequestStatus(requestId, body, userId, userRole, ipAddress, userAgent)
+  return getPortingRequest(requestId, userRole)
+}
+
+export async function executePortingRequestExternalAction(
+  requestId: string,
+  body: ExecutePortingRequestExternalActionBody,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<ExecutePortingRequestExternalActionResultDto> {
+  const request = await getPortingRequestForExternalActionOrThrow(requestId)
+  const plan = resolveExternalActionPlan(
+    {
+      statusInternal: request.statusInternal,
+      sentToExternalSystemAt: request.sentToExternalSystemAt,
+    },
+    body,
+    userRole,
+  )
+
+  const { title, description } = buildExternalActionEvent(plan.config.actionId, {
+    scheduledPortDate: plan.scheduledPortDate,
+    rejectionReason: plan.rejectionReason,
+    comment: plan.comment,
+  })
+
+  const communication = await prisma.$transaction(async (tx) => {
+    const updateData: Prisma.PortingRequestUpdateInput = {}
+
+    if (plan.config.actionId === 'MARK_SENT_TO_EXTERNAL_SYSTEM') {
+      updateData.sentToExternalSystemAt = new Date()
+    }
+
+    if (plan.config.actionId === 'SET_PORT_DATE') {
+      const scheduledPortDate = toDateOnlyValue(plan.scheduledPortDate ?? undefined) ?? null
+      updateData.confirmedPortDate = scheduledPortDate
+      updateData.donorAssignedPortDate = scheduledPortDate
+      updateData.rejectionReason = null
+    }
+
+    if (plan.config.actionId === 'MARK_DONOR_REJECTION') {
+      updateData.rejectionReason = plan.rejectionReason
+    }
+
+    if (plan.config.actionId === 'MARK_PORT_COMPLETED') {
+      updateData.rejectionReason = null
+    }
+
+    if (plan.targetStatus) {
+      updateData.statusInternal = plan.targetStatus
+    }
+
+    await tx.portingRequest.update({
+      where: { id: requestId },
+      data: updateData,
+    })
+
+    if (plan.targetStatus) {
+      await createCaseHistoryEntry(tx, {
+        requestId,
+        eventType: 'STATUS_CHANGED',
+        statusBefore: request.statusInternal,
+        statusAfter: plan.targetStatus,
+        reason: plan.rejectionReason,
+        comment: plan.comment,
+        actorUserId: userId,
+        metadata: {
+          actionId: plan.config.actionId,
+          actionLabel: plan.config.label,
+          externalAction: true,
+        },
+      })
+    }
+
+    await tx.portingRequestEvent.create({
+      data: {
+        request: { connect: { id: requestId } },
+        eventSource: 'INTERNAL',
+        eventType: 'NOTE',
+        title,
+        description,
+        statusBefore: request.statusInternal,
+        statusAfter: plan.targetStatus ?? request.statusInternal,
+        createdBy: { connect: { id: userId } },
+      },
+    })
+
+    if (!body.createCommunicationDraft) {
+      return null
+    }
+
+    return createPortingCommunicationDraft(
+      requestId,
+      {
+        actionType:
+          plan.config.actionId === 'MARK_DONOR_REJECTION'
+            ? 'REJECTION_NOTICE'
+            : plan.config.actionId === 'MARK_PORT_COMPLETED'
+              ? 'COMPLETION_NOTICE'
+              : 'CLIENT_CONFIRMATION',
+        type: 'EMAIL',
+        triggerType: plan.config.suggestedCommunicationTriggerType,
+        recipient: body.recipient,
+        metadata: {
+          sourceActionId: plan.config.actionId,
+          sourceActionLabel: plan.config.label,
+        },
+      },
+      userId,
+      userRole,
+      ipAddress,
+      userAgent,
+      tx,
+    )
+  })
+
+  await logAuditEvent({
+    action: plan.targetStatus ? 'STATUS_CHANGE' : 'UPDATE',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    oldValue: request.statusInternal,
+    newValue: plan.targetStatus ?? plan.config.actionId,
     ipAddress,
     userAgent,
   })
 
-  return getPortingRequest(requestId)
+  return {
+    request: await getPortingRequest(requestId, userRole),
+    communication,
+  }
 }
 
 export async function exportPortingRequestToPliCbd(
   requestId: string,
   userId: string,
+  actorRole: UserRole,
   ipAddress?: string,
   userAgent?: string,
 ): Promise<PortingRequestDetailDto> {
@@ -782,12 +1084,13 @@ export async function exportPortingRequestToPliCbd(
     userAgent,
   })
 
-  return getPortingRequest(requestId)
+  return getPortingRequest(requestId, actorRole)
 }
 
 export async function syncPortingRequestFromPliCbd(
   requestId: string,
   userId: string,
+  actorRole: UserRole,
   ipAddress?: string,
   userAgent?: string,
 ): Promise<PortingRequestDetailDto> {
@@ -861,5 +1164,5 @@ export async function syncPortingRequestFromPliCbd(
     userAgent,
   })
 
-  return getPortingRequest(requestId)
+  return getPortingRequest(requestId, actorRole)
 }

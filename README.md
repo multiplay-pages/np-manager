@@ -73,6 +73,38 @@ npm run dev:backend   # Backend na http://localhost:3001
 npm run dev:frontend  # Frontend na http://localhost:5173
 ```
 
+### 6. Gdy logowanie zwraca blad serwera
+
+Najpierw sprawdz liveness backendu:
+
+```bash
+curl http://localhost:3001/health
+```
+
+Jesli `/health` zwraca `200`, sprawdz readiness aplikacji:
+
+```bash
+curl -i http://localhost:3001/health/ready
+```
+
+Interpretacja:
+- `/health = 200` oznacza, ze proces backendu zyje
+- `/health/ready = 200` oznacza, ze backend jest gotowy do pracy i ma polaczenie z baza
+- `/health/ready = 503` oznacza, ze backend dziala, ale nie jest gotowy do obslugi ruchu aplikacyjnego
+
+Jesli logowanie zwraca komunikat o niedostepnej bazie danych albo `/health/ready` zwraca `503`, uruchom lokalny PostgreSQL i ponownie wykonaj:
+
+```bash
+docker compose up -d postgres
+npm run db:migrate
+npm run db:seed
+```
+
+Brak uruchomionej bazy na `localhost:5432` powoduje, ze:
+- `GET /health` nadal zwraca `200`
+- `GET /health/ready` zwraca `503`
+- `POST /api/auth/login` nie moze wykonac zapytania Prisma i zwraca `503 DATABASE_UNAVAILABLE`
+
 ---
 
 ## Struktura projektu

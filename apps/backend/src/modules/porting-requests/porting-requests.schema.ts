@@ -42,6 +42,11 @@ const optionalTrimmedString = (max: number) =>
     z.string().max(max).trim().optional(),
   )
 
+const optionalEmailSchema = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.string().email('Podaj poprawny adres e-mail').max(200).optional(),
+)
+
 const statusEnum = z.enum([
   'DRAFT',
   'SUBMITTED',
@@ -332,6 +337,8 @@ export type CreatePortingRequestBody = z.infer<typeof createPortingRequestSchema
 
 export const updatePortingRequestStatusSchema = z.object({
   targetStatus: statusEnum,
+  reason: optionalTrimmedString(300),
+  comment: optionalTrimmedString(5000),
 })
 
 export type UpdatePortingRequestStatusBody = z.infer<typeof updatePortingRequestStatusSchema>
@@ -346,3 +353,69 @@ export const portingRequestListQuerySchema = z.object({
 })
 
 export type PortingRequestListQuery = z.infer<typeof portingRequestListQuerySchema>
+
+export const preparePortingCommunicationDraftSchema = z.object({
+  actionType: z
+    .enum([
+      'MISSING_DOCUMENTS',
+      'CLIENT_CONFIRMATION',
+      'REJECTION_NOTICE',
+      'COMPLETION_NOTICE',
+      'INTERNAL_NOTE_EMAIL',
+    ])
+    .optional(),
+  type: z.enum(['EMAIL', 'SMS']).optional(),
+  triggerType: z
+    .enum([
+      'CASE_RECEIVED',
+      'SENT_TO_EXTERNAL_SYSTEM',
+      'PORT_DATE_SCHEDULED',
+      'CASE_REJECTED',
+      'PORT_COMPLETED',
+      'MANUAL',
+    ])
+    .optional(),
+  templateKey: z
+    .enum([
+      'case_received',
+      'sent_to_external_system',
+      'port_date_scheduled',
+      'case_rejected',
+      'port_completed',
+      'missing_documents',
+      'client_confirmation',
+      'rejection_notice',
+      'completion_notice',
+      'internal_note_email',
+    ])
+    .optional(),
+  recipient: optionalEmailSchema,
+  metadata: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+})
+
+export type PreparePortingCommunicationDraftBody =
+  z.infer<typeof preparePortingCommunicationDraftSchema>
+
+export const markPortingCommunicationSentSchema = z.object({
+  sentAt: z.string().datetime().optional(),
+})
+
+export type MarkPortingCommunicationSentBody =
+  z.infer<typeof markPortingCommunicationSentSchema>
+
+export const executePortingRequestExternalActionSchema = z.object({
+  actionId: z.enum([
+    'MARK_SENT_TO_EXTERNAL_SYSTEM',
+    'SET_PORT_DATE',
+    'MARK_DONOR_REJECTION',
+    'MARK_PORT_COMPLETED',
+  ]),
+  scheduledPortDate: optionalDateOnlySchema,
+  rejectionReason: optionalTrimmedString(1000),
+  comment: optionalTrimmedString(5000),
+  createCommunicationDraft: z.boolean().default(false),
+  recipient: optionalEmailSchema,
+})
+
+export type ExecutePortingRequestExternalActionBody =
+  z.infer<typeof executePortingRequestExternalActionSchema>

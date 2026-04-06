@@ -3,6 +3,8 @@ import { prisma } from '../../config/database'
 import type {
   PliCbdIntegrationEventDto,
   PliCbdIntegrationEventsResultDto,
+  PliCbdTransportMode,
+  PliCbdTransportOutcome,
 } from '@np-manager/shared'
 import type {
   PliCbdTriggerRow,
@@ -10,6 +12,53 @@ import type {
 } from './pli-cbd.adapter'
 
 type IntegrationOperationType = 'EXPORT' | 'SYNC'
+const PLI_CBD_TRANSPORT_MODES = new Set<PliCbdTransportMode>(['DISABLED', 'STUB', 'REAL_SOAP'])
+const PLI_CBD_TRANSPORT_OUTCOMES = new Set<PliCbdTransportOutcome>([
+  'ACCEPTED',
+  'REJECTED',
+  'TRANSPORT_ERROR',
+  'STUBBED',
+  'DISABLED',
+  'NOT_IMPLEMENTED',
+])
+
+function isRecord(value: unknown): value is Record<string, Prisma.JsonValue> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function extractTransportMode(value: Prisma.JsonValue | null): PliCbdTransportMode | null {
+  if (!isRecord(value)) return null
+
+  const transportMode = value.transportMode
+  if (typeof transportMode === 'string' && PLI_CBD_TRANSPORT_MODES.has(transportMode as PliCbdTransportMode)) {
+    return transportMode as PliCbdTransportMode
+  }
+
+  return null
+}
+
+function extractTransportMetadata(value: Prisma.JsonValue | null): {
+  adapterName: string | null
+  outcome: PliCbdTransportOutcome | null
+} {
+  if (!isRecord(value)) {
+    return { adapterName: null, outcome: null }
+  }
+
+  const transport = value.transport
+  if (!isRecord(transport)) {
+    return { adapterName: null, outcome: null }
+  }
+
+  const adapterName = typeof transport.adapterName === 'string' ? transport.adapterName : null
+  const outcome =
+    typeof transport.outcome === 'string' &&
+    PLI_CBD_TRANSPORT_OUTCOMES.has(transport.outcome as PliCbdTransportOutcome)
+      ? (transport.outcome as PliCbdTransportOutcome)
+      : null
+
+  return { adapterName, outcome }
+}
 
 function toSerializableJsonValue(value: unknown): Prisma.InputJsonValue | undefined {
   if (value === null || value === undefined) {
@@ -41,12 +90,18 @@ function toIntegrationEventDto(row: {
   completedAt: Date | null
   triggeredBy: { firstName: string; lastName: string } | null
 }): PliCbdIntegrationEventDto {
+  const transportMode = extractTransportMode(row.requestPayloadJson)
+  const transportMetadata = extractTransportMetadata(row.responsePayloadJson)
+
   return {
     id: row.id,
     portingRequestId: row.portingRequestId,
     operationType: row.operationType,
     operationStatus: row.operationStatus,
     actionName: row.actionName,
+    transportMode,
+    transportAdapterName: transportMetadata.adapterName,
+    transportOutcome: transportMetadata.outcome,
     requestPayloadJson: row.requestPayloadJson,
     responsePayloadJson: row.responsePayloadJson,
     errorMessage: row.errorMessage,

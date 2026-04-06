@@ -5,8 +5,11 @@
   "description": "Backend NP-Manager — Node.js + Fastify + Prisma",
   "scripts": {
     "dev": "tsx watch src/app.ts",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
     "build": "tsc",
     "start": "node dist/apps/backend/src/app.js",
+    "start:check": "node -e \"const p=require('path').resolve('dist/app.js');require('fs').existsSync(p)&&(console.error('STALE dist/app.js found — run npm run build to fix'),process.exit(1))\" && node dist/apps/backend/src/app.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -33,6 +36,7 @@
     "@types/node": "^22.0.0",
     "pino-pretty": "^11.2.2",
     "prisma": "^5.17.0",
+    "rimraf": "^3.0.2",
     "tsx": "^4.17.0",
     "typescript": "*",
     "vitest": "^2.0.5"

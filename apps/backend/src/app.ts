@@ -3,27 +3,76 @@ import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import { env } from './config/env'
 import { loggerConfig } from './config/logger'
-import { errorHandler } from './shared/errors/error-handler'
 import { authRouter } from './modules/auth/auth.router'
 import { usersRouter } from './modules/users/users.router'
 import { clientsRouter } from './modules/clients/clients.router'
 import { operatorsRouter } from './modules/operators/operators.router'
 import { portingRequestsRouter } from './modules/porting-requests/porting-requests.router'
+import { errorHandler } from './shared/errors/error-handler'
+import { buildReadinessResult } from './shared/health/readiness'
+import type { FastifyInstance } from 'fastify'
+
+const REGISTERED_API_PREFIXES = [
+  '/api/auth',
+  '/api/users',
+  '/api/clients',
+  '/api/operators',
+  '/api/porting-requests',
+] as const
+
+export const REQUIRED_RUNTIME_ROUTES = [
+  { method: 'POST', url: '/api/auth/login' },
+  { method: 'GET', url: '/api/porting-requests' },
+  { method: 'GET', url: '/api/porting-requests/:id' },
+  { method: 'POST', url: '/api/porting-requests/:id/communications/preview' },
+  { method: 'POST', url: '/api/porting-requests/:id/communications/drafts' },
+] as const
+
+export function getRuntimeRouteDiagnostics(app: FastifyInstance) {
+  const requiredRoutes = REQUIRED_RUNTIME_ROUTES.map((route) => ({
+    ...route,
+    registered: app.hasRoute({
+      method: route.method,
+      url: route.url,
+    }),
+  }))
+
+  return {
+    entrypoint: __filename,
+    cwd: process.cwd(),
+    apiPrefixes: [...REGISTERED_API_PREFIXES],
+    requiredRoutes,
+    routeTable: app.printRoutes(),
+  }
+}
+
+function logStartupDiagnostics(app: FastifyInstance) {
+  const diagnostics = getRuntimeRouteDiagnostics(app)
+
+  app.log.info(
+    {
+      entrypoint: diagnostics.entrypoint,
+      cwd: diagnostics.cwd,
+      apiPrefixes: diagnostics.apiPrefixes,
+      requiredRoutes: diagnostics.requiredRoutes,
+    },
+    'Backend startup diagnostics',
+  )
+
+  if (env.NODE_ENV !== 'production') {
+    app.log.info(`Registered route table:\n${diagnostics.routeTable}`)
+  }
+}
 
 /**
- * Buduje i konfiguruje instancję aplikacji Fastify.
- * Wyeksportowana funkcja umożliwia łatwe testowanie (test helper tworzy osobną instancję).
+ * Buduje i konfiguruje instancje aplikacji Fastify.
+ * Wyeksportowana funkcja ulatwia testowanie bez odpalania serwera.
  */
 export async function buildApp() {
   const app = Fastify({
     logger: loggerConfig,
-    // Generuj unikalny requestId dla każdego żądania (przydatne w logach i błędach 500)
     genReqId: () => crypto.randomUUID(),
   })
-
-  // ============================================================
-  // Pluginy globalne
-  // ============================================================
 
   await app.register(cors, {
     origin: env.FRONTEND_URL,
@@ -32,7 +81,6 @@ export async function buildApp() {
     credentials: true,
   })
 
-  // JWT — musi być zarejestrowany przed routerami używającymi jwtVerify/jwt.sign
   await app.register(jwt, {
     secret: env.JWT_SECRET,
     sign: {
@@ -40,14 +88,7 @@ export async function buildApp() {
     },
   })
 
-  // ============================================================
-  // Globalny error handler
-  // ============================================================
   app.setErrorHandler(errorHandler)
-
-  // ============================================================
-  // Moduły API
-  // ============================================================
 
   await app.register(authRouter, { prefix: '/api/auth' })
   await app.register(usersRouter, { prefix: '/api/users' })
@@ -55,12 +96,7 @@ export async function buildApp() {
   await app.register(operatorsRouter, { prefix: '/api/operators' })
   await app.register(portingRequestsRouter, { prefix: '/api/porting-requests' })
 
-  // ============================================================
-  // Trasy systemowe
-  // ============================================================
-
-  /** Health check — używany przez load balancer i monitoring */
-  app.get('/health', async (_request, _reply) => {
+  app.get('/health', async () => {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -69,13 +105,21 @@ export async function buildApp() {
     }
   })
 
-  /** Obsługa nieznanych tras — zwraca 404 z ustrukturyzowaną odpowiedzią */
+  app.get('/health/ready', async (_request, reply) => {
+    const readiness = await buildReadinessResult({
+      environment: env.NODE_ENV,
+      version: process.env['npm_package_version'] ?? '1.0.0',
+    })
+
+    return reply.status(readiness.status === 'ready' ? 200 : 503).send(readiness)
+  })
+
   app.setNotFoundHandler((_request, reply) => {
     reply.status(404).send({
       success: false,
       error: {
         code: 'NOT_FOUND',
-        message: 'Podana ścieżka API nie istnieje.',
+        message: 'Podana sciezka API nie istnieje.',
       },
     })
   })
@@ -83,21 +127,17 @@ export async function buildApp() {
   return app
 }
 
-/**
- * Punkt startowy aplikacji.
- * Uruchamia serwer i obsługuje graceful shutdown.
- */
 async function main() {
   const app = await buildApp()
 
   const shutdown = async (signal: string) => {
-    app.log.info(`Otrzymano sygnał ${signal} — zamykanie serwera...`)
+    app.log.info(`Otrzymano sygnal ${signal} - zamykanie serwera...`)
     try {
       await app.close()
-      app.log.info('Serwer zamknięty pomyślnie.')
+      app.log.info('Serwer zamkniety pomyslnie.')
       process.exit(0)
     } catch (err) {
-      app.log.error(err, 'Błąd podczas zamykania serwera')
+      app.log.error(err, 'Blad podczas zamykania serwera')
       process.exit(1)
     }
   }
@@ -106,17 +146,20 @@ async function main() {
   process.on('SIGINT', () => void shutdown('SIGINT'))
 
   try {
+    await app.ready()
+    logStartupDiagnostics(app)
     await app.listen({ port: env.PORT, host: '0.0.0.0' })
     app.log.info(`NP-Manager backend uruchomiony na porcie ${env.PORT}`)
-    app.log.info(`Środowisko: ${env.NODE_ENV}`)
+    app.log.info(`Srodowisko: ${env.NODE_ENV}`)
   } catch (err) {
-    app.log.error(err, 'Błąd uruchamiania serwera')
+    app.log.error(err, 'Blad uruchamiania serwera')
     process.exit(1)
   }
 }
 
-// Uruchom tylko jeśli to jest plik główny (nie import w testach)
-main().catch((err) => {
-  console.error('Krytyczny błąd startowy:', err)
-  process.exit(1)
-})
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Krytyczny blad startowy:', err)
+    process.exit(1)
+  })
+}

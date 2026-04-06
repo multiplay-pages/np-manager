@@ -1,14 +1,25 @@
 import { apiClient } from './api.client'
 import type {
   CreatePortingRequestDto,
+  ExecutePortingRequestExternalActionDto,
+  ExecutePortingRequestExternalActionResultDto,
+  PliCbdAnyTechnicalPayloadBuildResultDto,
+  PliCbdAnyXmlPreviewBuildResultDto,
   PliCbdE03DraftBuildResultDto,
   PliCbdE12DraftBuildResultDto,
   PliCbdE18DraftBuildResultDto,
+  PortingCommunicationDto,
+  PortingCommunicationListResultDto,
+  PortingCommunicationPreviewDto,
   PliCbdIntegrationEventsResultDto,
+  PliCbdManualExportMessageType,
+  PliCbdManualExportResultDto,
   PliCbdProcessSnapshotDto,
+  PortingRequestCaseHistoryResultDto,
   PortingRequestDetailDto,
   PortingRequestListQueryDto,
   PortingRequestListResultDto,
+  PreparePortingCommunicationDraftDto,
   PortingTimelineResultDto,
   UpdatePortingRequestStatusDto,
 } from '@np-manager/shared'
@@ -16,6 +27,9 @@ import type {
 export type GetPortingRequestsParams = PortingRequestListQueryDto
 export type CreatePortingRequestPayload = CreatePortingRequestDto
 export type UpdatePortingRequestStatusPayload = UpdatePortingRequestStatusDto
+export type PliCbdTechnicalPayloadApiMessageType = 'e03' | 'e12' | 'e18' | 'e23'
+export type PreparePortingCommunicationDraftPayload = PreparePortingCommunicationDraftDto
+export type ExecutePortingRequestExternalActionPayload = ExecutePortingRequestExternalActionDto
 
 export async function getPortingRequests(
   params: GetPortingRequestsParams = {},
@@ -96,6 +110,76 @@ export async function getPortingRequestTimeline(id: string): Promise<PortingTime
   return response.data.data
 }
 
+export async function getPortingRequestCaseHistory(
+  id: string,
+): Promise<PortingRequestCaseHistoryResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingRequestCaseHistoryResultDto
+  }>(`/porting-requests/${id}/case-history`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestCommunicationHistory(
+  id: string,
+): Promise<PortingCommunicationListResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingCommunicationListResultDto
+  }>(`/porting-requests/${id}/communications`)
+
+  return response.data.data
+}
+
+export async function previewPortingCommunicationDraft(
+  id: string,
+  data: PreparePortingCommunicationDraftPayload = {},
+): Promise<PortingCommunicationPreviewDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: PortingCommunicationPreviewDto
+  }>(`/porting-requests/${id}/communications/preview`, data)
+
+  return response.data.data
+}
+
+export async function createPortingCommunicationDraft(
+  id: string,
+  data: PreparePortingCommunicationDraftPayload = {},
+): Promise<PortingCommunicationDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: { communication: PortingCommunicationDto }
+  }>(`/porting-requests/${id}/communications/drafts`, data)
+
+  return response.data.data.communication
+}
+
+export async function markPortingCommunicationAsSent(
+  id: string,
+  communicationId: string,
+): Promise<PortingCommunicationDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { communication: PortingCommunicationDto }
+  }>(`/porting-requests/${id}/communications/${communicationId}/mark-sent`, {})
+
+  return response.data.data.communication
+}
+
+export async function executePortingRequestExternalAction(
+  id: string,
+  data: ExecutePortingRequestExternalActionPayload,
+): Promise<ExecutePortingRequestExternalActionResultDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: ExecutePortingRequestExternalActionResultDto
+  }>(`/porting-requests/${id}/external-actions`, data)
+
+  return response.data.data
+}
+
 export async function getPortingRequestProcessSnapshot(
   id: string,
 ): Promise<PliCbdProcessSnapshotDto> {
@@ -107,9 +191,7 @@ export async function getPortingRequestProcessSnapshot(
   return response.data.data
 }
 
-export async function getPortingRequestE03Draft(
-  id: string,
-): Promise<PliCbdE03DraftBuildResultDto> {
+export async function getPortingRequestE03Draft(id: string): Promise<PliCbdE03DraftBuildResultDto> {
   const response = await apiClient.get<{
     success: true
     data: PliCbdE03DraftBuildResultDto
@@ -118,9 +200,7 @@ export async function getPortingRequestE03Draft(
   return response.data.data
 }
 
-export async function getPortingRequestE12Draft(
-  id: string,
-): Promise<PliCbdE12DraftBuildResultDto> {
+export async function getPortingRequestE12Draft(id: string): Promise<PliCbdE12DraftBuildResultDto> {
   const response = await apiClient.get<{
     success: true
     data: PliCbdE12DraftBuildResultDto
@@ -129,13 +209,35 @@ export async function getPortingRequestE12Draft(
   return response.data.data
 }
 
-export async function getPortingRequestE18Draft(
-  id: string,
-): Promise<PliCbdE18DraftBuildResultDto> {
+export async function getPortingRequestE18Draft(id: string): Promise<PliCbdE18DraftBuildResultDto> {
   const response = await apiClient.get<{
     success: true
     data: PliCbdE18DraftBuildResultDto
   }>(`/porting-requests/${id}/pli-cbd-drafts/e18`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestTechnicalPayload(
+  id: string,
+  messageType: PliCbdTechnicalPayloadApiMessageType,
+): Promise<PliCbdAnyTechnicalPayloadBuildResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PliCbdAnyTechnicalPayloadBuildResultDto
+  }>(`/porting-requests/${id}/pli-cbd-payloads/${messageType}`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestXmlPreview(
+  id: string,
+  messageType: PliCbdTechnicalPayloadApiMessageType,
+): Promise<PliCbdAnyXmlPreviewBuildResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PliCbdAnyXmlPreviewBuildResultDto
+  }>(`/porting-requests/${id}/pli-cbd-xml/${messageType}`)
 
   return response.data.data
 }
@@ -149,4 +251,16 @@ export async function getPortingRequestIntegrationEvents(
   }>(`/porting-requests/${id}/integration-events`)
 
   return response.data.data
+}
+
+export async function triggerManualPliCbdExport(
+  id: string,
+  messageType: PliCbdManualExportMessageType,
+): Promise<PliCbdManualExportResultDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: { exportResult: PliCbdManualExportResultDto }
+  }>(`/porting-requests/${id}/pli-cbd-exports/${messageType.toLowerCase()}/manual`)
+
+  return response.data.data.exportResult
 }

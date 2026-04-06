@@ -10,6 +10,8 @@ import type {
   PliCbdE12DraftDto,
   PliCbdE18DraftBuildResultDto,
   PliCbdE18DraftDto,
+  PliCbdE23DraftBuildResultDto,
+  PliCbdE23DraftDto,
   PliCbdProcessSnapshotDto,
 } from '@np-manager/shared'
 import {
@@ -103,6 +105,7 @@ const E12_DRAFT_SELECT = {
   id: true,
   caseNumber: true,
   clientId: true,
+  requestDocumentNumber: true,
   numberType: true,
   numberRangeKind: true,
   primaryNumber: true,
@@ -114,6 +117,12 @@ const E12_DRAFT_SELECT = {
   lastExxReceived: true,
   donorAssignedPortDate: true,
   donorAssignedPortTime: true,
+  identityType: true,
+  identityValue: true,
+  correspondenceAddress: true,
+  hasPowerOfAttorney: true,
+  linkedWholesaleServiceOnRecipientSide: true,
+  contactChannel: true,
   client: {
     select: {
       id: true,
@@ -127,6 +136,9 @@ const E12_DRAFT_SELECT = {
     select: DRAFT_OPERATOR_SELECT,
   },
   recipientOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  infrastructureOperator: {
     select: DRAFT_OPERATOR_SELECT,
   },
   subscriberKind: true,
@@ -140,6 +152,7 @@ const E18_DRAFT_SELECT = {
   id: true,
   caseNumber: true,
   clientId: true,
+  requestDocumentNumber: true,
   numberType: true,
   numberRangeKind: true,
   primaryNumber: true,
@@ -152,6 +165,12 @@ const E18_DRAFT_SELECT = {
   confirmedPortDate: true,
   donorAssignedPortDate: true,
   donorAssignedPortTime: true,
+  identityType: true,
+  identityValue: true,
+  correspondenceAddress: true,
+  hasPowerOfAttorney: true,
+  linkedWholesaleServiceOnRecipientSide: true,
+  contactChannel: true,
   client: {
     select: {
       id: true,
@@ -167,6 +186,9 @@ const E18_DRAFT_SELECT = {
   recipientOperator: {
     select: DRAFT_OPERATOR_SELECT,
   },
+  infrastructureOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
   subscriberKind: true,
   subscriberFirstName: true,
   subscriberLastName: true,
@@ -174,6 +196,55 @@ const E18_DRAFT_SELECT = {
 } as const
 
 type E18DraftRow = Prisma.PortingRequestGetPayload<{ select: typeof E18_DRAFT_SELECT }>
+
+const E23_DRAFT_SELECT = {
+  id: true,
+  caseNumber: true,
+  clientId: true,
+  requestDocumentNumber: true,
+  numberType: true,
+  numberRangeKind: true,
+  primaryNumber: true,
+  rangeStart: true,
+  rangeEnd: true,
+  portingMode: true,
+  statusInternal: true,
+  pliCbdExportStatus: true,
+  lastExxReceived: true,
+  confirmedPortDate: true,
+  donorAssignedPortDate: true,
+  donorAssignedPortTime: true,
+  identityType: true,
+  identityValue: true,
+  correspondenceAddress: true,
+  hasPowerOfAttorney: true,
+  linkedWholesaleServiceOnRecipientSide: true,
+  contactChannel: true,
+  client: {
+    select: {
+      id: true,
+      clientType: true,
+      firstName: true,
+      lastName: true,
+      companyName: true,
+    },
+  },
+  donorOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  recipientOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  infrastructureOperator: {
+    select: DRAFT_OPERATOR_SELECT,
+  },
+  subscriberKind: true,
+  subscriberFirstName: true,
+  subscriberLastName: true,
+  subscriberCompanyName: true,
+} as const
+
+type E23DraftRow = Prisma.PortingRequestGetPayload<{ select: typeof E23_DRAFT_SELECT }>
 
 // ============================================================
 // POMOCNIK — mapowanie PliCbdExxType → FnpExxMessage | null
@@ -527,6 +598,75 @@ export async function buildE18DraftForPortingRequest(
   }
 }
 
+export async function buildE23DraftForPortingRequest(
+  requestId: string,
+): Promise<PliCbdE23DraftBuildResultDto> {
+  const snapshot = await getPortingRequestProcessSnapshot(requestId)
+
+  if (!snapshot.allowedNextMessages.includes('E23')) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons:
+        snapshot.blockingReasons.length > 0
+          ? snapshot.blockingReasons
+          : [
+              {
+                code: 'E23_NOT_ALLOWED_AT_CURRENT_STAGE',
+                message: `Komunikat E23 nie jest dostepny na aktualnym etapie procesu: ${snapshot.currentStageLabel}.`,
+                field: 'currentStage',
+              },
+            ],
+      draft: null,
+    }
+  }
+
+  const e23Readiness = snapshot.draftableMessages.find((message) => message.messageType === 'E23')
+
+  if (!e23Readiness) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: [
+        {
+          code: 'E23_READINESS_NOT_AVAILABLE',
+          message: 'Nie udalo sie wyznaczyc gotowosci draftu E23 dla tej sprawy.',
+        },
+      ],
+      draft: null,
+    }
+  }
+
+  if (!e23Readiness.ready) {
+    return {
+      requestId: snapshot.requestId,
+      caseNumber: snapshot.caseNumber,
+      isReady: false,
+      blockingReasons: e23Readiness.blockingReasons,
+      draft: null,
+    }
+  }
+
+  const row = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: E23_DRAFT_SELECT,
+  })
+
+  if (!row) {
+    throw AppError.notFound(`Sprawa o id "${requestId}" nie istnieje.`)
+  }
+
+  return {
+    requestId: row.id,
+    caseNumber: row.caseNumber,
+    isReady: true,
+    blockingReasons: [],
+    draft: buildE23Draft(row, snapshot),
+  }
+}
+
 function buildSummaryFields(
   messageType: string,
   row: FnpValidationRequest & { id: string; caseNumber: string },
@@ -610,13 +750,32 @@ function buildE12Draft(row: E12DraftRow, snapshot: PliCbdProcessSnapshotDto): Pl
     caseNumber: row.caseNumber,
     clientId: row.clientId,
     clientDisplayName: getClientDisplayName(row.client),
+    subscriberKind: row.subscriberKind,
     subscriberDisplayName: getSubscriberDisplayName(row),
+    subscriberFirstName: row.subscriberFirstName,
+    subscriberLastName: row.subscriberLastName,
+    subscriberCompanyName: row.subscriberCompanyName,
     donorOperator: toDraftOperator(row.donorOperator),
     recipientOperator: toDraftOperator(row.recipientOperator),
+    infrastructureOperator: row.infrastructureOperator
+      ? toDraftOperator(row.infrastructureOperator)
+      : null,
     portingMode: row.portingMode,
     numberType: row.numberType,
     numberRangeKind: row.numberRangeKind,
     numberDisplay: getNumberDisplay(row),
+    primaryNumber: row.primaryNumber,
+    rangeStart: row.rangeStart,
+    rangeEnd: row.rangeEnd,
+    identity: {
+      type: row.identityType,
+      value: row.identityValue,
+    },
+    correspondenceAddress: row.correspondenceAddress,
+    hasPowerOfAttorney: row.hasPowerOfAttorney,
+    linkedWholesaleServiceOnRecipientSide: row.linkedWholesaleServiceOnRecipientSide,
+    contactChannel: row.contactChannel,
+    requestDocumentNumber: row.requestDocumentNumber,
     confirmationContext: {
       currentStage: snapshot.currentStage,
       currentStageLabel: snapshot.currentStageLabel,
@@ -648,13 +807,32 @@ function buildE18Draft(row: E18DraftRow, snapshot: PliCbdProcessSnapshotDto): Pl
     caseNumber: row.caseNumber,
     clientId: row.clientId,
     clientDisplayName: getClientDisplayName(row.client),
+    subscriberKind: row.subscriberKind,
     subscriberDisplayName: getSubscriberDisplayName(row),
+    subscriberFirstName: row.subscriberFirstName,
+    subscriberLastName: row.subscriberLastName,
+    subscriberCompanyName: row.subscriberCompanyName,
     donorOperator: toDraftOperator(row.donorOperator),
     recipientOperator: toDraftOperator(row.recipientOperator),
+    infrastructureOperator: row.infrastructureOperator
+      ? toDraftOperator(row.infrastructureOperator)
+      : null,
     portingMode: row.portingMode,
     numberType: row.numberType,
     numberRangeKind: row.numberRangeKind,
     numberDisplay: getNumberDisplay(row),
+    primaryNumber: row.primaryNumber,
+    rangeStart: row.rangeStart,
+    rangeEnd: row.rangeEnd,
+    identity: {
+      type: row.identityType,
+      value: row.identityValue,
+    },
+    correspondenceAddress: row.correspondenceAddress,
+    hasPowerOfAttorney: row.hasPowerOfAttorney,
+    linkedWholesaleServiceOnRecipientSide: row.linkedWholesaleServiceOnRecipientSide,
+    contactChannel: row.contactChannel,
+    requestDocumentNumber: row.requestDocumentNumber,
     completionContext: {
       currentStage: snapshot.currentStage,
       currentStageLabel: snapshot.currentStageLabel,
@@ -667,6 +845,63 @@ function buildE18Draft(row: E18DraftRow, snapshot: PliCbdProcessSnapshotDto): Pl
       donorAssignedPortTime: row.donorAssignedPortTime,
     },
     reasonHints: buildE18ReasonHints(row, snapshot, lastReceivedMessageType),
+    technicalHints: {
+      dataSource: 'CURRENT_CASE_AND_PROCESS_SNAPSHOT',
+      numberSelectionSource:
+        row.numberRangeKind === 'DDI_RANGE' ? 'NUMBER_RANGE' : 'PRIMARY_NUMBER',
+      allowedMessagesAtStage: snapshot.allowedNextMessages,
+    },
+  }
+}
+
+function buildE23Draft(row: E23DraftRow, snapshot: PliCbdProcessSnapshotDto): PliCbdE23DraftDto {
+  const lastReceivedMessageType = toFnpLastExx(row.lastExxReceived)
+
+  return {
+    messageType: 'E23',
+    serviceType: 'FNP',
+    requestId: row.id,
+    caseNumber: row.caseNumber,
+    clientId: row.clientId,
+    clientDisplayName: getClientDisplayName(row.client),
+    subscriberKind: row.subscriberKind,
+    subscriberDisplayName: getSubscriberDisplayName(row),
+    subscriberFirstName: row.subscriberFirstName,
+    subscriberLastName: row.subscriberLastName,
+    subscriberCompanyName: row.subscriberCompanyName,
+    donorOperator: toDraftOperator(row.donorOperator),
+    recipientOperator: toDraftOperator(row.recipientOperator),
+    infrastructureOperator: row.infrastructureOperator
+      ? toDraftOperator(row.infrastructureOperator)
+      : null,
+    portingMode: row.portingMode,
+    numberType: row.numberType,
+    numberRangeKind: row.numberRangeKind,
+    numberDisplay: getNumberDisplay(row),
+    primaryNumber: row.primaryNumber,
+    rangeStart: row.rangeStart,
+    rangeEnd: row.rangeEnd,
+    identity: {
+      type: row.identityType,
+      value: row.identityValue,
+    },
+    correspondenceAddress: row.correspondenceAddress,
+    hasPowerOfAttorney: row.hasPowerOfAttorney,
+    linkedWholesaleServiceOnRecipientSide: row.linkedWholesaleServiceOnRecipientSide,
+    contactChannel: row.contactChannel,
+    requestDocumentNumber: row.requestDocumentNumber,
+    cancellationContext: {
+      currentStage: snapshot.currentStage,
+      currentStageLabel: snapshot.currentStageLabel,
+      statusInternal: row.statusInternal,
+      statusInternalLabel: PORTING_CASE_STATUS_LABELS[row.statusInternal],
+      exportStatus: row.pliCbdExportStatus,
+      lastReceivedMessageType,
+      confirmedPortDate: toDateOnlyString(row.confirmedPortDate),
+      donorAssignedPortDate: toDateOnlyString(row.donorAssignedPortDate),
+      donorAssignedPortTime: row.donorAssignedPortTime,
+    },
+    reasonHints: buildE23ReasonHints(row, snapshot, lastReceivedMessageType),
     technicalHints: {
       dataSource: 'CURRENT_CASE_AND_PROCESS_SNAPSHOT',
       numberSelectionSource:
@@ -694,6 +929,35 @@ function buildE18ReasonHints(
 
   if (row.confirmedPortDate) {
     hints.push(`Potwierdzona data przeniesienia: ${toDateOnlyString(row.confirmedPortDate)}.`)
+  }
+
+  if (row.donorAssignedPortDate) {
+    hints.push(`Data wyznaczona przez Dawce: ${toDateOnlyString(row.donorAssignedPortDate)}.`)
+  }
+
+  return hints
+}
+
+function buildE23ReasonHints(
+  row: E23DraftRow,
+  snapshot: PliCbdProcessSnapshotDto,
+  lastReceivedMessageType: PliCbdE23DraftDto['cancellationContext']['lastReceivedMessageType'],
+): string[] {
+  const hints = [
+    `Proces FNP znajduje sie obecnie na etapie: ${snapshot.currentStageLabel}.`,
+    'Draft E23 reprezentuje anulowanie aktywnego wniosku przeniesienia po stronie Biorcy.',
+  ]
+
+  if (lastReceivedMessageType) {
+    hints.push(
+      `Ostatni komunikat uwzgledniony w modelu procesu: ${FNP_EXX_MESSAGE_LABELS[lastReceivedMessageType]}.`,
+    )
+  }
+
+  if (row.confirmedPortDate) {
+    hints.push(
+      `Potwierdzona data przeniesienia w sprawie: ${toDateOnlyString(row.confirmedPortDate)}.`,
+    )
   }
 
   if (row.donorAssignedPortDate) {

@@ -163,6 +163,45 @@ enum PliCbdIntegrationStatus {
   ERROR
 }
 
+enum PortingRequestCaseHistoryEventType {
+  REQUEST_CREATED
+  STATUS_CHANGED
+}
+
+enum PortingCommunicationType {
+  EMAIL
+  SMS
+}
+
+enum PortingCommunicationStatus {
+  DRAFT
+  READY
+  SENT
+  FAILED
+}
+
+enum PortingCommunicationTriggerType {
+  CASE_RECEIVED
+  SENT_TO_EXTERNAL_SYSTEM
+  PORT_DATE_SCHEDULED
+  CASE_REJECTED
+  PORT_COMPLETED
+  MANUAL
+}
+
+enum PortingCommunicationTemplateKey {
+  case_received
+  sent_to_external_system
+  port_date_scheduled
+  case_rejected
+  port_completed
+  missing_documents
+  client_confirmation
+  rejection_notice
+  completion_notice
+  internal_note_email
+}
+
 // ============================================================
 // USERS — Użytkownicy systemu
 // ============================================================
@@ -179,17 +218,19 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  auditLogs               AuditLog[]
-  comments                Comment[]
-  uploadedDocuments       Document[]               @relation("UploadedBy")
-  verifiedDocuments       Document[]               @relation("VerifiedBy")
-  createdTasks            Task[]                   @relation("TaskCreatedBy")
-  assignedTasks           Task[]                   @relation("TaskAssignedTo")
-  statusHistories         StatusHistory[]
-  notifications           Notification[]
-  createdPortingRequests  PortingRequest[]         @relation("PortingRequestCreatedBy")
-  portingRequestEvents    PortingRequestEvent[]    @relation("PortingEventCreatedBy")
-  pliCbdIntegrationEvents PliCbdIntegrationEvent[] @relation("PliCbdIntegrationTriggeredBy")
+  auditLogs                        AuditLog[]
+  comments                         Comment[]
+  uploadedDocuments                Document[]                  @relation("UploadedBy")
+  verifiedDocuments                Document[]                  @relation("VerifiedBy")
+  createdTasks                     Task[]                      @relation("TaskCreatedBy")
+  assignedTasks                    Task[]                      @relation("TaskAssignedTo")
+  statusHistories                  StatusHistory[]
+  notifications                    Notification[]
+  createdPortingRequests           PortingRequest[]            @relation("PortingRequestCreatedBy")
+  portingRequestEvents             PortingRequestEvent[]       @relation("PortingEventCreatedBy")
+  pliCbdIntegrationEvents          PliCbdIntegrationEvent[]    @relation("PliCbdIntegrationTriggeredBy")
+  portingRequestCaseHistoryEntries PortingRequestCaseHistory[] @relation("PortingRequestCaseHistoryActor")
+  createdPortingCommunications     PortingCommunication[]      @relation("PortingCommunicationCreatedBy")
 
   @@map("users")
 }
@@ -320,6 +361,7 @@ model PortingRequest {
   donorRoutingNumber                    String                 @db.VarChar(20)
   recipientRoutingNumber                String                 @db.VarChar(20)
   requestRegisteredAt                   DateTime?
+  sentToExternalSystemAt                DateTime?
   requestedPortDate                     DateTime?              @db.Date
   requestedPortTime                     String?                @db.VarChar(5)
   earliestAcceptablePortDate            DateTime?              @db.Date
@@ -368,6 +410,8 @@ model PortingRequest {
   auditLogs               AuditLog[]
   events                  PortingRequestEvent[]
   pliCbdIntegrationEvents PliCbdIntegrationEvent[]
+  caseHistoryEntries      PortingRequestCaseHistory[]
+  communications          PortingCommunication[]
 
   @@index([clientId])
   @@index([statusInternal])
@@ -486,6 +530,53 @@ model StatusHistory {
 
   @@index([requestId])
   @@map("status_history")
+}
+
+model PortingRequestCaseHistory {
+  id           String                             @id @default(uuid())
+  requestId    String
+  eventType    PortingRequestCaseHistoryEventType
+  statusBefore PortingCaseStatus?
+  statusAfter  PortingCaseStatus?
+  reason       String?                            @db.VarChar(300)
+  comment      String?                            @db.Text
+  metadata     Json?
+  actorUserId  String?
+  occurredAt   DateTime                           @default(now())
+  createdAt    DateTime                           @default(now())
+
+  request PortingRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor   User?          @relation("PortingRequestCaseHistoryActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([requestId, occurredAt])
+  @@map("porting_request_case_history")
+}
+
+model PortingCommunication {
+  id               String                            @id @default(uuid())
+  portingRequestId String
+  type             PortingCommunicationType
+  status           PortingCommunicationStatus        @default(DRAFT)
+  triggerType      PortingCommunicationTriggerType
+  recipient        String                            @db.VarChar(200)
+  subject          String                            @db.VarChar(300)
+  body             String                            @db.Text
+  templateKey      PortingCommunicationTemplateKey
+  createdByUserId  String
+  sentAt           DateTime?
+  errorMessage     String?                           @db.Text
+  metadata         Json?
+  createdAt        DateTime                          @default(now())
+  updatedAt        DateTime                          @updatedAt
+
+  portingRequest PortingRequest @relation(fields: [portingRequestId], references: [id], onDelete: Cascade)
+  createdBy      User           @relation("PortingCommunicationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([portingRequestId])
+  @@index([portingRequestId, createdAt])
+  @@index([status])
+  @@map("porting_communications")
 }
 
 // ============================================================

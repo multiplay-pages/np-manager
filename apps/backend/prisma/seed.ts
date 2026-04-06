@@ -13,7 +13,9 @@
  * Sprawy testowe:
  *  - FNP-SEED-ACTIVE-001: aktywna, pre-export (SUBMITTED)
  *  - FNP-SEED-PORTED-001: zakończona po E18 (blocked)
- *  - FNP-SEED-E18-001:    etap READY_TO_PORT, happy path Draft E18
+ *  - FNP-SEED-E18-001: etap READY_TO_PORT, happy path Draft E18
+ *  - FNP-SEED-COMM-DRAFT-001: detail z dostepnym "Utworz draft" dla komunikacji
+ *  - FNP-SEED-COMM-DUPLICATE-001: detail z aktywnym draftem blokujacym duplikat
  *
  * Seed jest idempotentny — używa upsert, można uruchomić wielokrotnie.
  *
@@ -1033,8 +1035,201 @@ async function main() {
       createdByUserId: adminUser.id,
     },
   })
+
+  const communicationDraftRequest = await prisma.portingRequest.upsert({
+    where: { caseNumber: 'FNP-SEED-COMM-DRAFT-001' },
+    update: {
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234571',
+      rangeStart: null,
+      rangeEnd: null,
+      requestDocumentNumber: 'DOC-SEED-COMM-DR-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      infrastructureOperatorId: null,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-04-02T09:15:00.000Z'),
+      requestedPortDate: new Date('2026-04-18T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      earliestAcceptablePortDate: null,
+      confirmedPortDate: null,
+      donorAssignedPortDate: null,
+      donorAssignedPortTime: null,
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      statusPliCbd: null,
+      pliCbdCaseId: null,
+      pliCbdCaseNumber: null,
+      pliCbdPackageId: null,
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      pliCbdLastSyncAt: null,
+      lastExxReceived: null,
+      lastPliCbdStatusCode: null,
+      lastPliCbdStatusDescription: null,
+      rejectionCode: null,
+      rejectionReason: null,
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      subscriberCompanyName: null,
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes:
+        'Seed QA: sprawa z dostepna akcja "Utworz draft" w panelu komunikacji dla ADMIN i BOK.',
+      createdByUserId: adminUser.id,
+    },
+    create: {
+      caseNumber: 'FNP-SEED-COMM-DRAFT-001',
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234571',
+      requestDocumentNumber: 'DOC-SEED-COMM-DR-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-04-02T09:15:00.000Z'),
+      requestedPortDate: new Date('2026-04-18T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes:
+        'Seed QA: sprawa z dostepna akcja "Utworz draft" w panelu komunikacji dla ADMIN i BOK.',
+      createdByUserId: adminUser.id,
+    },
+  })
+
+  const communicationDuplicateRequest = await prisma.portingRequest.upsert({
+    where: { caseNumber: 'FNP-SEED-COMM-DUPLICATE-001' },
+    update: {
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234572',
+      rangeStart: null,
+      rangeEnd: null,
+      requestDocumentNumber: 'DOC-SEED-COMM-DUP-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      infrastructureOperatorId: null,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-04-03T08:40:00.000Z'),
+      requestedPortDate: new Date('2026-04-19T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      earliestAcceptablePortDate: null,
+      confirmedPortDate: null,
+      donorAssignedPortDate: null,
+      donorAssignedPortTime: null,
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      statusPliCbd: null,
+      pliCbdCaseId: null,
+      pliCbdCaseNumber: null,
+      pliCbdPackageId: null,
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      pliCbdLastSyncAt: null,
+      lastExxReceived: null,
+      lastPliCbdStatusCode: null,
+      lastPliCbdStatusDescription: null,
+      rejectionCode: null,
+      rejectionReason: null,
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      subscriberCompanyName: null,
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes:
+        'Seed QA: sprawa z aktywnym draftem CLIENT_CONFIRMATION do testu blokady duplikatu.',
+      createdByUserId: adminUser.id,
+    },
+    create: {
+      caseNumber: 'FNP-SEED-COMM-DUPLICATE-001',
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '221234572',
+      requestDocumentNumber: 'DOC-SEED-COMM-DUP-001',
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-04-03T08:40:00.000Z'),
+      requestedPortDate: new Date('2026-04-19T00:00:00.000Z'),
+      requestedPortTime: '00:00',
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes:
+        'Seed QA: sprawa z aktywnym draftem CLIENT_CONFIRMATION do testu blokady duplikatu.',
+      createdByUserId: adminUser.id,
+    },
+  })
+
+  await prisma.portingCommunication.deleteMany({
+    where: {
+      portingRequestId: {
+        in: [communicationDraftRequest.id, communicationDuplicateRequest.id],
+      },
+    },
+  })
+
+  await prisma.portingCommunication.create({
+    data: {
+      id: '00000000-0000-4000-8000-000000000701',
+      portingRequestId: communicationDuplicateRequest.id,
+      type: 'EMAIL',
+      status: 'DRAFT',
+      triggerType: 'CASE_RECEIVED',
+      recipient: qaClient.email,
+      subject: 'Potwierdzenie przyjecia sprawy portowania',
+      body:
+        'Dzien dobry,\n\npotwierdzamy przyjecie sprawy portowania numeru. To jest seed QA do testu blokady duplikatu draftu komunikacji.\n\nPozdrawiamy,\nNP-Manager',
+      templateKey: 'client_confirmation',
+      createdByUserId: adminUser.id,
+      metadata: {
+        actionType: 'CLIENT_CONFIRMATION',
+        actionLabel: 'Potwierdzenie dla klienta',
+        seedFixture: 'FNP-SEED-COMM-DUPLICATE-001',
+      },
+      createdAt: new Date('2026-04-03T09:00:00.000Z'),
+      updatedAt: new Date('2026-04-03T09:00:00.000Z'),
+    },
+  })
   console.info(
-    'Dodano klienta QA oraz 3 sprawy portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18)',
+    'Dodano klienta QA oraz 5 spraw portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18 + komunikacja create-draft + komunikacja duplicate-block)',
   )
 
   // ----------------------------------------------------------

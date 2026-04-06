@@ -2,6 +2,9 @@ import type {
   ClientType,
   ContactChannel,
   NumberType,
+  PortingCommunicationTriggerType,
+  PortingRequestStatusActionId,
+  PortingRequestExternalActionId,
   PortedNumberKind,
   PortingCaseStatus,
   PortingMode,
@@ -9,6 +12,11 @@ import type {
   PliCbdExxType,
   SubscriberIdentityType,
 } from '../constants'
+import type {
+  PortingCommunicationDto,
+  PortingCommunicationSummaryDto,
+  PortingRequestCommunicationActionDto,
+} from './porting-communications.dto'
 
 // ============================================================
 // QUERY / LISTA
@@ -78,6 +86,42 @@ export interface CreatePortingRequestDto {
 
 export interface UpdatePortingRequestStatusDto {
   targetStatus: PortingCaseStatus
+  reason?: string
+  comment?: string
+}
+
+export interface PortingRequestStatusActionDto {
+  actionId: PortingRequestStatusActionId
+  label: string
+  targetStatus: PortingCaseStatus
+  requiresReason: boolean
+  requiresComment: boolean
+  reasonLabel: string | null
+  commentLabel: string | null
+  description: string
+}
+
+export interface PortingRequestExternalActionDto {
+  actionId: PortingRequestExternalActionId
+  label: string
+  description: string
+  requiresScheduledPortDate: boolean
+  requiresRejectionReason: boolean
+  suggestedCommunicationTriggerType: PortingCommunicationTriggerType
+}
+
+export interface ExecutePortingRequestExternalActionDto {
+  actionId: PortingRequestExternalActionId
+  scheduledPortDate?: string
+  rejectionReason?: string
+  comment?: string
+  createCommunicationDraft?: boolean
+  recipient?: string
+}
+
+export interface ExecutePortingRequestExternalActionResultDto {
+  request: PortingRequestDetailDto
+  communication: PortingCommunicationDto | null
 }
 
 // ============================================================
@@ -113,6 +157,7 @@ export interface PortingRequestDetailDto {
   infrastructureOperator: PortingRequestOperatorRefDto | null
   donorRoutingNumber: string
   recipientRoutingNumber: string
+  sentToExternalSystemAt: string | null
   portingMode: PortingMode
   requestedPortDate: string | null
   requestedPortTime: string | null
@@ -148,4 +193,8 @@ export interface PortingRequestDetailDto {
   createdByUserId: string
   createdAt: string
   updatedAt: string
+  availableStatusActions: PortingRequestStatusActionDto[]
+  availableExternalActions: PortingRequestExternalActionDto[]
+  availableCommunicationActions: PortingRequestCommunicationActionDto[]
+  communicationSummary: PortingCommunicationSummaryDto
 }

@@ -142,14 +142,15 @@ const EVENT_SELECT = {
   },
 } as const
 
-const STATUS_HISTORY_SELECT = {
+const CASE_HISTORY_SELECT = {
   id: true,
-  changedAt: true,
+  eventType: true,
+  occurredAt: true,
+  reason: true,
   comment: true,
-  status: {
-    select: { code: true, name: true },
-  },
-  changedBy: {
+  statusBefore: true,
+  statusAfter: true,
+  actor: {
     select: { firstName: true, lastName: true },
   },
 } as const
@@ -158,12 +159,15 @@ type EventRow = Awaited<ReturnType<typeof prisma.portingRequestEvent.findFirst>>
   createdBy: { firstName: string; lastName: string } | null
 }
 
-type StatusHistoryRow = {
+type CaseHistoryRow = {
   id: string
-  changedAt: Date
+  eventType: 'REQUEST_CREATED' | 'STATUS_CHANGED'
+  occurredAt: Date
+  reason: string | null
   comment: string | null
-  status: { code: string; name: string }
-  changedBy: { firstName: string; lastName: string }
+  statusBefore: string | null
+  statusAfter: string | null
+  actor: { firstName: string; lastName: string } | null
 }
 
 function mapEventToTimelineItem(event: NonNullable<EventRow>): PortingTimelineItemDto {
@@ -196,55 +200,55 @@ function mapEventToTimelineItem(event: NonNullable<EventRow>): PortingTimelineIt
 }
 
 function mapStatusHistoryToTimelineItem(
-  entry: StatusHistoryRow,
-  previousStatusCode: string | null,
+  entry: CaseHistoryRow,
 ): PortingTimelineItemDto {
-  const statusLabel =
-    (PORTING_CASE_STATUS_LABELS as Record<string, string>)[entry.status.code] ??
-    entry.status.name
-
-  const previousLabel = previousStatusCode
-    ? ((PORTING_CASE_STATUS_LABELS as Record<string, string>)[previousStatusCode] ?? previousStatusCode)
+  const statusBefore = entry.statusBefore
+    ? ((PORTING_CASE_STATUS_LABELS as Record<string, string>)[entry.statusBefore] ?? entry.statusBefore)
     : null
+  const statusAfter = entry.statusAfter
+    ? ((PORTING_CASE_STATUS_LABELS as Record<string, string>)[entry.statusAfter] ?? entry.statusAfter)
+    : null
+  const descriptionParts = [entry.reason, entry.comment].filter(Boolean)
 
   return {
     id: entry.id,
     kind: 'STATUS',
-    timestamp: entry.changedAt.toISOString(),
-    title: `Zmiana statusu na: ${statusLabel}`,
-    description: entry.comment,
-    badge: entry.status.code,
-    statusBefore: previousLabel,
-    statusAfter: statusLabel,
+    timestamp: entry.occurredAt.toISOString(),
+    title:
+      entry.eventType === 'REQUEST_CREATED'
+        ? 'Utworzono sprawe'
+        : `Zmiana statusu na: ${statusAfter ?? '-'}`,
+    description: descriptionParts.length > 0 ? descriptionParts.join('\n') : null,
+    badge: entry.statusAfter,
+    statusBefore,
+    statusAfter,
     exxType: null,
     statusCode: null,
-    authorDisplayName: `${entry.changedBy.firstName} ${entry.changedBy.lastName}`,
+    authorDisplayName: entry.actor ? `${entry.actor.firstName} ${entry.actor.lastName}` : null,
   }
 }
 
 export async function getPortingRequestTimeline(
   requestId: string,
 ): Promise<PortingTimelineResultDto> {
-  const [events, statusHistory] = await Promise.all([
+  const [events, caseHistory] = await Promise.all([
     prisma.portingRequestEvent.findMany({
       where: { requestId },
       select: EVENT_SELECT,
       orderBy: { occurredAt: 'asc' },
     }),
-    prisma.statusHistory.findMany({
+    prisma.portingRequestCaseHistory.findMany({
       where: { requestId },
-      select: STATUS_HISTORY_SELECT,
-      orderBy: { changedAt: 'asc' },
+      select: CASE_HISTORY_SELECT,
+      orderBy: { occurredAt: 'asc' },
     }),
   ])
 
   const eventItems = events.map((e) => mapEventToTimelineItem(e as unknown as NonNullable<EventRow>))
 
-  const statusItems: PortingTimelineItemDto[] = statusHistory.map((entry, index) => {
-    const previousStatusEntry = index > 0 ? statusHistory[index - 1] : undefined
-    const previousStatusCode = previousStatusEntry?.status.code ?? null
-    return mapStatusHistoryToTimelineItem(entry, previousStatusCode)
-  })
+  const statusItems: PortingTimelineItemDto[] = caseHistory.map((entry) =>
+    mapStatusHistoryToTimelineItem(entry),
+  )
 
   const allItems = [...eventItems, ...statusItems]
   allItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())

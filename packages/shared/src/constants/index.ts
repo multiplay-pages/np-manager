@@ -199,10 +199,7 @@ export const PLI_CBD_INTEGRATION_DIRECTIONS = {
 export type PliCbdIntegrationDirection =
   (typeof PLI_CBD_INTEGRATION_DIRECTIONS)[keyof typeof PLI_CBD_INTEGRATION_DIRECTIONS]
 
-export const PLI_CBD_INTEGRATION_DIRECTION_LABELS: Record<
-  PliCbdIntegrationDirection,
-  string
-> = {
+export const PLI_CBD_INTEGRATION_DIRECTION_LABELS: Record<PliCbdIntegrationDirection, string> = {
   EXPORT: 'Eksport',
   SYNC: 'Synchronizacja',
 }
@@ -216,10 +213,7 @@ export const PLI_CBD_INTEGRATION_STATUSES = {
 export type PliCbdIntegrationStatus =
   (typeof PLI_CBD_INTEGRATION_STATUSES)[keyof typeof PLI_CBD_INTEGRATION_STATUSES]
 
-export const PLI_CBD_INTEGRATION_STATUS_LABELS: Record<
-  PliCbdIntegrationStatus,
-  string
-> = {
+export const PLI_CBD_INTEGRATION_STATUS_LABELS: Record<PliCbdIntegrationStatus, string> = {
   PENDING: 'W toku',
   SUCCESS: 'Sukces',
   ERROR: 'Blad',
@@ -240,8 +234,7 @@ export const PORTING_CASE_STATUSES = {
   ERROR: 'ERROR',
 } as const
 
-export type PortingCaseStatus =
-  (typeof PORTING_CASE_STATUSES)[keyof typeof PORTING_CASE_STATUSES]
+export type PortingCaseStatus = (typeof PORTING_CASE_STATUSES)[keyof typeof PORTING_CASE_STATUSES]
 
 export const PORTING_CASE_STATUS_LABELS: Record<PortingCaseStatus, string> = {
   DRAFT: 'Szkic',
@@ -254,10 +247,7 @@ export const PORTING_CASE_STATUS_LABELS: Record<PortingCaseStatus, string> = {
   ERROR: 'Blad',
 }
 
-export const PORTING_CASE_STATUS_TRANSITIONS: Record<
-  PortingCaseStatus,
-  PortingCaseStatus[]
-> = {
+export const PORTING_CASE_STATUS_TRANSITIONS: Record<PortingCaseStatus, PortingCaseStatus[]> = {
   DRAFT: ['SUBMITTED', 'CANCELLED'],
   SUBMITTED: ['PENDING_DONOR', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'ERROR'],
   PENDING_DONOR: ['CONFIRMED', 'REJECTED', 'CANCELLED', 'ERROR'],
@@ -268,9 +258,7 @@ export const PORTING_CASE_STATUS_TRANSITIONS: Record<
   ERROR: [],
 }
 
-export const PORTING_CASE_STATUS_ACTION_LABELS: Partial<
-  Record<PortingCaseStatus, string>
-> = {
+export const PORTING_CASE_STATUS_ACTION_LABELS: Partial<Record<PortingCaseStatus, string>> = {
   SUBMITTED: 'Zloz sprawe',
   PENDING_DONOR: 'Oczekiwanie na dawce',
   CONFIRMED: 'Potwierdz',
@@ -293,6 +281,145 @@ export function getAllowedPortingCaseStatusTransitions(
   return PORTING_CASE_STATUS_TRANSITIONS[status] ?? []
 }
 
+export const PORTING_REQUEST_STATUS_ACTION_IDS = {
+  SUBMIT: 'SUBMIT',
+  MARK_PENDING_DONOR: 'MARK_PENDING_DONOR',
+  CONFIRM: 'CONFIRM',
+  REJECT: 'REJECT',
+  CANCEL: 'CANCEL',
+  MARK_ERROR: 'MARK_ERROR',
+  MARK_PORTED: 'MARK_PORTED',
+} as const
+
+export type PortingRequestStatusActionId =
+  (typeof PORTING_REQUEST_STATUS_ACTION_IDS)[keyof typeof PORTING_REQUEST_STATUS_ACTION_IDS]
+
+export const PORTING_REQUEST_CASE_HISTORY_EVENT_TYPES = {
+  REQUEST_CREATED: 'REQUEST_CREATED',
+  STATUS_CHANGED: 'STATUS_CHANGED',
+} as const
+
+export type PortingRequestCaseHistoryEventType =
+  (typeof PORTING_REQUEST_CASE_HISTORY_EVENT_TYPES)[keyof typeof PORTING_REQUEST_CASE_HISTORY_EVENT_TYPES]
+
+export const PORTING_REQUEST_EXTERNAL_ACTION_IDS = {
+  MARK_SENT_TO_EXTERNAL_SYSTEM: 'MARK_SENT_TO_EXTERNAL_SYSTEM',
+  SET_PORT_DATE: 'SET_PORT_DATE',
+  MARK_DONOR_REJECTION: 'MARK_DONOR_REJECTION',
+  MARK_PORT_COMPLETED: 'MARK_PORT_COMPLETED',
+} as const
+
+export type PortingRequestExternalActionId =
+  (typeof PORTING_REQUEST_EXTERNAL_ACTION_IDS)[keyof typeof PORTING_REQUEST_EXTERNAL_ACTION_IDS]
+
+export const PORTING_REQUEST_COMMUNICATION_ACTION_TYPES = {
+  MISSING_DOCUMENTS: 'MISSING_DOCUMENTS',
+  CLIENT_CONFIRMATION: 'CLIENT_CONFIRMATION',
+  REJECTION_NOTICE: 'REJECTION_NOTICE',
+  COMPLETION_NOTICE: 'COMPLETION_NOTICE',
+  INTERNAL_NOTE_EMAIL: 'INTERNAL_NOTE_EMAIL',
+} as const
+
+export type PortingRequestCommunicationActionType =
+  (typeof PORTING_REQUEST_COMMUNICATION_ACTION_TYPES)[keyof typeof PORTING_REQUEST_COMMUNICATION_ACTION_TYPES]
+
+export const PORTING_REQUEST_COMMUNICATION_ACTION_TYPE_LABELS: Record<
+  PortingRequestCommunicationActionType,
+  string
+> = {
+  MISSING_DOCUMENTS: 'Brakujace dokumenty',
+  CLIENT_CONFIRMATION: 'Potwierdzenie dla klienta',
+  REJECTION_NOTICE: 'Informacja o odrzuceniu',
+  COMPLETION_NOTICE: 'Informacja o zakonczeniu',
+  INTERNAL_NOTE_EMAIL: 'Wiadomosc wewnetrzna',
+}
+
+export const PORTING_COMMUNICATION_TYPES = {
+  EMAIL: 'EMAIL',
+  SMS: 'SMS',
+} as const
+
+export type PortingCommunicationType =
+  (typeof PORTING_COMMUNICATION_TYPES)[keyof typeof PORTING_COMMUNICATION_TYPES]
+
+export const PORTING_COMMUNICATION_TYPE_LABELS: Record<PortingCommunicationType, string> = {
+  EMAIL: 'E-mail',
+  SMS: 'SMS',
+}
+
+export const PORTING_COMMUNICATION_STATUSES = {
+  DRAFT: 'DRAFT',
+  READY: 'READY',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+} as const
+
+export type PortingCommunicationStatus =
+  (typeof PORTING_COMMUNICATION_STATUSES)[keyof typeof PORTING_COMMUNICATION_STATUSES]
+
+export const PORTING_COMMUNICATION_STATUS_LABELS: Record<PortingCommunicationStatus, string> = {
+  DRAFT: 'Draft',
+  READY: 'Gotowe do wysylki',
+  SENT: 'Wyslane',
+  FAILED: 'Blad wysylki',
+}
+
+export const PORTING_COMMUNICATION_TRIGGER_TYPES = {
+  CASE_RECEIVED: 'CASE_RECEIVED',
+  SENT_TO_EXTERNAL_SYSTEM: 'SENT_TO_EXTERNAL_SYSTEM',
+  PORT_DATE_SCHEDULED: 'PORT_DATE_SCHEDULED',
+  CASE_REJECTED: 'CASE_REJECTED',
+  PORT_COMPLETED: 'PORT_COMPLETED',
+  MANUAL: 'MANUAL',
+} as const
+
+export type PortingCommunicationTriggerType =
+  (typeof PORTING_COMMUNICATION_TRIGGER_TYPES)[keyof typeof PORTING_COMMUNICATION_TRIGGER_TYPES]
+
+export const PORTING_COMMUNICATION_TRIGGER_TYPE_LABELS: Record<
+  PortingCommunicationTriggerType,
+  string
+> = {
+  CASE_RECEIVED: 'Sprawa przyjeta',
+  SENT_TO_EXTERNAL_SYSTEM: 'Przekazano do systemu zewnetrznego',
+  PORT_DATE_SCHEDULED: 'Ustalono date przeniesienia',
+  CASE_REJECTED: 'Sprawa odrzucona',
+  PORT_COMPLETED: 'Przeniesienie zakonczone',
+  MANUAL: 'Draft manualny',
+}
+
+export const PORTING_COMMUNICATION_TEMPLATE_KEYS = {
+  CASE_RECEIVED: 'case_received',
+  SENT_TO_EXTERNAL_SYSTEM: 'sent_to_external_system',
+  PORT_DATE_SCHEDULED: 'port_date_scheduled',
+  CASE_REJECTED: 'case_rejected',
+  PORT_COMPLETED: 'port_completed',
+  MISSING_DOCUMENTS: 'missing_documents',
+  CLIENT_CONFIRMATION: 'client_confirmation',
+  REJECTION_NOTICE: 'rejection_notice',
+  COMPLETION_NOTICE: 'completion_notice',
+  INTERNAL_NOTE_EMAIL: 'internal_note_email',
+} as const
+
+export type PortingCommunicationTemplateKey =
+  (typeof PORTING_COMMUNICATION_TEMPLATE_KEYS)[keyof typeof PORTING_COMMUNICATION_TEMPLATE_KEYS]
+
+export const PORTING_COMMUNICATION_TEMPLATE_LABELS: Record<
+  PortingCommunicationTemplateKey,
+  string
+> = {
+  case_received: 'Sprawa przyjeta',
+  sent_to_external_system: 'Przekazano do systemu zewnetrznego',
+  port_date_scheduled: 'Ustalono date przeniesienia',
+  case_rejected: 'Sprawa odrzucona',
+  port_completed: 'Przeniesienie zakonczone',
+  missing_documents: 'Brakujace dokumenty',
+  client_confirmation: 'Potwierdzenie dla klienta',
+  rejection_notice: 'Informacja o odrzuceniu',
+  completion_notice: 'Informacja o zakonczeniu',
+  internal_note_email: 'Wiadomosc wewnetrzna',
+}
+
 // ============================================================
 // KODY EXX Z PLI CBD
 // ============================================================
@@ -309,8 +436,7 @@ export const PLI_CBD_EXX_TYPES = {
   E31: 'E31',
 } as const
 
-export type PliCbdExxType =
-  (typeof PLI_CBD_EXX_TYPES)[keyof typeof PLI_CBD_EXX_TYPES]
+export type PliCbdExxType = (typeof PLI_CBD_EXX_TYPES)[keyof typeof PLI_CBD_EXX_TYPES]
 
 // ============================================================
 // ZAKRES NUMERACJI W SPRAWIE PORTOWANIA
@@ -321,8 +447,7 @@ export const PORTED_NUMBER_KINDS = {
   DDI_RANGE: 'DDI_RANGE',
 } as const
 
-export type PortedNumberKind =
-  (typeof PORTED_NUMBER_KINDS)[keyof typeof PORTED_NUMBER_KINDS]
+export type PortedNumberKind = (typeof PORTED_NUMBER_KINDS)[keyof typeof PORTED_NUMBER_KINDS]
 
 export const PORTED_NUMBER_KIND_LABELS: Record<PortedNumberKind, string> = {
   SINGLE: 'Pojedynczy numer',
@@ -487,3 +612,11 @@ export const FNP_EXX_MESSAGE_DESCRIPTIONS: Record<FnpExxMessage, string> = {
 // Parametry terminu dla trybow portowania (wartosci orientacyjne dla sieci stacjonarnych)
 export const FNP_DAY_MODE_MIN_LEAD_DAYS = 3
 export const FNP_DAY_MODE_WHOLESALE_MIN_LEAD_DAYS = 5
+
+// ============================================================
+// TECHNICZNA WARSTWA PAYLOADOW PLI CBD
+// ============================================================
+
+export const PLI_CBD_TECHNICAL_PAYLOAD_VERSION = '1.0'
+
+export type PliCbdTechnicalPayloadVersion = typeof PLI_CBD_TECHNICAL_PAYLOAD_VERSION

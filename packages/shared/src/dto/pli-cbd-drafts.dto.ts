@@ -68,8 +68,7 @@ export interface PliCbdE03DraftDto {
   }
 }
 
-export interface PliCbdE03DraftBuildResultDto
-  extends PliCbdDraftBuildResultDto<PliCbdE03DraftDto> {}
+export interface PliCbdE03DraftBuildResultDto extends PliCbdDraftBuildResultDto<PliCbdE03DraftDto> {}
 
 export interface PliCbdE12DraftDto {
   messageType: 'E12'
@@ -78,13 +77,27 @@ export interface PliCbdE12DraftDto {
   caseNumber: string
   clientId: string
   clientDisplayName: string
+  subscriberKind: ClientType
   subscriberDisplayName: string
+  subscriberFirstName: string | null
+  subscriberLastName: string | null
+  subscriberCompanyName: string | null
   donorOperator: PliCbdDraftOperatorDto
   recipientOperator: PliCbdDraftOperatorDto
+  infrastructureOperator: PliCbdDraftOperatorDto | null
   portingMode: PortingMode
   numberType: NumberType
   numberRangeKind: PortedNumberKind
   numberDisplay: string
+  primaryNumber: string | null
+  rangeStart: string | null
+  rangeEnd: string | null
+  identity: PliCbdDraftIdentityDto
+  correspondenceAddress: string
+  hasPowerOfAttorney: boolean
+  linkedWholesaleServiceOnRecipientSide: boolean
+  contactChannel: ContactChannel
+  requestDocumentNumber: string | null
   confirmationContext: {
     currentStage: FnpProcessStage
     currentStageLabel: string
@@ -104,8 +117,7 @@ export interface PliCbdE12DraftDto {
   }
 }
 
-export interface PliCbdE12DraftBuildResultDto
-  extends PliCbdDraftBuildResultDto<PliCbdE12DraftDto> {}
+export interface PliCbdE12DraftBuildResultDto extends PliCbdDraftBuildResultDto<PliCbdE12DraftDto> {}
 
 export interface PliCbdE18DraftDto {
   messageType: 'E18'
@@ -114,13 +126,27 @@ export interface PliCbdE18DraftDto {
   caseNumber: string
   clientId: string
   clientDisplayName: string
+  subscriberKind: ClientType
   subscriberDisplayName: string
+  subscriberFirstName: string | null
+  subscriberLastName: string | null
+  subscriberCompanyName: string | null
   donorOperator: PliCbdDraftOperatorDto
   recipientOperator: PliCbdDraftOperatorDto
+  infrastructureOperator: PliCbdDraftOperatorDto | null
   portingMode: PortingMode
   numberType: NumberType
   numberRangeKind: PortedNumberKind
   numberDisplay: string
+  primaryNumber: string | null
+  rangeStart: string | null
+  rangeEnd: string | null
+  identity: PliCbdDraftIdentityDto
+  correspondenceAddress: string
+  hasPowerOfAttorney: boolean
+  linkedWholesaleServiceOnRecipientSide: boolean
+  contactChannel: ContactChannel
+  requestDocumentNumber: string | null
   completionContext: {
     currentStage: FnpProcessStage
     currentStageLabel: string
@@ -140,5 +166,53 @@ export interface PliCbdE18DraftDto {
   }
 }
 
-export interface PliCbdE18DraftBuildResultDto
-  extends PliCbdDraftBuildResultDto<PliCbdE18DraftDto> {}
+export interface PliCbdE18DraftBuildResultDto extends PliCbdDraftBuildResultDto<PliCbdE18DraftDto> {}
+
+export interface PliCbdE23DraftDto {
+  messageType: 'E23'
+  serviceType: 'FNP'
+  requestId: string
+  caseNumber: string
+  clientId: string
+  clientDisplayName: string
+  subscriberKind: ClientType
+  subscriberDisplayName: string
+  subscriberFirstName: string | null
+  subscriberLastName: string | null
+  subscriberCompanyName: string | null
+  donorOperator: PliCbdDraftOperatorDto
+  recipientOperator: PliCbdDraftOperatorDto
+  infrastructureOperator: PliCbdDraftOperatorDto | null
+  portingMode: PortingMode
+  numberType: NumberType
+  numberRangeKind: PortedNumberKind
+  numberDisplay: string
+  primaryNumber: string | null
+  rangeStart: string | null
+  rangeEnd: string | null
+  identity: PliCbdDraftIdentityDto
+  correspondenceAddress: string
+  hasPowerOfAttorney: boolean
+  linkedWholesaleServiceOnRecipientSide: boolean
+  contactChannel: ContactChannel
+  requestDocumentNumber: string | null
+  cancellationContext: {
+    currentStage: FnpProcessStage
+    currentStageLabel: string
+    statusInternal: PortingCaseStatus
+    statusInternalLabel: string
+    exportStatus: PliCbdExportStatus
+    lastReceivedMessageType: FnpExxMessage | null
+    confirmedPortDate: string | null
+    donorAssignedPortDate: string | null
+    donorAssignedPortTime: string | null
+  }
+  reasonHints: string[]
+  technicalHints: {
+    dataSource: 'CURRENT_CASE_AND_PROCESS_SNAPSHOT'
+    numberSelectionSource: 'PRIMARY_NUMBER' | 'NUMBER_RANGE'
+    allowedMessagesAtStage: FnpExxMessage[]
+  }
+}
+
+export interface PliCbdE23DraftBuildResultDto extends PliCbdDraftBuildResultDto<PliCbdE23DraftDto> {}

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   PLI_CBD_INTEGRATION_DIRECTION_LABELS,
   PLI_CBD_INTEGRATION_STATUS_LABELS,
@@ -31,6 +32,109 @@ function formatDateTime(value: string): string {
   })
 }
 
+function DiagnosticPanel({ label, data }: { label: string; data: unknown }) {
+  if (!data) return null
+
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 select-none">
+        {label}
+      </summary>
+      <pre className="mt-1 overflow-x-auto rounded bg-gray-50 border border-gray-200 p-2 text-xs text-gray-700 whitespace-pre-wrap break-all">
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    </details>
+  )
+}
+
+function IntegrationEventItem({ item }: { item: PliCbdIntegrationEventDto }) {
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
+
+  const hasDiagnostics = item.requestPayloadJson !== null || item.responsePayloadJson !== null
+  const hasTransportMeta =
+    item.transportMode !== null ||
+    item.transportAdapterName !== null ||
+    item.transportOutcome !== null
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-gray-900">
+              {PLI_CBD_INTEGRATION_DIRECTION_LABELS[item.operationType]}
+            </span>
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusClassName(item.operationStatus)}`}
+            >
+              {PLI_CBD_INTEGRATION_STATUS_LABELS[item.operationStatus]}
+            </span>
+            {item.actionName && (
+              <span className="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                {item.actionName}
+              </span>
+            )}
+            {item.transportMode && (
+              <span className="font-mono text-xs text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                {item.transportMode}
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm text-gray-600">
+            {item.errorMessage ??
+              item.actionName ??
+              'Operacja foundation PLI CBD zostala zapisana.'}
+          </p>
+
+          {hasTransportMeta && (
+            <p className="text-xs text-gray-500">
+              {item.transportAdapterName
+                ? `Adapter: ${item.transportAdapterName}`
+                : 'Adapter: brak danych'}
+              {item.transportOutcome ? ` · Wynik: ${item.transportOutcome}` : ''}
+            </p>
+          )}
+
+          <p className="text-xs text-gray-500">
+            {item.triggeredByDisplayName
+              ? `Wyzwolil: ${item.triggeredByDisplayName}`
+              : 'Wyzwolono bez przypisanego uzytkownika'}
+          </p>
+
+          {hasDiagnostics && (
+            <button
+              type="button"
+              onClick={() => setShowDiagnostics((v) => !v)}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              {showDiagnostics ? 'Ukryj dane diagnostyczne' : 'Pokaz dane diagnostyczne'}
+            </button>
+          )}
+
+          {showDiagnostics && (
+            <div className="pt-1 space-y-1">
+              <DiagnosticPanel
+                label="Diagnostyka (XML preview, blocking reasons, warnings)"
+                data={item.requestPayloadJson}
+              />
+              <DiagnosticPanel
+                label="Transport (envelope snapshot + wynik adaptera)"
+                data={item.responsePayloadJson}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="text-xs text-gray-500 sm:text-right shrink-0">
+          <p>{formatDateTime(item.createdAt)}</p>
+          {item.completedAt && <p>Zakonczono: {formatDateTime(item.completedAt)}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function PliCbdIntegrationHistory({
   items,
   isLoading,
@@ -57,40 +161,7 @@ export function PliCbdIntegrationHistory({
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-lg border border-gray-200 bg-white px-4 py-3"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {PLI_CBD_INTEGRATION_DIRECTION_LABELS[item.operationType]}
-                    </span>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusClassName(item.operationStatus)}`}
-                    >
-                      {PLI_CBD_INTEGRATION_STATUS_LABELS[item.operationStatus]}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {item.errorMessage ??
-                      item.actionName ??
-                      'Operacja foundation PLI CBD zostala zapisana.'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {item.triggeredByDisplayName
-                      ? `Wyzwolil: ${item.triggeredByDisplayName}`
-                      : 'Wyzwolono bez przypisanego uzytkownika'}
-                  </p>
-                </div>
-
-                <div className="text-xs text-gray-500 sm:text-right">
-                  <p>{formatDateTime(item.createdAt)}</p>
-                  {item.completedAt && <p>Zakonczono: {formatDateTime(item.completedAt)}</p>}
-                </div>
-              </div>
-            </div>
+            <IntegrationEventItem key={item.id} item={item} />
           ))}
         </div>
       )}
