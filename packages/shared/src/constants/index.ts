@@ -437,6 +437,24 @@ export const COMMUNICATION_TEMPLATE_CODE_LABELS: Record<CommunicationTemplateCod
   ISSUE_NOTICE: 'Informacja o problemie',
 }
 
+export const COMMUNICATION_TEMPLATE_VERSION_STATUSES = {
+  DRAFT: 'DRAFT',
+  PUBLISHED: 'PUBLISHED',
+  ARCHIVED: 'ARCHIVED',
+} as const
+
+export type CommunicationTemplateVersionStatus =
+  (typeof COMMUNICATION_TEMPLATE_VERSION_STATUSES)[keyof typeof COMMUNICATION_TEMPLATE_VERSION_STATUSES]
+
+export const COMMUNICATION_TEMPLATE_VERSION_STATUS_LABELS: Record<
+  CommunicationTemplateVersionStatus,
+  string
+> = {
+  DRAFT: 'Robocza',
+  PUBLISHED: 'Opublikowana',
+  ARCHIVED: 'Archiwalna',
+}
+
 export const COMMUNICATION_TEMPLATE_PLACEHOLDERS = {
   CLIENT_NAME: 'clientName',
   CASE_NUMBER: 'caseNumber',

@@ -1,32 +1,41 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import type {
+  CommunicationTemplateCode,
   CommunicationTemplateDto,
+  CommunicationTemplateListItemDto,
+  CommunicationTemplateVersionDto,
   CreateCommunicationTemplateDto,
-  UpdateCommunicationTemplateDto,
+  CreateCommunicationTemplateVersionDto,
+  UpdateCommunicationTemplateVersionDto,
 } from '@np-manager/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { ROUTES, buildPath } from '@/constants/routes'
 import {
-  activateCommunicationTemplate,
+  archiveCommunicationTemplateVersion,
+  cloneCommunicationTemplateVersion,
   createCommunicationTemplate,
-  deactivateCommunicationTemplate,
+  createCommunicationTemplateVersion,
+  getCommunicationTemplateByCode,
   getCommunicationTemplates,
-  updateCommunicationTemplate,
+  previewCommunicationTemplateVersionRealCase,
+  publishCommunicationTemplateVersion,
+  updateCommunicationTemplateVersion,
 } from '@/services/communicationTemplates.api'
 import {
-  buildCommunicationTemplateGroups,
-  findTemplateGroupByCode,
+  buildCommunicationTemplateDetailView,
+  buildCommunicationTemplateListView,
+  mapRealCasePreviewToPreviewResult,
   renderCommunicationTemplatePreview,
   type CommunicationTemplateGroupView,
   type CommunicationTemplateListFilterStatus,
+  type CommunicationTemplateListItemView,
   type CommunicationTemplatePreviewResult,
   type CommunicationTemplateVersionView,
 } from '@/lib/communicationTemplates'
 import {
   getCommunicationTemplateAdminErrorMessage,
   normalizeCommunicationTemplateChannel,
-  publishCommunicationTemplateVersion,
 } from '@/lib/communicationTemplateAdmin'
 import {
   CommunicationTemplateDetail,
@@ -42,7 +51,6 @@ type AdminMode = 'LIST' | 'DETAIL' | 'NEW' | 'EDIT'
 
 interface RouteState {
   versionId?: string
-  sourceVersionId?: string
 }
 
 interface FeedbackState {
@@ -55,53 +63,55 @@ interface PreviewModalState {
   title: string
   subtitle: string
   preview: CommunicationTemplatePreviewResult
+  testPreview: CommunicationTemplatePreviewResult
+  versionId: string | null
+  realCaseReference: string
+  realCaseLabel: string
+  isRealCaseLoading: boolean
+  realCaseError: string | null
+  realCaseHelpText: string | null
 }
 
 interface PublishModalState {
   isOpen: boolean
   versionId: string | null
-  code: string | null
+  code: CommunicationTemplateCode | null
   templateName: string
   versionLabel: string
 }
 
-function createEmptyEditorForm(): CommunicationTemplateEditorFormState {
+const UUID_LIKE_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function createEmptyEditorForm(
+  code: CommunicationTemplateCode = 'REQUEST_RECEIVED',
+): CommunicationTemplateEditorFormState {
   return {
     id: null,
-    code: 'REQUEST_RECEIVED',
+    templateId: null,
+    code,
     name: '',
     description: '',
     channel: 'EMAIL',
     subjectTemplate: '',
     bodyTemplate: '',
-    isActive: false,
-    version: null,
+    status: 'DRAFT',
+    versionNumber: null,
   }
 }
 
 function mapVersionToForm(version: CommunicationTemplateVersionView): CommunicationTemplateEditorFormState {
   return {
     id: version.id,
+    templateId: version.templateId,
     code: version.code,
     name: version.name,
     description: version.description ?? '',
     channel: version.channel,
     subjectTemplate: version.subjectTemplate,
     bodyTemplate: version.bodyTemplate,
-    isActive: false,
-    version: version.version,
-  }
-}
-
-function cloneVersionToDraft(
-  version: CommunicationTemplateVersionView,
-  nextVersion: number,
-): CommunicationTemplateEditorFormState {
-  return {
-    ...mapVersionToForm(version),
-    id: null,
-    isActive: false,
-    version: nextVersion,
+    status: version.status,
+    versionNumber: version.versionNumber,
   }
 }
 
@@ -117,7 +127,7 @@ function getNextVersion(group: CommunicationTemplateGroupView | null): number {
     return 1
   }
 
-  return Math.max(...group.versions.map((version) => version.version)) + 1
+  return Math.max(...group.versions.map((version) => version.versionNumber)) + 1
 }
 
 function getTemplateErrorMessage(error: unknown, fallback: string): string {
@@ -134,8 +144,13 @@ function getEditorStatusInfo(
 
   if (editedVersion) {
     return {
-      versionLabel: `v${editedVersion.version}`,
-      statusLabel: 'Robocza',
+      versionLabel: `v${editedVersion.versionNumber}`,
+      statusLabel:
+        editedVersion.status === 'PUBLISHED'
+          ? 'Opublikowana'
+          : editedVersion.status === 'ARCHIVED'
+            ? 'Archiwalna'
+            : 'Robocza',
       lastEditedAt: new Intl.DateTimeFormat('pl-PL', {
         day: '2-digit',
         month: '2-digit',
@@ -148,7 +163,7 @@ function getEditorStatusInfo(
   }
 
   return {
-    versionLabel: form.version ? `v${form.version}` : `v${getNextVersion(group)}`,
+    versionLabel: form.versionNumber ? `v${form.versionNumber}` : `v${getNextVersion(group)}`,
     statusLabel: 'Robocza - nieopublikowana',
     lastEditedAt: null,
     lastEditedByDisplayName: null,
@@ -156,14 +171,23 @@ function getEditorStatusInfo(
 }
 
 function createInitialPreviewState(): PreviewModalState {
+  const emptyPreview = renderCommunicationTemplatePreview({
+    subjectTemplate: '',
+    bodyTemplate: '',
+  })
+
   return {
     isOpen: false,
     title: '',
     subtitle: '',
-    preview: renderCommunicationTemplatePreview({
-      subjectTemplate: '',
-      bodyTemplate: '',
-    }),
+    preview: emptyPreview,
+    testPreview: emptyPreview,
+    versionId: null,
+    realCaseReference: '',
+    realCaseLabel: '',
+    isRealCaseLoading: false,
+    realCaseError: null,
+    realCaseHelpText: null,
   }
 }
 
@@ -200,8 +224,10 @@ export function CommunicationTemplatesAdminPage() {
   const routeState = (location.state ?? {}) as RouteState
   const mode = getAdminMode(location.pathname)
 
-  const [templates, setTemplates] = useState<CommunicationTemplateDto[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [templateItems, setTemplateItems] = useState<CommunicationTemplateListItemDto[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<CommunicationTemplateDto | null>(null)
+  const [isListLoading, setIsListLoading] = useState(true)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
@@ -212,37 +238,39 @@ export function CommunicationTemplatesAdminPage() {
     code: '',
     channel: '',
   })
-  const [editorForm, setEditorForm] = useState<CommunicationTemplateEditorFormState>(createEmptyEditorForm)
+  const [editorForm, setEditorForm] = useState<CommunicationTemplateEditorFormState>(() =>
+    createEmptyEditorForm(),
+  )
   const [previewMode, setPreviewMode] = useState<'TEST' | 'REAL'>('TEST')
   const [previewState, setPreviewState] = useState<PreviewModalState>(createInitialPreviewState)
   const [publishState, setPublishState] = useState<PublishModalState>(createInitialPublishState)
   const [publishError, setPublishError] = useState<string | null>(null)
 
-  const groups = useMemo(
-    () => buildCommunicationTemplateGroups(templates),
-    [templates],
+  const templateList = useMemo(
+    () => buildCommunicationTemplateListView(templateItems),
+    [templateItems],
   )
   const selectedGroup = useMemo(
-    () => findTemplateGroupByCode(groups, params.id),
-    [groups, params.id],
+    () => buildCommunicationTemplateDetailView(selectedTemplate),
+    [selectedTemplate],
   )
 
-  const filteredGroups = useMemo(() => {
-    return groups.filter((group) => {
+  const filteredList = useMemo(() => {
+    return templateList.filter((item) => {
       const searchValue = filters.search.trim().toLowerCase()
       const matchesSearch =
         searchValue.length === 0 ||
-        group.name.toLowerCase().includes(searchValue) ||
-        group.code.toLowerCase().includes(searchValue) ||
-        (group.description ?? '').toLowerCase().includes(searchValue)
+        item.name.toLowerCase().includes(searchValue) ||
+        item.code.toLowerCase().includes(searchValue) ||
+        (item.description ?? '').toLowerCase().includes(searchValue)
 
-      const matchesStatus = filters.status === 'ALL' || group.primaryStatus === filters.status
-      const matchesCode = !filters.code || group.code === filters.code
-      const matchesChannel = !filters.channel || group.channel === filters.channel
+      const matchesStatus = filters.status === 'ALL' || item.primaryStatus === filters.status
+      const matchesCode = !filters.code || item.code === filters.code
+      const matchesChannel = !filters.channel || item.channel === filters.channel
 
       return matchesSearch && matchesStatus && matchesCode && matchesChannel
     })
-  }, [filters, groups])
+  }, [filters, templateList])
 
   const editorPreview = useMemo(
     () =>
@@ -259,6 +287,7 @@ export function CommunicationTemplatesAdminPage() {
   )
 
   const lockIdentityFields = mode === 'EDIT' && !!params.id
+  const selectedCode = params.id as CommunicationTemplateCode | undefined
 
   const resetFeedback = () => {
     setFeedback({ success: null, error: null })
@@ -266,29 +295,67 @@ export function CommunicationTemplatesAdminPage() {
     setPublishError(null)
   }
 
-  const loadTemplates = async () => {
-    setIsLoading(true)
+  const loadTemplateList = async () => {
+    setIsListLoading(true)
 
     try {
       const result = await getCommunicationTemplates()
-      setTemplates(result.items)
+      setTemplateItems(result.items)
       setPageError(null)
     } catch (error) {
-      setTemplates([])
+      setTemplateItems([])
       setPageError(getTemplateErrorMessage(error, 'Nie udalo sie pobrac szablonow komunikatow.'))
     } finally {
-      setIsLoading(false)
+      setIsListLoading(false)
+    }
+  }
+
+  const loadTemplateDetail = async (code: CommunicationTemplateCode) => {
+    setIsDetailLoading(true)
+
+    try {
+      const template = await getCommunicationTemplateByCode(code)
+      setSelectedTemplate(template)
+      setPageError(null)
+      return template
+    } catch (error) {
+      setSelectedTemplate(null)
+      setPageError(getTemplateErrorMessage(error, 'Nie udalo sie pobrac szczegolow szablonu komunikatu.'))
+      return null
+    } finally {
+      setIsDetailLoading(false)
+    }
+  }
+
+  const refreshCurrentTemplate = async (code?: CommunicationTemplateCode | null) => {
+    await loadTemplateList()
+
+    if (code) {
+      await loadTemplateDetail(code)
     }
   }
 
   useEffect(() => {
     if (!isAdmin) {
-      setIsLoading(false)
+      setIsListLoading(false)
       return
     }
 
-    void loadTemplates()
+    void loadTemplateList()
   }, [isAdmin])
+
+  useEffect(() => {
+    if (!isAdmin) {
+      return
+    }
+
+    if (mode === 'LIST' || mode === 'NEW' || !selectedCode) {
+      setSelectedTemplate(null)
+      return
+    }
+
+    void loadTemplateDetail(selectedCode)
+  }, [isAdmin, mode, selectedCode])
 
   useEffect(() => {
     if (!isAdmin) {
@@ -299,65 +366,116 @@ export function CommunicationTemplatesAdminPage() {
       return
     }
 
-    const targetGroup = selectedGroup
-    const editableVersion =
-      targetGroup?.versions.find((version) => version.id === routeState.versionId) ?? null
-    const sourceVersion =
-      targetGroup?.versions.find((version) => version.id === routeState.sourceVersionId) ?? null
-
     if (mode === 'NEW') {
       setEditorForm(createEmptyEditorForm())
       return
     }
+
+    if (!selectedGroup) {
+      setEditorForm(createEmptyEditorForm(selectedCode))
+      return
+    }
+
+    const editableVersion =
+      selectedGroup.versions.find((version) => version.id === routeState.versionId) ?? null
 
     if (editableVersion) {
       setEditorForm(mapVersionToForm(editableVersion))
       return
     }
 
-    if (sourceVersion) {
-      setEditorForm(cloneVersionToDraft(sourceVersion, getNextVersion(targetGroup)))
+    if (selectedGroup.draftVersions[0]) {
+      setEditorForm(mapVersionToForm(selectedGroup.draftVersions[0]))
       return
     }
 
-    if (targetGroup?.draftVersions[0]) {
-      setEditorForm(mapVersionToForm(targetGroup.draftVersions[0]))
-      return
-    }
-
-    if (targetGroup?.publishedVersion) {
-      setEditorForm(cloneVersionToDraft(targetGroup.publishedVersion, getNextVersion(targetGroup)))
-      return
-    }
-
-    const empty = createEmptyEditorForm()
-    if (params.id) {
-      empty.code = params.id as CommunicationTemplateEditorFormState['code']
-    }
+    const empty = createEmptyEditorForm(selectedGroup.code)
+    empty.templateId = selectedGroup.id
+    empty.name = selectedGroup.name
+    empty.description = selectedGroup.description ?? ''
+    empty.channel = selectedGroup.channel
+    empty.versionNumber = getNextVersion(selectedGroup)
     setEditorForm(empty)
-  }, [isAdmin, mode, params.id, routeState.sourceVersionId, routeState.versionId, selectedGroup])
+  }, [isAdmin, mode, routeState.versionId, selectedGroup, selectedCode])
 
-  const openPreview = ({
-    title,
-    subtitle,
-    subjectTemplate,
-    bodyTemplate,
-  }: {
+  const openPreview = (params: {
     title: string
     subtitle: string
     subjectTemplate: string
     bodyTemplate: string
+    versionId: string | null
+    realCaseHelpText?: string | null
   }) => {
+    const testPreview = renderCommunicationTemplatePreview({
+      subjectTemplate: params.subjectTemplate,
+      bodyTemplate: params.bodyTemplate,
+    })
+
     setPreviewMode('TEST')
     setPreviewState({
       isOpen: true,
-      title,
-      subtitle,
-      preview: renderCommunicationTemplatePreview({
-        subjectTemplate,
-        bodyTemplate,
-      }),
+      title: params.title,
+      subtitle: params.subtitle,
+      preview: testPreview,
+      testPreview,
+      versionId: params.versionId,
+      realCaseReference: '',
+      realCaseLabel: '',
+      isRealCaseLoading: false,
+      realCaseError: null,
+      realCaseHelpText: params.realCaseHelpText ?? null,
     })
+  }
+
+  const handlePreviewModeChange = (modeValue: 'TEST' | 'REAL') => {
+    setPreviewMode(modeValue)
+    setPreviewState((current) => ({
+      ...current,
+      preview: modeValue === 'TEST' ? current.testPreview : current.preview,
+      realCaseError: modeValue === 'TEST' ? null : current.realCaseError,
+    }))
+  }
+
+  const handleRunRealCasePreview = async () => {
+    if (!previewState.versionId) {
+      return
+    }
+
+    const reference = previewState.realCaseReference.trim()
+
+    if (!reference) {
+      setPreviewState((current) => ({
+        ...current,
+        realCaseError: 'Podaj numer sprawy albo ID sprawy do preview real-case.',
+      }))
+      return
+    }
+
+    setPreviewState((current) => ({
+      ...current,
+      isRealCaseLoading: true,
+      realCaseError: null,
+    }))
+
+    try {
+      const preview = await previewCommunicationTemplateVersionRealCase(previewState.versionId, UUID_LIKE_PATTERN.test(reference)
+        ? { portingRequestId: reference }
+        : { caseNumber: reference })
+
+      setPreviewState((current) => ({
+        ...current,
+        isRealCaseLoading: false,
+        realCaseError: null,
+        realCaseLabel: reference,
+        preview: mapRealCasePreviewToPreviewResult(preview),
+      }))
+    } catch (error) {
+      setPreviewState((current) => ({
+        ...current,
+        isRealCaseLoading: false,
+        realCaseError: getTemplateErrorMessage(error, 'Nie udalo sie przygotowac preview dla wskazanej sprawy.'),
+      }))
+    }
   }
 
   const handleEditorChange = <K extends keyof CommunicationTemplateEditorFormState>(
@@ -375,14 +493,49 @@ export function CommunicationTemplatesAdminPage() {
     navigate(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_NEW)
   }
 
-  const handleOpenDetail = (group: CommunicationTemplateGroupView) => {
+  const handleOpenDetail = (code: string) => {
     resetFeedback()
-    navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_DETAIL, group.code))
+    navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_DETAIL, code))
   }
 
-  const handleCreateDraftFromGroup = (group: CommunicationTemplateGroupView) => {
+  const handleCreateDraftFromDetail = async (group: CommunicationTemplateGroupView) => {
     resetFeedback()
-    navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_EDIT, group.code))
+
+    const sourceVersion = group.publishedVersion ?? group.draftVersions[0] ?? group.archivedVersions[0] ?? null
+
+    if (!sourceVersion) {
+      navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_EDIT, group.code))
+      return
+    }
+
+    try {
+      const clonedVersion = await cloneCommunicationTemplateVersion(sourceVersion.id)
+      await refreshCurrentTemplate(group.code)
+      navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_EDIT, group.code), {
+        state: { versionId: clonedVersion.id } satisfies RouteState,
+      })
+    } catch (error) {
+      setFeedback({
+        success: null,
+        error: getTemplateErrorMessage(error, 'Nie udalo sie utworzyc nowej wersji roboczej.'),
+      })
+    }
+  }
+
+  const handleCreateDraftFromList = async (code: string) => {
+    const template = await loadTemplateDetail(code as CommunicationTemplateCode)
+
+    if (!template) {
+      return
+    }
+
+    const group = buildCommunicationTemplateDetailView(template)
+
+    if (!group) {
+      return
+    }
+
+    await handleCreateDraftFromDetail(group)
   }
 
   const handleEditDraft = (version: CommunicationTemplateVersionView) => {
@@ -392,24 +545,62 @@ export function CommunicationTemplatesAdminPage() {
     })
   }
 
-  const handleCloneVersion = (version: CommunicationTemplateVersionView) => {
+  const handleCloneVersion = async (version: CommunicationTemplateVersionView) => {
     resetFeedback()
-    navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_EDIT, version.code), {
-      state: { sourceVersionId: version.id } satisfies RouteState,
-    })
+
+    try {
+      const clonedVersion = await cloneCommunicationTemplateVersion(version.id)
+      await refreshCurrentTemplate(version.code)
+      navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_EDIT, version.code), {
+        state: { versionId: clonedVersion.id } satisfies RouteState,
+      })
+    } catch (error) {
+      setFeedback({
+        success: null,
+        error: getTemplateErrorMessage(error, 'Nie udalo sie sklonowac wersji do nowego draftu.'),
+      })
+    }
+  }
+
+  const handleArchiveVersion = async (version: CommunicationTemplateVersionView) => {
+    resetFeedback()
+
+    try {
+      await archiveCommunicationTemplateVersion(version.id)
+      await refreshCurrentTemplate(version.code)
+      setFeedback({
+        success: 'Wersja zostala zarchiwizowana.',
+        error: null,
+      })
+    } catch (error) {
+      setFeedback({
+        success: null,
+        error: getTemplateErrorMessage(error, 'Nie udalo sie zarchiwizowac wersji.'),
+      })
+    }
   }
 
   const handleOpenVersionPreview = (version: CommunicationTemplateVersionView) => {
     openPreview({
       title: `${version.name} - podglad`,
-      subtitle: `Wersja v${version.version} · ${version.uiStatus === 'PUBLISHED' ? 'opublikowana' : 'robocza lub archiwalna'}`,
+      subtitle: `Wersja v${version.versionNumber} · ${version.status === 'PUBLISHED' ? 'opublikowana' : version.status === 'DRAFT' ? 'robocza' : 'archiwalna'}`,
       subjectTemplate: version.subjectTemplate,
       bodyTemplate: version.bodyTemplate,
+      versionId: version.id,
+      realCaseHelpText: 'Preview real-case nie zapisuje komunikacji i sluzy tylko do bezpiecznego sprawdzenia renderu.',
     })
   }
 
-  const handlePreviewPublished = (group: CommunicationTemplateGroupView) => {
-    if (!group.publishedVersion) {
+  const handlePreviewPublished = async (code: string) => {
+    const template = await loadTemplateDetail(code as CommunicationTemplateCode)
+
+    if (!template) {
+      return
+    }
+
+    const group = buildCommunicationTemplateDetailView(template)
+
+    if (!group?.publishedVersion) {
       setFeedback({ success: null, error: 'Brak opublikowanej wersji tego szablonu.' })
       return
     }
@@ -417,22 +608,54 @@ export function CommunicationTemplatesAdminPage() {
     handleOpenVersionPreview(group.publishedVersion)
   }
 
-  const persistDraft = async (): Promise<CommunicationTemplateVersionView> => {
-    const payload: CreateCommunicationTemplateDto | UpdateCommunicationTemplateDto = {
+  const persistDraft = async (): Promise<{
+    version: CommunicationTemplateVersionDto
+    code: CommunicationTemplateCode
+  }> => {
+    if (editorForm.id) {
+      const payload: UpdateCommunicationTemplateVersionDto = {
+        name: editorForm.name.trim(),
+        description: editorForm.description.trim() || null,
+        subjectTemplate: editorForm.subjectTemplate,
+        bodyTemplate: editorForm.bodyTemplate,
+      }
+
+      const version = await updateCommunicationTemplateVersion(editorForm.id, payload)
+      return { version, code: editorForm.code }
+    }
+
+    if (selectedGroup) {
+      const payload: CreateCommunicationTemplateVersionDto = {
+        name: editorForm.name.trim(),
+        description: editorForm.description.trim() || null,
+        subjectTemplate: editorForm.subjectTemplate,
+        bodyTemplate: editorForm.bodyTemplate,
+      }
+      const version = await createCommunicationTemplateVersion(selectedGroup.code, payload)
+      return { version, code: selectedGroup.code }
+    }
+
+    const payload: CreateCommunicationTemplateDto = {
       code: editorForm.code,
       name: editorForm.name.trim(),
       description: editorForm.description.trim() || null,
       channel: normalizeCommunicationTemplateChannel(editorForm.channel),
       subjectTemplate: editorForm.subjectTemplate,
       bodyTemplate: editorForm.bodyTemplate,
-      isActive: false,
     }
 
-    if (editorForm.id) {
-      return (await updateCommunicationTemplate(editorForm.id, payload)) as CommunicationTemplateVersionView
+    const template = await createCommunicationTemplate(payload)
+    const draftVersion =
+      template.versions.find((version) => version.status === 'DRAFT') ?? template.versions[0]
+
+    if (!draftVersion) {
+      throw new Error('Nie znaleziono zapisanej wersji roboczej po utworzeniu szablonu.')
     }
 
-    return (await createCommunicationTemplate(payload as CreateCommunicationTemplateDto)) as CommunicationTemplateVersionView
+    return {
+      version: draftVersion,
+      code: template.code,
+    }
   }
 
   const handleSaveDraft = async () => {
@@ -441,11 +664,11 @@ export function CommunicationTemplatesAdminPage() {
 
     try {
       const saved = await persistDraft()
+      await refreshCurrentTemplate(saved.code)
       setFeedback({ success: 'Wersja robocza zostala zapisana.', error: null })
-      await loadTemplates()
       navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_EDIT, saved.code), {
         replace: true,
-        state: { versionId: saved.id } satisfies RouteState,
+        state: { versionId: saved.version.id } satisfies RouteState,
       })
     } catch (error) {
       setFeedback({
@@ -460,15 +683,19 @@ export function CommunicationTemplatesAdminPage() {
   const handleOpenEditorPreview = () => {
     openPreview({
       title: editorForm.name.trim() || 'Podglad wersji roboczej',
-      subtitle: 'Podglad na danych testowych. Tryb realnej sprawy zostal przygotowany pod kolejny etap.',
+      subtitle: 'Podglad na danych testowych. Dla zapisanych wersji mozesz uruchomic tez preview na realnej sprawie.',
       subjectTemplate: editorForm.subjectTemplate,
       bodyTemplate: editorForm.bodyTemplate,
+      versionId: editorForm.id,
+      realCaseHelpText: editorForm.id
+        ? 'Preview real-case sprawdza zapisany stan wersji backendowej.'
+        : 'Zapisz wersje robocza, aby uruchomic preview na realnej sprawie.',
     })
   }
 
   const openPublishModal = (
     versionId: string | null,
-    code: string,
+    code: CommunicationTemplateCode,
     templateName: string,
     versionLabel: string,
   ) => {
@@ -501,7 +728,7 @@ export function CommunicationTemplatesAdminPage() {
       editorForm.id,
       editorForm.code,
       editorForm.name.trim() || 'Szablon komunikatu',
-      editorForm.version ? `v${editorForm.version}` : `v${getNextVersion(selectedGroup)}`,
+      editorForm.versionNumber ? `v${editorForm.versionNumber}` : `v${getNextVersion(selectedGroup)}`,
     )
   }
 
@@ -519,7 +746,7 @@ export function CommunicationTemplatesAdminPage() {
       return
     }
 
-    openPublishModal(version.id, version.code, version.name, `v${version.version}`)
+    openPublishModal(version.id, version.code, version.name, `v${version.versionNumber}`)
   }
 
   const closePublishModal = () => {
@@ -537,23 +764,21 @@ export function CommunicationTemplatesAdminPage() {
     resetFeedback()
 
     try {
-      const targetGroup = findTemplateGroupByCode(groups, publishState.code)
-      const published = await publishCommunicationTemplateVersion({
-        code: publishState.code,
-        versionId: publishState.versionId,
-        activeVersionId: targetGroup?.publishedVersion?.id ?? null,
-        persistDraft,
-        activateTemplate: activateCommunicationTemplate,
-        deactivateTemplate: deactivateCommunicationTemplate,
-      })
-      await loadTemplates()
+      let resolvedVersionId = publishState.versionId
 
+      if (!resolvedVersionId) {
+        const saved = await persistDraft()
+        resolvedVersionId = saved.version.id
+      }
+
+      await publishCommunicationTemplateVersion(resolvedVersionId)
+      await refreshCurrentTemplate(publishState.code)
       setFeedback({
         success: 'Wersja zostala opublikowana i jest juz uzywana operacyjnie.',
         error: null,
       })
       closePublishModal()
-      navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_DETAIL, published.code), {
+      navigate(buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_DETAIL, publishState.code), {
         replace: true,
       })
     } catch (error) {
@@ -563,7 +788,7 @@ export function CommunicationTemplatesAdminPage() {
           'Nie udalo sie opublikowac wersji. Widok zostal odswiezony zgodnie z aktualnym stanem danych.',
         ),
       )
-      await loadTemplates()
+      await refreshCurrentTemplate(publishState.code)
     } finally {
       setIsPublishing(false)
     }
@@ -577,8 +802,8 @@ export function CommunicationTemplatesAdminPage() {
     return (
       <>
         <CommunicationTemplatesList
-          groups={filteredGroups}
-          isLoading={isLoading}
+          items={filteredList}
+          isLoading={isListLoading}
           error={pageError}
           filters={filters}
           onSearchChange={(value) => setFilters((current) => ({ ...current, search: value }))}
@@ -587,7 +812,7 @@ export function CommunicationTemplatesAdminPage() {
           onChannelChange={(value) => setFilters((current) => ({ ...current, channel: value }))}
           onCreate={handleCreateTemplate}
           onOpen={handleOpenDetail}
-          onCreateDraft={handleCreateDraftFromGroup}
+          onCreateDraft={handleCreateDraftFromList}
           onPreviewPublished={handlePreviewPublished}
         />
 
@@ -597,7 +822,17 @@ export function CommunicationTemplatesAdminPage() {
           subtitle={previewState.subtitle}
           preview={previewState.preview}
           mode={previewMode}
-          onModeChange={setPreviewMode}
+          realCaseReference={previewState.realCaseReference}
+          realCaseLabel={previewState.realCaseLabel}
+          isRealCaseAvailable={Boolean(previewState.versionId)}
+          isRealCaseLoading={previewState.isRealCaseLoading}
+          realCaseError={previewState.realCaseError}
+          realCaseHelpText={previewState.realCaseHelpText}
+          onModeChange={handlePreviewModeChange}
+          onRealCaseReferenceChange={(value) =>
+            setPreviewState((current) => ({ ...current, realCaseReference: value, realCaseError: null }))
+          }
+          onRunRealCasePreview={handleRunRealCasePreview}
           onClose={() => setPreviewState(createInitialPreviewState())}
         />
       </>
@@ -609,15 +844,16 @@ export function CommunicationTemplatesAdminPage() {
       <>
         <CommunicationTemplateDetail
           group={selectedGroup}
-          isLoading={isLoading}
+          isLoading={isListLoading || isDetailLoading}
           error={pageError}
           feedbackSuccess={feedback.success}
           feedbackError={feedback.error}
           onBack={() => navigate(ROUTES.ADMIN_COMMUNICATION_TEMPLATES)}
-          onCreateDraft={handleCreateDraftFromGroup}
+          onCreateDraft={handleCreateDraftFromDetail}
           onEditDraft={handleEditDraft}
           onPreviewVersion={handleOpenVersionPreview}
           onPublishVersion={handlePreparePublishVersion}
+          onArchiveVersion={handleArchiveVersion}
           onCloneVersion={handleCloneVersion}
           onDetailsVersion={handleOpenVersionPreview}
         />
@@ -628,7 +864,17 @@ export function CommunicationTemplatesAdminPage() {
           subtitle={previewState.subtitle}
           preview={previewState.preview}
           mode={previewMode}
-          onModeChange={setPreviewMode}
+          realCaseReference={previewState.realCaseReference}
+          realCaseLabel={previewState.realCaseLabel}
+          isRealCaseAvailable={Boolean(previewState.versionId)}
+          isRealCaseLoading={previewState.isRealCaseLoading}
+          realCaseError={previewState.realCaseError}
+          realCaseHelpText={previewState.realCaseHelpText}
+          onModeChange={handlePreviewModeChange}
+          onRealCaseReferenceChange={(value) =>
+            setPreviewState((current) => ({ ...current, realCaseReference: value, realCaseError: null }))
+          }
+          onRunRealCasePreview={handleRunRealCasePreview}
           onClose={() => setPreviewState(createInitialPreviewState())}
         />
 
@@ -668,8 +914,8 @@ export function CommunicationTemplatesAdminPage() {
         onPublish={handlePreparePublishFromEditor}
         onCancel={() =>
           navigate(
-            params.id
-              ? buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_DETAIL, params.id)
+            selectedCode
+              ? buildPath(ROUTES.ADMIN_COMMUNICATION_TEMPLATE_DETAIL, selectedCode)
               : ROUTES.ADMIN_COMMUNICATION_TEMPLATES,
           )
         }
@@ -681,7 +927,17 @@ export function CommunicationTemplatesAdminPage() {
         subtitle={previewState.subtitle}
         preview={previewState.preview}
         mode={previewMode}
-        onModeChange={setPreviewMode}
+        realCaseReference={previewState.realCaseReference}
+        realCaseLabel={previewState.realCaseLabel}
+        isRealCaseAvailable={Boolean(previewState.versionId)}
+        isRealCaseLoading={previewState.isRealCaseLoading}
+        realCaseError={previewState.realCaseError}
+        realCaseHelpText={previewState.realCaseHelpText}
+        onModeChange={handlePreviewModeChange}
+        onRealCaseReferenceChange={(value) =>
+          setPreviewState((current) => ({ ...current, realCaseReference: value, realCaseError: null }))
+        }
+        onRunRealCasePreview={handleRunRealCasePreview}
         onClose={() => setPreviewState(createInitialPreviewState())}
       />
 

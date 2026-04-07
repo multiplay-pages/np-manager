@@ -15,7 +15,7 @@ import type {
 } from '@np-manager/shared'
 import { renderCommunicationTemplate } from '../communications/communication-template-renderer'
 import {
-  getActiveCommunicationTemplateOrThrow,
+  getPublishedCommunicationTemplateVersionOrThrow,
   resolveCommunicationTemplateCodeForAction,
 } from '../communications/communication-templates.service'
 import {
@@ -339,7 +339,10 @@ export async function resolveCommunicationPreview(
     actionType,
     triggerType,
   })
-  const activeTemplate = await getActiveCommunicationTemplateOrThrow(templateCode, 'EMAIL')
+  const publishedTemplateVersion = await getPublishedCommunicationTemplateVersionOrThrow(
+    templateCode,
+    'EMAIL',
+  )
   const context = buildCommunicationTemplateContext(snapshot, {
     actionType,
     triggerType,
@@ -347,8 +350,8 @@ export async function resolveCommunicationPreview(
   })
   const renderResult = renderCommunicationTemplate(
     {
-      subjectTemplate: activeTemplate.subjectTemplate,
-      bodyTemplate: activeTemplate.bodyTemplate,
+      subjectTemplate: publishedTemplateVersion.subjectTemplate,
+      bodyTemplate: publishedTemplateVersion.bodyTemplate,
     },
     context,
   )
@@ -383,6 +386,10 @@ export function buildCommunicationCreateData(params: {
   requestId: string
   preview: PortingCommunicationPreviewDto
   createdByUserId: string
+  templateVersion: {
+    versionId: string
+    versionNumber: number
+  }
   metadata?: Record<string, string | number | boolean | null> | null
 }): Prisma.PortingCommunicationCreateInput {
   const templateCode = resolveCommunicationTemplateCodeForAction({
@@ -405,6 +412,8 @@ export function buildCommunicationCreateData(params: {
       actionType: params.preview.actionType,
       actionLabel: getCommunicationActionPolicy(params.preview.actionType).label,
       communicationTemplateCode: templateCode,
+      communicationTemplateVersionId: params.templateVersion.versionId,
+      communicationTemplateVersionNumber: params.templateVersion.versionNumber,
     },
   }
 }
@@ -474,11 +483,22 @@ export async function createPortingCommunicationDraft(
   }
 
   const preview = await resolveCommunicationPreview(snapshot, body)
+  const publishedTemplateVersion = await getPublishedCommunicationTemplateVersionOrThrow(
+    resolveCommunicationTemplateCodeForAction({
+      actionType: preview.actionType,
+      triggerType: preview.triggerType,
+    }),
+    'EMAIL',
+  )
   const createdCommunication = await db.portingCommunication.create({
     data: buildCommunicationCreateData({
       requestId,
       preview,
       createdByUserId,
+      templateVersion: {
+        versionId: publishedTemplateVersion.versionId,
+        versionNumber: publishedTemplateVersion.versionNumber,
+      },
       metadata: body.metadata ?? null,
     }),
     select: COMMUNICATION_SELECT,

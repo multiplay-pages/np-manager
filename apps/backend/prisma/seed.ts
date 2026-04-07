@@ -32,7 +32,8 @@ const prisma = new PrismaClient()
 
 export const COMMUNICATION_TEMPLATE_SEED_DATA = [
   {
-    id: '00000000-0000-4000-8000-000000000801',
+    templateId: '00000000-0000-4000-8000-000000000801',
+    versionId: '00000000-0000-4000-9000-000000000801',
     code: 'REQUEST_RECEIVED',
     name: 'Potwierdzenie przyjecia sprawy',
     description: 'Szablon dla komunikacji po przyjeciu wniosku lub przekazaniu sprawy do procesu.',
@@ -40,11 +41,12 @@ export const COMMUNICATION_TEMPLATE_SEED_DATA = [
     subjectTemplate: 'Sprawa {{caseNumber}} - potwierdzenie przyjecia',
     bodyTemplate:
       'Dzien dobry {{clientName}},\n\npotwierdzamy przyjecie sprawy {{caseNumber}} dotyczacej numeru {{portedNumber}}.\nOperator biorca: {{recipientOperatorName}}.\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
-    isActive: true,
-    version: 1,
+    status: 'PUBLISHED',
+    versionNumber: 1,
   },
   {
-    id: '00000000-0000-4000-8000-000000000802',
+    templateId: '00000000-0000-4000-8000-000000000802',
+    versionId: '00000000-0000-4000-9000-000000000802',
     code: 'PORT_DATE_RECEIVED',
     name: 'Potwierdzenie daty przeniesienia',
     description: 'Szablon dla komunikacji po otrzymaniu daty przeniesienia od Operatora Dawcy.',
@@ -52,11 +54,12 @@ export const COMMUNICATION_TEMPLATE_SEED_DATA = [
     subjectTemplate: 'Sprawa {{caseNumber}} - data przeniesienia {{plannedPortDate}}',
     bodyTemplate:
       'Dzien dobry {{clientName}},\n\nOperator Dawca ({{donorOperatorName}}) potwierdzil planowana date przeniesienia numeru {{portedNumber}} na {{plannedPortDate}}.\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
-    isActive: true,
-    version: 1,
+    status: 'PUBLISHED',
+    versionNumber: 1,
   },
   {
-    id: '00000000-0000-4000-8000-000000000803',
+    templateId: '00000000-0000-4000-8000-000000000803',
+    versionId: '00000000-0000-4000-9000-000000000803',
     code: 'PORTING_DAY',
     name: 'Komunikat na dzien przeniesienia',
     description: 'Szablon dla komunikacji w dniu przeniesienia numeru.',
@@ -64,11 +67,12 @@ export const COMMUNICATION_TEMPLATE_SEED_DATA = [
     subjectTemplate: 'Sprawa {{caseNumber}} - dzien przeniesienia numeru',
     bodyTemplate:
       'Dzien dobry {{clientName}},\n\nnumer {{portedNumber}} jest obslugiwany w ramach sprawy {{caseNumber}} z planowana data przeniesienia {{plannedPortDate}}.\nOperator biorca: {{recipientOperatorName}}.\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
-    isActive: true,
-    version: 1,
+    status: 'PUBLISHED',
+    versionNumber: 1,
   },
   {
-    id: '00000000-0000-4000-8000-000000000804',
+    templateId: '00000000-0000-4000-8000-000000000804',
+    versionId: '00000000-0000-4000-9000-000000000804',
     code: 'ISSUE_NOTICE',
     name: 'Informacja o problemie',
     description: 'Szablon dla komunikacji operacyjnych wymagajacych przekazania problemu lub brakow.',
@@ -76,8 +80,8 @@ export const COMMUNICATION_TEMPLATE_SEED_DATA = [
     subjectTemplate: 'Sprawa {{caseNumber}} - wymagana uwaga',
     bodyTemplate:
       'Dzien dobry {{clientName}},\n\nw sprawie {{caseNumber}} dotyczacej numeru {{portedNumber}} pojawila sie kwestia wymagajaca uwagi:\n{{issueDescription}}\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
-    isActive: true,
-    version: 1,
+    status: 'PUBLISHED',
+    versionNumber: 1,
   },
 ] as const
 
@@ -753,27 +757,118 @@ export async function seedMain() {
   console.info('   🔑  Hasło:   Admin@NP2026!  ← ZMIEŃ PO PIERWSZYM LOGOWANIU')
 
   // Konto testowe BOK — do weryfikacji RBAC (brak uprawnień ADMIN)
+  const publishedTemplateVersionByCode = new Map<
+    (typeof COMMUNICATION_TEMPLATE_SEED_DATA)[number]['code'],
+    { id: string; versionNumber: number }
+  >()
+
   for (const template of COMMUNICATION_TEMPLATE_SEED_DATA) {
-    await prisma.communicationTemplate.upsert({
-      where: { id: template.id },
+    const family = await prisma.communicationTemplate.upsert({
+      where: {
+        code_channel: {
+          code: template.code,
+          channel: template.channel,
+        },
+      },
       update: {
         code: template.code,
         name: template.name,
         description: template.description,
         channel: template.channel,
-        subjectTemplate: template.subjectTemplate,
-        bodyTemplate: template.bodyTemplate,
-        isActive: template.isActive,
-        version: template.version,
         createdByUserId: adminUser.id,
         updatedByUserId: adminUser.id,
       },
       create: {
-        ...template,
+        id: template.templateId,
+        code: template.code,
+        name: template.name,
+        description: template.description,
+        channel: template.channel,
         createdByUserId: adminUser.id,
         updatedByUserId: adminUser.id,
       },
     })
+
+    const existingPublishedVersion = await prisma.communicationTemplateVersion.findFirst({
+      where: {
+        templateId: family.id,
+        status: 'PUBLISHED',
+      },
+      select: {
+        id: true,
+        versionNumber: true,
+      },
+    })
+
+    const matchingVersion = await prisma.communicationTemplateVersion.findFirst({
+      where: {
+        OR: [
+          { id: template.versionId },
+          {
+            templateId: family.id,
+            versionNumber: template.versionNumber,
+          },
+        ],
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    })
+
+    if (matchingVersion) {
+      const shouldPublishVersion =
+        !existingPublishedVersion || existingPublishedVersion.id === matchingVersion.id
+
+      await prisma.communicationTemplateVersion.update({
+        where: { id: matchingVersion.id },
+        data: {
+          templateId: family.id,
+          versionNumber: template.versionNumber,
+          status: shouldPublishVersion ? template.status : matchingVersion.status,
+          subjectTemplate: template.subjectTemplate,
+          bodyTemplate: template.bodyTemplate,
+          createdByUserId: adminUser.id,
+          updatedByUserId: adminUser.id,
+          publishedAt:
+            shouldPublishVersion && template.status === 'PUBLISHED'
+              ? new Date('2026-04-01T08:00:00.000Z')
+              : null,
+          publishedByUserId:
+            shouldPublishVersion && template.status === 'PUBLISHED' ? adminUser.id : null,
+        },
+      })
+    } else if (!existingPublishedVersion) {
+      await prisma.communicationTemplateVersion.create({
+        data: {
+          id: template.versionId,
+          templateId: family.id,
+          versionNumber: template.versionNumber,
+          status: template.status,
+          subjectTemplate: template.subjectTemplate,
+          bodyTemplate: template.bodyTemplate,
+          createdByUserId: adminUser.id,
+          updatedByUserId: adminUser.id,
+          publishedAt: template.status === 'PUBLISHED' ? new Date('2026-04-01T08:00:00.000Z') : null,
+          publishedByUserId: template.status === 'PUBLISHED' ? adminUser.id : null,
+        },
+      })
+    }
+
+    const runtimePublishedVersion = await prisma.communicationTemplateVersion.findFirst({
+      where: {
+        templateId: family.id,
+        status: 'PUBLISHED',
+      },
+      select: {
+        id: true,
+        versionNumber: true,
+      },
+    })
+
+    if (runtimePublishedVersion) {
+      publishedTemplateVersionByCode.set(template.code, runtimePublishedVersion)
+    }
   }
 
   // Konto testowe BOK â€” do weryfikacji RBAC (brak uprawnieĹ„ ADMIN)
@@ -1298,6 +1393,11 @@ export async function seedMain() {
         actionType: 'CLIENT_CONFIRMATION',
         actionLabel: 'Potwierdzenie dla klienta',
         communicationTemplateCode: 'REQUEST_RECEIVED',
+        communicationTemplateVersionId:
+          publishedTemplateVersionByCode.get('REQUEST_RECEIVED')?.id ??
+          '00000000-0000-4000-9000-000000000801',
+        communicationTemplateVersionNumber:
+          publishedTemplateVersionByCode.get('REQUEST_RECEIVED')?.versionNumber ?? 1,
         seedFixture: 'FNP-SEED-COMM-DUPLICATE-001',
       },
       createdAt: new Date('2026-04-03T09:00:00.000Z'),

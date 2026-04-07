@@ -209,6 +209,12 @@ enum CommunicationTemplateCode {
   ISSUE_NOTICE
 }
 
+enum CommunicationTemplateVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 // ============================================================
 // USERS — Użytkownicy systemu
 // ============================================================
@@ -240,6 +246,9 @@ model User {
   createdPortingCommunications     PortingCommunication[]      @relation("PortingCommunicationCreatedBy")
   createdCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateCreatedBy")
   updatedCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateUpdatedBy")
+  createdCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionCreatedBy")
+  updatedCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionUpdatedBy")
+  publishedCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionPublishedBy")
 
   @@map("users")
 }
@@ -594,10 +603,6 @@ model CommunicationTemplate {
   name             String                    @db.VarChar(150)
   description      String?                   @db.Text
   channel          ContactChannel
-  subjectTemplate  String                    @db.VarChar(300)
-  bodyTemplate     String                    @db.Text
-  isActive         Boolean                   @default(true)
-  version          Int                       @default(1)
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
   createdByUserId  String
@@ -605,10 +610,36 @@ model CommunicationTemplate {
 
   createdBy User @relation("CommunicationTemplateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   updatedBy User @relation("CommunicationTemplateUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  versions  CommunicationTemplateVersion[]
 
+  @@unique([code, channel])
   @@index([code, channel])
-  @@index([code, channel, isActive])
   @@map("communication_templates")
+}
+
+model CommunicationTemplateVersion {
+  id               String                             @id @default(uuid())
+  templateId       String
+  versionNumber    Int
+  status           CommunicationTemplateVersionStatus @default(DRAFT)
+  subjectTemplate  String                             @db.VarChar(300)
+  bodyTemplate     String                             @db.Text
+  createdAt        DateTime                           @default(now())
+  updatedAt        DateTime                           @updatedAt
+  createdByUserId  String
+  updatedByUserId  String
+  publishedAt      DateTime?
+  publishedByUserId String?
+
+  template    CommunicationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  createdBy   User                  @relation("CommunicationTemplateVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy   User                  @relation("CommunicationTemplateVersionUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  publishedBy User?                 @relation("CommunicationTemplateVersionPublishedBy", fields: [publishedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([templateId, versionNumber])
+  @@index([templateId, status])
+  @@index([status])
+  @@map("communication_template_versions")
 }
 
 // ============================================================

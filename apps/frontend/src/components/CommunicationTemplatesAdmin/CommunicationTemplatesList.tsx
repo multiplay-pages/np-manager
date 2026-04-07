@@ -1,12 +1,11 @@
 import { COMMUNICATION_TEMPLATE_CODE_LABELS, CONTACT_CHANNEL_LABELS } from '@np-manager/shared'
 import type {
-  CommunicationTemplateGroupView,
   CommunicationTemplateListFilterStatus,
+  CommunicationTemplateListItemView,
 } from '@/lib/communicationTemplates'
 import {
   getCommunicationTemplateStatusClasses,
   getCommunicationTemplateStatusLabel,
-  getTemplateGroupName,
 } from '@/lib/communicationTemplates'
 
 interface CommunicationTemplatesListFilters {
@@ -17,7 +16,7 @@ interface CommunicationTemplatesListFilters {
 }
 
 interface CommunicationTemplatesListProps {
-  groups: CommunicationTemplateGroupView[]
+  items: CommunicationTemplateListItemView[]
   isLoading: boolean
   error: string | null
   filters: CommunicationTemplatesListFilters
@@ -26,9 +25,9 @@ interface CommunicationTemplatesListProps {
   onCodeChange: (value: string) => void
   onChannelChange: (value: string) => void
   onCreate: () => void
-  onOpen: (group: CommunicationTemplateGroupView) => void
-  onCreateDraft: (group: CommunicationTemplateGroupView) => void
-  onPreviewPublished: (group: CommunicationTemplateGroupView) => void
+  onOpen: (code: string) => void
+  onCreateDraft: (code: string) => void
+  onPreviewPublished: (code: string) => void
 }
 
 function formatDateTime(value: string): string {
@@ -42,7 +41,7 @@ function formatDateTime(value: string): string {
 }
 
 export function CommunicationTemplatesList({
-  groups,
+  items,
   isLoading,
   error,
   filters,
@@ -55,11 +54,11 @@ export function CommunicationTemplatesList({
   onCreateDraft,
   onPreviewPublished,
 }: CommunicationTemplatesListProps) {
-  const totalDrafts = groups.reduce((acc, group) => acc + group.draftVersions.length, 0)
-  const totalArchived = groups.reduce((acc, group) => acc + group.archivedVersions.length, 0)
-  const publishedCount = groups.filter((group) => group.publishedVersion).length
-  const codeOptions = [...new Set(groups.map((group) => group.code))]
-  const channelOptions = [...new Set(groups.map((group) => group.channel))]
+  const totalDrafts = items.reduce((acc, item) => acc + item.versionCounts.draft, 0)
+  const totalArchived = items.reduce((acc, item) => acc + item.versionCounts.archived, 0)
+  const publishedCount = items.filter((item) => item.versionCounts.published > 0).length
+  const codeOptions = [...new Set(items.map((item) => item.code))]
+  const channelOptions = [...new Set(items.map((item) => item.channel))]
 
   return (
     <div className="space-y-6 p-6">
@@ -80,7 +79,7 @@ export function CommunicationTemplatesList({
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Lacznie szablonow" value={String(groups.length)} tone="neutral" />
+        <SummaryCard label="Lacznie szablonow" value={String(items.length)} tone="neutral" />
         <SummaryCard label="Opublikowane" value={String(publishedCount)} tone="published" />
         <SummaryCard label="Wersje robocze" value={String(totalDrafts)} tone="draft" />
         <SummaryCard label="Archiwalne" value={String(totalArchived)} tone="archived" />
@@ -157,7 +156,7 @@ export function CommunicationTemplatesList({
         <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-600">
           Ladowanie szablonow komunikatow...
         </div>
-      ) : groups.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
           <h2 className="text-xl font-semibold text-gray-900">Brak szablonow komunikatow</h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
@@ -169,38 +168,40 @@ export function CommunicationTemplatesList({
         </div>
       ) : (
         <div className="space-y-4">
-          {groups.map((group) => (
+          {items.map((item) => (
             <article
-              key={group.key}
+              key={item.key}
               className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-gray-300"
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-3xl">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold text-gray-900">{getTemplateGroupName(group)}</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {item.name || COMMUNICATION_TEMPLATE_CODE_LABELS[item.code]}
+                    </h2>
                     <span
-                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getCommunicationTemplateStatusClasses(group.primaryStatus)}`}
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getCommunicationTemplateStatusClasses(item.primaryStatus)}`}
                     >
-                      {getCommunicationTemplateStatusLabel(group.primaryStatus)}
+                      {getCommunicationTemplateStatusLabel(item.primaryStatus)}
                     </span>
-                    {group.activeVersionNumber !== null && (
+                    {item.publishedVersionNumber !== null && (
                       <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
-                        Wersja aktywna: v{group.activeVersionNumber}
+                        Wersja aktywna: v{item.publishedVersionNumber}
                       </span>
                     )}
                   </div>
 
                   <p className="mt-2 text-sm font-medium text-gray-600">
-                    {COMMUNICATION_TEMPLATE_CODE_LABELS[group.code]} · {group.code}
+                    {COMMUNICATION_TEMPLATE_CODE_LABELS[item.code]} · {item.code}
                   </p>
 
                   <p className="mt-3 text-sm leading-6 text-gray-600">
-                    {group.description || 'Brak opisu operacyjnego dla tego szablonu.'}
+                    {item.description || 'Brak opisu operacyjnego dla tego szablonu.'}
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={() => onOpen(group)} className="btn-primary">
+                  <button type="button" onClick={() => onOpen(item.code)} className="btn-primary">
                     Otworz
                   </button>
 
@@ -209,16 +210,16 @@ export function CommunicationTemplatesList({
                     <div className="absolute right-0 z-10 mt-2 w-64 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
                       <button
                         type="button"
-                        onClick={() => onCreateDraft(group)}
+                        onClick={() => onCreateDraft(item.code)}
                         className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
                       >
                         Utworz nowa wersje robocza
                       </button>
                       <button
                         type="button"
-                        onClick={() => onPreviewPublished(group)}
+                        onClick={() => onPreviewPublished(item.code)}
                         className="mt-1 w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50"
-                        disabled={!group.publishedVersion}
+                        disabled={!item.publishedVersionId}
                       >
                         Podglad aktywnej wersji
                       </button>
@@ -228,19 +229,19 @@ export function CommunicationTemplatesList({
               </div>
 
               <div className="mt-5 grid gap-4 text-sm md:grid-cols-2 xl:grid-cols-5">
-                <InfoBox label="Kanal" value={CONTACT_CHANNEL_LABELS[group.channel]} />
-                <InfoBox label="Status operacyjny" value={group.statusSummary} />
+                <InfoBox label="Kanal" value={CONTACT_CHANNEL_LABELS[item.channel]} />
+                <InfoBox label="Status operacyjny" value={item.statusSummary} />
                 <InfoBox
                   label="Ostatnia zmiana"
-                  value={formatDateTime(group.lastUpdatedAt)}
+                  value={formatDateTime(item.lastVersionUpdatedAt ?? item.updatedAt)}
                 />
                 <InfoBox
                   label="Autor ostatniej zmiany"
-                  value={group.lastUpdatedByDisplayName ?? 'Brak danych'}
+                  value={item.lastVersionUpdatedByDisplayName ?? item.updatedByDisplayName ?? 'Brak danych'}
                 />
                 <InfoBox
                   label="Zakres wersji"
-                  value={`${group.versions.length} lacznie · ${group.draftVersions.length} robocze`}
+                  value={`${item.versionCounts.total} lacznie · ${item.versionCounts.draft} robocze`}
                 />
               </div>
             </article>

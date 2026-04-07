@@ -14,9 +14,9 @@ interface CommunicationTemplateVersionCardProps {
   onPreview?: (version: CommunicationTemplateVersionView) => void
   onEdit?: (version: CommunicationTemplateVersionView) => void
   onPublish?: (version: CommunicationTemplateVersionView) => void
+  onArchive?: (version: CommunicationTemplateVersionView) => void
   onClone?: (version: CommunicationTemplateVersionView) => void
   onDetails?: (version: CommunicationTemplateVersionView) => void
-  archiveLabel?: string
 }
 
 function formatDateTime(value: string | null): string {
@@ -55,9 +55,9 @@ export function CommunicationTemplateVersionCard({
   onPreview,
   onEdit,
   onPublish,
+  onArchive,
   onClone,
   onDetails,
-  archiveLabel = 'Archiwizacja w kolejnym etapie',
 }: CommunicationTemplateVersionCardProps) {
   return (
     <article
@@ -71,7 +71,7 @@ export function CommunicationTemplateVersionCard({
             {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
             <StatusBadge status={version.uiStatus} />
             <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">
-              v{version.version}
+              v{version.versionNumber}
             </span>
           </div>
           {subtitle && <p className="mt-2 text-sm leading-6 text-gray-600">{subtitle}</p>}
@@ -119,6 +119,12 @@ export function CommunicationTemplateVersionCard({
           </button>
         )}
 
+        {onArchive && version.uiStatus === 'DRAFT' && (
+          <button type="button" onClick={() => onArchive(version)} className="btn-secondary">
+            Archiwizuj
+          </button>
+        )}
+
         {onClone && (
           <button type="button" onClick={() => onClone(version)} className="btn-secondary">
             Sklonuj do nowej wersji roboczej
@@ -129,12 +135,6 @@ export function CommunicationTemplateVersionCard({
           <button type="button" onClick={() => onDetails(version)} className="btn-secondary">
             Szczegoly
           </button>
-        )}
-
-        {!onEdit && version.uiStatus === 'DRAFT' && (
-          <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-            {archiveLabel}
-          </span>
         )}
       </div>
     </article>

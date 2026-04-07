@@ -3,20 +3,30 @@ import {
   COMMUNICATION_TEMPLATE_PLACEHOLDER_LABELS,
   type CommunicationTemplateCode,
   type CommunicationTemplateDto,
+  type CommunicationTemplateListItemDto,
   type CommunicationTemplatePlaceholder,
+  type CommunicationTemplatePreviewContextSummaryDto,
+  type CommunicationTemplatePreviewRealCaseDto,
+  type CommunicationTemplateVersionDto,
+  type CommunicationTemplateVersionStatus,
   type ContactChannel,
 } from '@np-manager/shared'
 
-export type CommunicationTemplateUiStatus = 'PUBLISHED' | 'DRAFT' | 'ARCHIVED'
+export type CommunicationTemplateUiStatus = CommunicationTemplateVersionStatus
 export type CommunicationTemplateListFilterStatus = 'ALL' | CommunicationTemplateUiStatus
 
-export interface CommunicationTemplateVersionView extends CommunicationTemplateDto {
-  uiStatus: CommunicationTemplateUiStatus
+export interface CommunicationTemplateVersionView extends CommunicationTemplateVersionDto {
+  code: CommunicationTemplateCode
+  channel: ContactChannel
+  name: string
+  description: string | null
   excerpt: string
+  uiStatus: CommunicationTemplateUiStatus
 }
 
 export interface CommunicationTemplateGroupView {
   key: string
+  id: string
   code: CommunicationTemplateCode
   channel: ContactChannel
   name: string
@@ -32,6 +42,12 @@ export interface CommunicationTemplateGroupView {
   statusSummary: string
 }
 
+export interface CommunicationTemplateListItemView extends CommunicationTemplateListItemDto {
+  key: string
+  primaryStatus: CommunicationTemplateUiStatus
+  statusSummary: string
+}
+
 export interface CommunicationTemplatePreviewResult {
   renderedSubject: string
   renderedBody: string
@@ -40,6 +56,8 @@ export interface CommunicationTemplatePreviewResult {
   unknownPlaceholders: string[]
   missingPlaceholders: CommunicationTemplatePlaceholder[]
   isRenderable: boolean
+  warnings: string[]
+  previewContextSummary: CommunicationTemplatePreviewContextSummaryDto | null
 }
 
 export const COMMUNICATION_TEMPLATE_TEST_CONTEXT: Record<CommunicationTemplatePlaceholder, string> = {
@@ -58,14 +76,6 @@ const PLACEHOLDER_REGEX = /{{\s*([a-zA-Z][a-zA-Z0-9]*)\s*}}/g
 const KNOWN_PLACEHOLDERS = Object.keys(COMMUNICATION_TEMPLATE_PLACEHOLDER_LABELS) as CommunicationTemplatePlaceholder[]
 const KNOWN_PLACEHOLDER_SET = new Set<string>(KNOWN_PLACEHOLDERS)
 
-function toTimestamp(value: string): number {
-  return new Date(value).getTime()
-}
-
-function byNewest(left: CommunicationTemplateDto, right: CommunicationTemplateDto): number {
-  return toTimestamp(right.updatedAt) - toTimestamp(left.updatedAt) || right.version - left.version
-}
-
 function getExcerpt(value: string): string {
   const normalized = value.replace(/\s+/g, ' ').trim()
   if (normalized.length <= 120) {
@@ -75,8 +85,107 @@ function getExcerpt(value: string): string {
   return `${normalized.slice(0, 117)}...`
 }
 
-function getGroupKey(code: CommunicationTemplateCode, channel: ContactChannel): string {
-  return `${code}::${channel}`
+function mapVersionToView(
+  version: CommunicationTemplateVersionDto,
+  template: Pick<CommunicationTemplateDto, 'code' | 'channel' | 'name' | 'description'>,
+): CommunicationTemplateVersionView {
+  return {
+    ...version,
+    code: template.code,
+    channel: template.channel,
+    name: template.name,
+    description: template.description,
+    excerpt: getExcerpt(version.bodyTemplate),
+    uiStatus: version.status,
+  }
+}
+
+export function buildCommunicationTemplateDetailView(
+  template: CommunicationTemplateDto | null,
+): CommunicationTemplateGroupView | null {
+  if (!template) {
+    return null
+  }
+
+  const versions = template.versions
+    .slice()
+    .sort((left, right) => {
+      return (
+        new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime() ||
+        right.versionNumber - left.versionNumber
+      )
+    })
+    .map((version) => mapVersionToView(version, template))
+
+  const publishedVersion = versions.find((version) => version.status === 'PUBLISHED') ?? null
+  const draftVersions = versions.filter((version) => version.status === 'DRAFT')
+  const archivedVersions = versions.filter((version) => version.status === 'ARCHIVED')
+  const primaryStatus: CommunicationTemplateUiStatus =
+    draftVersions.length > 0
+      ? 'DRAFT'
+      : publishedVersion
+        ? 'PUBLISHED'
+        : 'ARCHIVED'
+  const lastVersion = versions[0] ?? null
+
+  return {
+    key: `${template.code}::${template.channel}`,
+    id: template.id,
+    code: template.code,
+    channel: template.channel,
+    name: template.name || COMMUNICATION_TEMPLATE_CODE_LABELS[template.code],
+    description: template.description,
+    publishedVersion,
+    draftVersions,
+    archivedVersions,
+    versions,
+    activeVersionNumber: publishedVersion?.versionNumber ?? null,
+    primaryStatus,
+    lastUpdatedAt: lastVersion?.updatedAt ?? template.updatedAt,
+    lastUpdatedByDisplayName: lastVersion?.updatedByDisplayName ?? template.updatedByDisplayName,
+    statusSummary:
+      publishedVersion && draftVersions.length > 0
+        ? `Opublikowana v${publishedVersion.versionNumber} i ${draftVersions.length} robocza`
+        : publishedVersion
+          ? `Opublikowana v${publishedVersion.versionNumber}`
+          : draftVersions.length > 0
+            ? `${draftVersions.length} wersja robocza`
+            : 'Brak opublikowanej wersji',
+  }
+}
+
+export function buildCommunicationTemplateListView(
+  items: CommunicationTemplateListItemDto[],
+): CommunicationTemplateListItemView[] {
+  return items
+    .map((item) => {
+      const primaryStatus: CommunicationTemplateUiStatus =
+        item.versionCounts.draft > 0
+          ? 'DRAFT'
+          : item.versionCounts.published > 0
+            ? 'PUBLISHED'
+            : 'ARCHIVED'
+
+      return {
+        ...item,
+        key: `${item.code}::${item.channel}`,
+        primaryStatus,
+        statusSummary:
+          item.versionCounts.published > 0 && item.versionCounts.draft > 0
+            ? `Opublikowana v${item.publishedVersionNumber} i ${item.versionCounts.draft} robocza`
+            : item.versionCounts.published > 0
+              ? `Opublikowana v${item.publishedVersionNumber}`
+              : item.versionCounts.draft > 0
+                ? `${item.versionCounts.draft} wersja robocza`
+                : 'Brak opublikowanej wersji',
+      }
+    })
+    .sort((left, right) => {
+      return (
+        new Date(right.lastVersionUpdatedAt ?? right.updatedAt).getTime() -
+        new Date(left.lastVersionUpdatedAt ?? left.updatedAt).getTime()
+      )
+    })
 }
 
 export function getCommunicationTemplateStatusLabel(status: CommunicationTemplateUiStatus): string {
@@ -108,108 +217,8 @@ export function getCommunicationTemplatePlaceholderItems() {
   }))
 }
 
-export function getTemplateGroupName(group: CommunicationTemplateGroupView): string {
+export function getTemplateGroupName(group: Pick<CommunicationTemplateGroupView, 'code' | 'name'>) {
   return group.name || COMMUNICATION_TEMPLATE_CODE_LABELS[group.code]
-}
-
-export function buildCommunicationTemplateGroups(
-  templates: CommunicationTemplateDto[],
-): CommunicationTemplateGroupView[] {
-  const grouped = new Map<string, CommunicationTemplateDto[]>()
-
-  templates.forEach((template) => {
-    const key = getGroupKey(template.code, template.channel)
-    const current = grouped.get(key) ?? []
-    current.push(template)
-    grouped.set(key, current)
-  })
-
-  return [...grouped.entries()]
-    .map(([key, versions]) => {
-      const sorted = [...versions].sort(byNewest)
-      const publishedVersionBase = sorted.find((template) => template.isActive) ?? null
-      const inactiveVersions = sorted.filter((template) => !template.isActive)
-      const publishedCreatedAt = publishedVersionBase ? toTimestamp(publishedVersionBase.createdAt) : null
-
-      const draftBases =
-        publishedCreatedAt === null
-          ? inactiveVersions.slice(0, 1)
-          : inactiveVersions.filter((template) => toTimestamp(template.createdAt) > publishedCreatedAt)
-
-      const draftIds = new Set(draftBases.map((template) => template.id))
-      const archivedBases = inactiveVersions.filter((template) => !draftIds.has(template.id))
-
-      const publishedVersion = publishedVersionBase
-        ? {
-            ...publishedVersionBase,
-            uiStatus: 'PUBLISHED' as const,
-            excerpt: getExcerpt(publishedVersionBase.bodyTemplate),
-          }
-        : null
-
-      const draftVersions = draftBases.map((template) => ({
-        ...template,
-        uiStatus: 'DRAFT' as const,
-        excerpt: getExcerpt(template.bodyTemplate),
-      }))
-
-      const archivedVersions = archivedBases.map((template) => ({
-        ...template,
-        uiStatus: 'ARCHIVED' as const,
-        excerpt: getExcerpt(template.bodyTemplate),
-      }))
-
-      const versionsView = [publishedVersion, ...draftVersions, ...archivedVersions].filter(
-        Boolean,
-      ) as CommunicationTemplateVersionView[]
-
-      const primaryStatus: CommunicationTemplateUiStatus =
-        draftVersions.length > 0
-          ? 'DRAFT'
-          : publishedVersion
-            ? 'PUBLISHED'
-            : 'ARCHIVED'
-
-      const representative =
-        publishedVersion ?? draftVersions[0] ?? archivedVersions[0] ?? null
-
-      const statusSummary =
-        publishedVersion && draftVersions.length > 0
-          ? `Opublikowana v${publishedVersion.version} i ${draftVersions.length} robocza`
-          : publishedVersion
-            ? `Opublikowana v${publishedVersion.version}`
-            : draftVersions.length > 0
-              ? `${draftVersions.length} wersja robocza`
-              : 'Brak opublikowanej wersji'
-
-      return {
-        key,
-        code: representative?.code ?? versions[0]!.code,
-        channel: representative?.channel ?? versions[0]!.channel,
-        name: representative?.name ?? COMMUNICATION_TEMPLATE_CODE_LABELS[versions[0]!.code],
-        description: representative?.description ?? null,
-        publishedVersion,
-        draftVersions,
-        archivedVersions,
-        versions: versionsView.sort(byNewest),
-        activeVersionNumber: publishedVersion?.version ?? null,
-        primaryStatus,
-        lastUpdatedAt: representative?.updatedAt ?? versions[0]!.updatedAt,
-        lastUpdatedByDisplayName: representative?.updatedByDisplayName ?? null,
-        statusSummary,
-      }
-    })
-    .sort((left, right) => toTimestamp(right.lastUpdatedAt) - toTimestamp(left.lastUpdatedAt))
-}
-
-export function findTemplateGroupByCode(
-  groups: CommunicationTemplateGroupView[],
-  code: string | undefined,
-  channel: ContactChannel = 'EMAIL',
-): CommunicationTemplateGroupView | null {
-  if (!code) return null
-
-  return groups.find((group) => group.code === code && group.channel === channel) ?? null
 }
 
 export function renderCommunicationTemplatePreview(params: {
@@ -258,5 +267,27 @@ export function renderCommunicationTemplatePreview(params: {
     unknownPlaceholders,
     missingPlaceholders,
     isRenderable: unknownPlaceholders.length === 0 && missingPlaceholders.length === 0,
+    warnings: [],
+    previewContextSummary: null,
+  }
+}
+
+export function mapRealCasePreviewToPreviewResult(
+  preview: CommunicationTemplatePreviewRealCaseDto,
+): CommunicationTemplatePreviewResult {
+  const knownPlaceholders = preview.usedPlaceholders.filter((item): item is CommunicationTemplatePlaceholder =>
+    KNOWN_PLACEHOLDER_SET.has(item),
+  )
+
+  return {
+    renderedSubject: preview.renderedSubject,
+    renderedBody: preview.renderedBody,
+    usedPlaceholders: preview.usedPlaceholders,
+    knownPlaceholders,
+    unknownPlaceholders: preview.unknownPlaceholders,
+    missingPlaceholders: preview.missingPlaceholders,
+    isRenderable: preview.isRenderable,
+    warnings: preview.warnings,
+    previewContextSummary: preview.previewContextSummary,
   }
 }

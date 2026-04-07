@@ -2,18 +2,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   mockListCommunicationTemplates,
-  mockGetCommunicationTemplateById,
+  mockGetCommunicationTemplateByCode,
+  mockGetCommunicationTemplateVersions,
   mockCreateCommunicationTemplate,
-  mockUpdateCommunicationTemplate,
-  mockActivateCommunicationTemplate,
-  mockDeactivateCommunicationTemplate,
+  mockCreateCommunicationTemplateVersion,
+  mockUpdateCommunicationTemplateVersion,
+  mockPublishCommunicationTemplateVersion,
+  mockArchiveCommunicationTemplateVersion,
+  mockCloneCommunicationTemplateVersion,
+  mockPreviewCommunicationTemplateVersionForRealCase,
 } = vi.hoisted(() => ({
   mockListCommunicationTemplates: vi.fn(),
-  mockGetCommunicationTemplateById: vi.fn(),
+  mockGetCommunicationTemplateByCode: vi.fn(),
+  mockGetCommunicationTemplateVersions: vi.fn(),
   mockCreateCommunicationTemplate: vi.fn(),
-  mockUpdateCommunicationTemplate: vi.fn(),
-  mockActivateCommunicationTemplate: vi.fn(),
-  mockDeactivateCommunicationTemplate: vi.fn(),
+  mockCreateCommunicationTemplateVersion: vi.fn(),
+  mockUpdateCommunicationTemplateVersion: vi.fn(),
+  mockPublishCommunicationTemplateVersion: vi.fn(),
+  mockArchiveCommunicationTemplateVersion: vi.fn(),
+  mockCloneCommunicationTemplateVersion: vi.fn(),
+  mockPreviewCommunicationTemplateVersionForRealCase: vi.fn(),
 }))
 
 vi.mock('../modules/auth/auth.router', () => ({
@@ -51,36 +59,95 @@ vi.mock('../shared/middleware/authorize', () => ({
 
 vi.mock('../modules/communications/communication-templates.service', () => ({
   listCommunicationTemplates: (...args: unknown[]) => mockListCommunicationTemplates(...args),
-  getCommunicationTemplateById: (...args: unknown[]) => mockGetCommunicationTemplateById(...args),
+  getCommunicationTemplateByCode: (...args: unknown[]) => mockGetCommunicationTemplateByCode(...args),
+  getCommunicationTemplateVersions: (...args: unknown[]) => mockGetCommunicationTemplateVersions(...args),
   createCommunicationTemplate: (...args: unknown[]) => mockCreateCommunicationTemplate(...args),
-  updateCommunicationTemplate: (...args: unknown[]) => mockUpdateCommunicationTemplate(...args),
-  activateCommunicationTemplate: (...args: unknown[]) =>
-    mockActivateCommunicationTemplate(...args),
-  deactivateCommunicationTemplate: (...args: unknown[]) =>
-    mockDeactivateCommunicationTemplate(...args),
-  getActiveCommunicationTemplateOrThrow: vi.fn(),
+  createCommunicationTemplateVersion: (...args: unknown[]) => mockCreateCommunicationTemplateVersion(...args),
+  updateCommunicationTemplateVersion: (...args: unknown[]) =>
+    mockUpdateCommunicationTemplateVersion(...args),
+  publishCommunicationTemplateVersion: (...args: unknown[]) =>
+    mockPublishCommunicationTemplateVersion(...args),
+  archiveCommunicationTemplateVersion: (...args: unknown[]) =>
+    mockArchiveCommunicationTemplateVersion(...args),
+  cloneCommunicationTemplateVersion: (...args: unknown[]) => mockCloneCommunicationTemplateVersion(...args),
+  previewCommunicationTemplateVersionForRealCase: (...args: unknown[]) =>
+    mockPreviewCommunicationTemplateVersionForRealCase(...args),
+  getPublishedCommunicationTemplateVersionOrThrow: vi.fn(),
   resolveCommunicationTemplateCodeForAction: vi.fn(),
 }))
 
 import { buildApp } from '../app'
 
-function makeTemplateDto(overrides: Record<string, unknown> = {}) {
+function makeVersionDto(overrides: Record<string, unknown> = {}) {
   return {
-    id: 'tpl-1',
-    code: 'REQUEST_RECEIVED',
-    name: 'Wniosek przyjety',
-    description: 'Opis',
-    channel: 'EMAIL',
+    id: 'tpl-version-1',
+    templateId: 'tpl-family-1',
+    versionNumber: 1,
+    status: 'PUBLISHED',
     subjectTemplate: 'Sprawa {{caseNumber}}',
     bodyTemplate: 'Dzien dobry {{clientName}}',
-    isActive: true,
-    version: 1,
     createdAt: '2026-04-06T10:00:00.000Z',
     updatedAt: '2026-04-06T10:00:00.000Z',
     createdByUserId: 'user-1',
     updatedByUserId: 'user-1',
     createdByDisplayName: 'System Administrator',
     updatedByDisplayName: 'System Administrator',
+    publishedAt: '2026-04-06T10:00:00.000Z',
+    publishedByUserId: 'user-1',
+    publishedByDisplayName: 'System Administrator',
+    ...overrides,
+  }
+}
+
+function makeTemplateDto(overrides: Record<string, unknown> = {}) {
+  const publishedVersion = makeVersionDto()
+
+  return {
+    id: 'tpl-family-1',
+    code: 'REQUEST_RECEIVED',
+    name: 'Wniosek przyjety',
+    description: 'Opis',
+    channel: 'EMAIL',
+    createdAt: '2026-04-06T10:00:00.000Z',
+    updatedAt: '2026-04-06T10:00:00.000Z',
+    createdByUserId: 'user-1',
+    updatedByUserId: 'user-1',
+    createdByDisplayName: 'System Administrator',
+    updatedByDisplayName: 'System Administrator',
+    publishedVersionId: publishedVersion.id,
+    publishedVersionNumber: publishedVersion.versionNumber,
+    publishedAt: publishedVersion.publishedAt,
+    publishedByDisplayName: publishedVersion.publishedByDisplayName,
+    versions: [publishedVersion],
+    ...overrides,
+  }
+}
+
+function makeTemplateSummaryDto(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'tpl-family-1',
+    code: 'REQUEST_RECEIVED',
+    name: 'Wniosek przyjety',
+    description: 'Opis',
+    channel: 'EMAIL',
+    createdAt: '2026-04-06T10:00:00.000Z',
+    updatedAt: '2026-04-06T10:00:00.000Z',
+    createdByUserId: 'user-1',
+    updatedByUserId: 'user-1',
+    createdByDisplayName: 'System Administrator',
+    updatedByDisplayName: 'System Administrator',
+    publishedVersionId: 'tpl-version-1',
+    publishedVersionNumber: 1,
+    publishedAt: '2026-04-06T10:00:00.000Z',
+    publishedByDisplayName: 'System Administrator',
+    lastVersionUpdatedAt: '2026-04-06T10:00:00.000Z',
+    lastVersionUpdatedByDisplayName: 'System Administrator',
+    versionCounts: {
+      total: 2,
+      draft: 1,
+      published: 1,
+      archived: 0,
+    },
     ...overrides,
   }
 }
@@ -88,53 +155,70 @@ function makeTemplateDto(overrides: Record<string, unknown> = {}) {
 describe('admin communication template routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockListCommunicationTemplates.mockResolvedValue({ items: [makeTemplateDto()] })
-    mockGetCommunicationTemplateById.mockResolvedValue(makeTemplateDto())
+    mockListCommunicationTemplates.mockResolvedValue({ items: [makeTemplateSummaryDto()] })
+    mockGetCommunicationTemplateByCode.mockResolvedValue(makeTemplateDto())
+    mockGetCommunicationTemplateVersions.mockResolvedValue({
+      items: [makeVersionDto(), makeVersionDto({ id: 'tpl-version-2', versionNumber: 2, status: 'DRAFT' })],
+    })
     mockCreateCommunicationTemplate.mockResolvedValue(makeTemplateDto())
-    mockUpdateCommunicationTemplate.mockResolvedValue(makeTemplateDto({ version: 2 }))
-    mockActivateCommunicationTemplate.mockResolvedValue(makeTemplateDto({ version: 2 }))
-    mockDeactivateCommunicationTemplate.mockResolvedValue(
-      makeTemplateDto({ version: 2, isActive: false }),
-    )
+    mockCreateCommunicationTemplateVersion.mockResolvedValue(makeVersionDto({ id: 'tpl-version-2', versionNumber: 2, status: 'DRAFT' }))
+    mockUpdateCommunicationTemplateVersion.mockResolvedValue(makeVersionDto({ id: 'tpl-version-2', versionNumber: 2, status: 'DRAFT' }))
+    mockPublishCommunicationTemplateVersion.mockResolvedValue(makeVersionDto({ id: 'tpl-version-2', versionNumber: 2, status: 'PUBLISHED' }))
+    mockArchiveCommunicationTemplateVersion.mockResolvedValue(makeVersionDto({ id: 'tpl-version-2', versionNumber: 2, status: 'ARCHIVED', publishedAt: null, publishedByUserId: null, publishedByDisplayName: null }))
+    mockCloneCommunicationTemplateVersion.mockResolvedValue(makeVersionDto({ id: 'tpl-version-3', versionNumber: 3, status: 'DRAFT', publishedAt: null, publishedByUserId: null, publishedByDisplayName: null }))
+    mockPreviewCommunicationTemplateVersionForRealCase.mockResolvedValue({
+      renderedSubject: 'Sprawa FNP-001',
+      renderedBody: 'Dzien dobry Jan Kowalski',
+      usedPlaceholders: ['caseNumber', 'clientName'],
+      missingPlaceholders: [],
+      unknownPlaceholders: [],
+      isRenderable: true,
+      previewContextSummary: {
+        portingRequestId: 'req-1',
+        caseNumber: 'FNP-001',
+        clientName: 'Jan Kowalski',
+        donorOperatorName: 'Orange Polska',
+        recipientOperatorName: 'G-NET',
+        plannedPortDate: '14.04.2026',
+        statusInternal: 'SUBMITTED',
+      },
+      warnings: [],
+    })
   })
 
-  it('registers list route under /api/admin/communication-templates', async () => {
+  it('registers list and detail routes under /api/admin', async () => {
     const app = await buildApp()
 
     try {
-      const response = await app.inject({
+      const listResponse = await app.inject({
         method: 'GET',
         url: '/api/admin/communication-templates',
       })
 
-      expect(response.statusCode).toBe(200)
-      expect(mockListCommunicationTemplates).toHaveBeenCalledOnce()
-    } finally {
-      await app.close()
-    }
-  })
-
-  it('registers detail route for single admin template', async () => {
-    const app = await buildApp()
-
-    try {
-      const response = await app.inject({
+      const detailResponse = await app.inject({
         method: 'GET',
-        url: '/api/admin/communication-templates/tpl-1',
+        url: '/api/admin/communication-templates/REQUEST_RECEIVED',
       })
 
-      expect(response.statusCode).toBe(200)
-      expect(mockGetCommunicationTemplateById).toHaveBeenCalledWith('tpl-1')
+      expect(listResponse.statusCode).toBe(200)
+      expect(detailResponse.statusCode).toBe(200)
+      expect(mockListCommunicationTemplates).toHaveBeenCalledOnce()
+      expect(mockGetCommunicationTemplateByCode).toHaveBeenCalledWith('REQUEST_RECEIVED')
     } finally {
       await app.close()
     }
   })
 
-  it('registers create and update routes for admin templates', async () => {
+  it('registers versions, create family and create version routes', async () => {
     const app = await buildApp()
 
     try {
-      const createResponse = await app.inject({
+      const versionsResponse = await app.inject({
+        method: 'GET',
+        url: '/api/admin/communication-templates/REQUEST_RECEIVED/versions',
+      })
+
+      const createTemplateResponse = await app.inject({
         method: 'POST',
         url: '/api/admin/communication-templates',
         payload: {
@@ -146,16 +230,19 @@ describe('admin communication template routes', () => {
         },
       })
 
-      const updateResponse = await app.inject({
-        method: 'PATCH',
-        url: '/api/admin/communication-templates/tpl-1',
+      const createVersionResponse = await app.inject({
+        method: 'POST',
+        url: '/api/admin/communication-templates/REQUEST_RECEIVED/versions',
         payload: {
-          name: 'Wniosek przyjety v2',
+          subjectTemplate: 'Aktualizacja {{caseNumber}}',
+          bodyTemplate: 'Body {{clientName}}',
         },
       })
 
-      expect(createResponse.statusCode).toBe(201)
-      expect(updateResponse.statusCode).toBe(200)
+      expect(versionsResponse.statusCode).toBe(200)
+      expect(createTemplateResponse.statusCode).toBe(201)
+      expect(createVersionResponse.statusCode).toBe(201)
+      expect(mockGetCommunicationTemplateVersions).toHaveBeenCalledWith('REQUEST_RECEIVED')
       expect(mockCreateCommunicationTemplate).toHaveBeenCalledWith(
         expect.objectContaining({
           code: 'REQUEST_RECEIVED',
@@ -165,9 +252,12 @@ describe('admin communication template routes', () => {
         expect.any(String),
         expect.any(String),
       )
-      expect(mockUpdateCommunicationTemplate).toHaveBeenCalledWith(
-        'tpl-1',
-        { name: 'Wniosek przyjety v2' },
+      expect(mockCreateCommunicationTemplateVersion).toHaveBeenCalledWith(
+        'REQUEST_RECEIVED',
+        {
+          subjectTemplate: 'Aktualizacja {{caseNumber}}',
+          bodyTemplate: 'Body {{clientName}}',
+        },
         'user-1',
         expect.any(String),
         expect.any(String),
@@ -177,33 +267,74 @@ describe('admin communication template routes', () => {
     }
   })
 
-  it('registers activate and deactivate routes', async () => {
+  it('registers version mutation routes for publish, archive, clone and preview-real-case', async () => {
     const app = await buildApp()
 
     try {
-      const activateResponse = await app.inject({
-        method: 'POST',
-        url: '/api/admin/communication-templates/tpl-1/activate',
+      const updateResponse = await app.inject({
+        method: 'PATCH',
+        url: '/api/admin/communication-template-versions/tpl-version-2',
+        payload: {
+          subjectTemplate: 'Zmiana {{caseNumber}}',
+        },
       })
 
-      const deactivateResponse = await app.inject({
+      const publishResponse = await app.inject({
         method: 'POST',
-        url: '/api/admin/communication-templates/tpl-1/deactivate',
+        url: '/api/admin/communication-template-versions/tpl-version-2/publish',
       })
 
-      expect(activateResponse.statusCode).toBe(200)
-      expect(deactivateResponse.statusCode).toBe(200)
-      expect(mockActivateCommunicationTemplate).toHaveBeenCalledWith(
-        'tpl-1',
+      const archiveResponse = await app.inject({
+        method: 'POST',
+        url: '/api/admin/communication-template-versions/tpl-version-2/archive',
+      })
+
+      const cloneResponse = await app.inject({
+        method: 'POST',
+        url: '/api/admin/communication-template-versions/tpl-version-1/clone',
+      })
+
+      const previewResponse = await app.inject({
+        method: 'POST',
+        url: '/api/admin/communication-template-versions/tpl-version-1/preview-real-case',
+        payload: {
+          caseNumber: 'FNP-001',
+        },
+      })
+
+      expect(updateResponse.statusCode).toBe(200)
+      expect(publishResponse.statusCode).toBe(200)
+      expect(archiveResponse.statusCode).toBe(200)
+      expect(cloneResponse.statusCode).toBe(201)
+      expect(previewResponse.statusCode).toBe(200)
+      expect(mockUpdateCommunicationTemplateVersion).toHaveBeenCalledWith(
+        'tpl-version-2',
+        { subjectTemplate: 'Zmiana {{caseNumber}}' },
         'user-1',
         expect.any(String),
         expect.any(String),
       )
-      expect(mockDeactivateCommunicationTemplate).toHaveBeenCalledWith(
-        'tpl-1',
+      expect(mockPublishCommunicationTemplateVersion).toHaveBeenCalledWith(
+        'tpl-version-2',
         'user-1',
         expect.any(String),
         expect.any(String),
+      )
+      expect(mockArchiveCommunicationTemplateVersion).toHaveBeenCalledWith(
+        'tpl-version-2',
+        'user-1',
+        expect.any(String),
+        expect.any(String),
+      )
+      expect(mockCloneCommunicationTemplateVersion).toHaveBeenCalledWith(
+        'tpl-version-1',
+        'user-1',
+        expect.any(String),
+        expect.any(String),
+      )
+      expect(mockPreviewCommunicationTemplateVersionForRealCase).toHaveBeenCalledWith(
+        'tpl-version-1',
+        { caseNumber: 'FNP-001' },
       )
     } finally {
       await app.close()

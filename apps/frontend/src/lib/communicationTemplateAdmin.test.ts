@@ -3,7 +3,6 @@ import {
   createPreviewModalKeydownHandler,
   getCommunicationTemplateAdminErrorMessage,
   normalizeCommunicationTemplateChannel,
-  publishCommunicationTemplateVersion,
 } from './communicationTemplateAdmin'
 
 describe('communicationTemplateAdmin helpers', () => {
@@ -44,29 +43,23 @@ describe('communicationTemplateAdmin helpers', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('publishes by deactivating the current version and activating the draft', async () => {
-    const persistDraft = vi.fn().mockResolvedValue({
-      id: 'tpl-draft',
-      code: 'REQUEST_RECEIVED',
-    })
-    const activateTemplate = vi.fn().mockResolvedValue(undefined)
-    const deactivateTemplate = vi.fn().mockResolvedValue(undefined)
+  it('maps known backend communication template errors to business messages', () => {
+    const error = {
+      isAxiosError: true,
+      response: {
+        data: {
+          error: {
+            code: 'COMMUNICATION_TEMPLATE_VERSION_PUBLISHED_ARCHIVE_BLOCKED',
+          },
+        },
+      },
+    }
 
-    const result = await publishCommunicationTemplateVersion({
-      code: 'REQUEST_RECEIVED',
-      versionId: null,
-      activeVersionId: 'tpl-active',
-      persistDraft,
-      activateTemplate,
-      deactivateTemplate,
-    })
-
-    expect(persistDraft).toHaveBeenCalledOnce()
-    expect(deactivateTemplate).toHaveBeenCalledWith('tpl-active')
-    expect(activateTemplate).toHaveBeenCalledWith('tpl-draft')
-    expect(result).toEqual({
-      code: 'REQUEST_RECEIVED',
-      versionId: 'tpl-draft',
-    })
+    expect(
+      getCommunicationTemplateAdminErrorMessage(
+        error,
+        'Wystapil blad serwera. Sprobuj ponownie lub skontaktuj sie z administratorem.',
+      ),
+    ).toBe('Nie mozna archiwizowac opublikowanej wersji bez publikacji innej wersji.')
   })
 })

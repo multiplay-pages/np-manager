@@ -88,7 +88,7 @@ export function CommunicationTemplateEditor({
       bodyTemplate: false,
     })
     setHasAttemptedSubmit(false)
-  }, [form.id, form.version, form.code])
+  }, [form.id, form.versionNumber, form.code])
 
   const markFieldTouched = (field: keyof typeof touchedFields) => {
     setTouchedFields((current) => ({

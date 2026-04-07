@@ -5,10 +5,23 @@ export const ADMIN_COMMUNICATION_TEMPLATES_API_PATH = '/admin/communication-temp
 export const SUPPORTED_COMMUNICATION_TEMPLATE_CHANNELS = ['EMAIL'] as const
 
 const TEMPLATE_ERROR_MESSAGES: Record<string, string> = {
-  COMMUNICATION_TEMPLATE_ACTIVE_ALREADY_EXISTS:
-    'Dla tego kodu i kanalu istnieje juz inny aktywny szablon.',
+  COMMUNICATION_TEMPLATE_ALREADY_EXISTS: 'Dla tego kodu i kanalu istnieje juz szablon komunikatu.',
   COMMUNICATION_TEMPLATE_UNKNOWN_PLACEHOLDERS: 'Wykryto nieznane placeholdery.',
   COMMUNICATION_TEMPLATE_NOT_FOUND: 'Wybrany szablon nie istnieje.',
+  COMMUNICATION_TEMPLATE_VERSION_NOT_FOUND: 'Wybrana wersja szablonu nie istnieje.',
+  COMMUNICATION_TEMPLATE_VERSION_NOT_EDITABLE:
+    'Mozna edytowac tylko wersje robocze szablonow komunikatow.',
+  COMMUNICATION_TEMPLATE_VERSION_NOT_DRAFT: 'Publikowac mozna tylko wersje robocze.',
+  COMMUNICATION_TEMPLATE_VERSION_NOT_RENDERABLE:
+    'Nie mozna opublikowac wersji, ktora nie przechodzi walidacji renderowania.',
+  COMMUNICATION_TEMPLATE_PUBLISHED_NOT_FOUND:
+    'Brak opublikowanej wersji tego szablonu do uzycia operacyjnego.',
+  COMMUNICATION_TEMPLATE_PREVIEW_CASE_REQUIRED:
+    'Podaj identyfikator sprawy albo numer sprawy do preview.',
+  COMMUNICATION_TEMPLATE_PREVIEW_CASE_NOT_FOUND:
+    'Nie znaleziono wskazanej sprawy do preview szablonu.',
+  COMMUNICATION_TEMPLATE_VERSION_PUBLISHED_ARCHIVE_BLOCKED:
+    'Nie mozna archiwizowac opublikowanej wersji bez publikacji innej wersji.',
   VALIDATION_ERROR: 'Nieprawidlowe dane wejsciowe. Sprawdz zaznaczone pola.',
   NOT_FOUND: 'Nie znaleziono zasobu.',
 }
@@ -58,34 +71,5 @@ export function createPreviewModalKeydownHandler(onClose: () => void) {
     if (event.key === 'Escape') {
       onClose()
     }
-  }
-}
-
-export async function publishCommunicationTemplateVersion(params: {
-  code: string
-  versionId: string | null
-  activeVersionId?: string | null
-  persistDraft: () => Promise<{ id: string; code: string }>
-  activateTemplate: (id: string) => Promise<unknown>
-  deactivateTemplate: (id: string) => Promise<unknown>
-}) {
-  let resolvedVersionId = params.versionId
-  let resolvedCode = params.code
-
-  if (!resolvedVersionId) {
-    const savedDraft = await params.persistDraft()
-    resolvedVersionId = savedDraft.id
-    resolvedCode = savedDraft.code
-  }
-
-  if (params.activeVersionId && params.activeVersionId !== resolvedVersionId) {
-    await params.deactivateTemplate(params.activeVersionId)
-  }
-
-  await params.activateTemplate(resolvedVersionId)
-
-  return {
-    code: resolvedCode,
-    versionId: resolvedVersionId,
   }
 }

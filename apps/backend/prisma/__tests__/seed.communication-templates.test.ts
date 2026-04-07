@@ -12,12 +12,28 @@ describe('communication template seed data', () => {
     ])
   })
 
-  it('seeds active EMAIL templates with subject and body content', () => {
+  it('seeds published EMAIL template versions with subject and body content', () => {
     COMMUNICATION_TEMPLATE_SEED_DATA.forEach((template) => {
+      expect(template.templateId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+      expect(template.versionId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
       expect(template.channel).toBe('EMAIL')
-      expect(template.isActive).toBe(true)
+      expect(template.status).toBe('PUBLISHED')
+      expect(template.versionNumber).toBe(1)
       expect(template.subjectTemplate.length).toBeGreaterThan(0)
       expect(template.bodyTemplate.length).toBeGreaterThan(0)
     })
+  })
+
+  it('uses unique family and version identifiers for versioned template runtime fixtures', () => {
+    expect(new Set(COMMUNICATION_TEMPLATE_SEED_DATA.map((template) => template.templateId)).size).toBe(
+      COMMUNICATION_TEMPLATE_SEED_DATA.length,
+    )
+    expect(new Set(COMMUNICATION_TEMPLATE_SEED_DATA.map((template) => template.versionId)).size).toBe(
+      COMMUNICATION_TEMPLATE_SEED_DATA.length,
+    )
   })
 })

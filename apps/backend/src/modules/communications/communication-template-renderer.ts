@@ -75,6 +75,7 @@ export function renderCommunicationTemplate(
   return {
     renderedSubject,
     renderedBody,
+    usedPlaceholders: placeholders,
     missingPlaceholders,
     unknownPlaceholders,
     isRenderable: missingPlaceholders.length === 0 && unknownPlaceholders.length === 0,

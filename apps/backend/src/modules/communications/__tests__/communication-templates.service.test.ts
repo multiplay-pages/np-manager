@@ -1,21 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockFindMany = vi.fn()
-const mockFindUnique = vi.fn()
-const mockFindFirst = vi.fn()
-const mockCreate = vi.fn()
-const mockUpdate = vi.fn()
+const mockTemplateFindMany = vi.fn()
+const mockTemplateFindUnique = vi.fn()
+const mockTemplateFindUniqueOrThrow = vi.fn()
+const mockTemplateCreate = vi.fn()
+const mockTemplateUpdate = vi.fn()
+const mockVersionFindUnique = vi.fn()
+const mockVersionFindFirst = vi.fn()
+const mockVersionCreate = vi.fn()
+const mockVersionUpdate = vi.fn()
+const mockVersionUpdateMany = vi.fn()
+const mockPortingRequestFindFirst = vi.fn()
 const mockLogAuditEvent = vi.fn()
+
+const tx = {
+  communicationTemplate: {
+    findUniqueOrThrow: (...args: unknown[]) => mockTemplateFindUniqueOrThrow(...args),
+    update: (...args: unknown[]) => mockTemplateUpdate(...args),
+    create: (...args: unknown[]) => mockTemplateCreate(...args),
+  },
+  communicationTemplateVersion: {
+    findFirst: (...args: unknown[]) => mockVersionFindFirst(...args),
+    create: (...args: unknown[]) => mockVersionCreate(...args),
+    update: (...args: unknown[]) => mockVersionUpdate(...args),
+    updateMany: (...args: unknown[]) => mockVersionUpdateMany(...args),
+  },
+}
 
 vi.mock('../../../config/database', () => ({
   prisma: {
     communicationTemplate: {
-      findMany: (...args: unknown[]) => mockFindMany(...args),
-      findUnique: (...args: unknown[]) => mockFindUnique(...args),
-      findFirst: (...args: unknown[]) => mockFindFirst(...args),
-      create: (...args: unknown[]) => mockCreate(...args),
-      update: (...args: unknown[]) => mockUpdate(...args),
+      findMany: (...args: unknown[]) => mockTemplateFindMany(...args),
+      findUnique: (...args: unknown[]) => mockTemplateFindUnique(...args),
+      create: (...args: unknown[]) => mockTemplateCreate(...args),
+      update: (...args: unknown[]) => mockTemplateUpdate(...args),
     },
+    communicationTemplateVersion: {
+      findUnique: (...args: unknown[]) => mockVersionFindUnique(...args),
+      findFirst: (...args: unknown[]) => mockVersionFindFirst(...args),
+      create: (...args: unknown[]) => mockVersionCreate(...args),
+      update: (...args: unknown[]) => mockVersionUpdate(...args),
+      updateMany: (...args: unknown[]) => mockVersionUpdateMany(...args),
+    },
+    portingRequest: {
+      findFirst: (...args: unknown[]) => mockPortingRequestFindFirst(...args),
+    },
+    $transaction: async (callback: (value: typeof tx) => unknown) => callback(tx),
   },
 }))
 
@@ -24,36 +54,57 @@ vi.mock('../../../shared/audit/audit.service', () => ({
 }))
 
 import {
-  activateCommunicationTemplate,
+  archiveCommunicationTemplateVersion,
+  cloneCommunicationTemplateVersion,
   createCommunicationTemplate,
-  deactivateCommunicationTemplate,
+  createCommunicationTemplateVersion,
   listCommunicationTemplates,
-  updateCommunicationTemplate,
+  previewCommunicationTemplateVersionForRealCase,
+  publishCommunicationTemplateVersion,
 } from '../communication-templates.service'
 
-function makeTemplateRow(overrides: Record<string, unknown> = {}) {
+function makeVersionRow(overrides: Record<string, unknown> = {}) {
   return {
-    id: 'tpl-1',
-    code: 'REQUEST_RECEIVED',
-    name: 'Wniosek przyjety',
-    description: 'Szablon startowy',
-    channel: 'EMAIL',
+    id: 'tpl-version-1',
+    templateId: 'tpl-family-1',
+    versionNumber: 1,
+    status: 'PUBLISHED',
     subjectTemplate: 'Sprawa {{caseNumber}}',
     bodyTemplate: 'Dzien dobry {{clientName}}',
-    isActive: true,
-    version: 1,
     createdAt: new Date('2026-04-06T10:00:00.000Z'),
     updatedAt: new Date('2026-04-06T10:00:00.000Z'),
     createdByUserId: 'user-1',
     updatedByUserId: 'user-1',
-    createdBy: {
-      firstName: 'System',
-      lastName: 'Administrator',
+    publishedAt: new Date('2026-04-06T10:00:00.000Z'),
+    publishedByUserId: 'user-1',
+    createdBy: { firstName: 'Anna', lastName: 'Admin' },
+    updatedBy: { firstName: 'Anna', lastName: 'Admin' },
+    publishedBy: { firstName: 'Anna', lastName: 'Admin' },
+    template: {
+      id: 'tpl-family-1',
+      code: 'REQUEST_RECEIVED',
+      name: 'Wniosek przyjety',
+      description: 'Opis',
+      channel: 'EMAIL',
     },
-    updatedBy: {
-      firstName: 'System',
-      lastName: 'Administrator',
-    },
+    ...overrides,
+  }
+}
+
+function makeTemplateRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'tpl-family-1',
+    code: 'REQUEST_RECEIVED',
+    name: 'Wniosek przyjety',
+    description: 'Opis',
+    channel: 'EMAIL',
+    createdAt: new Date('2026-04-06T10:00:00.000Z'),
+    updatedAt: new Date('2026-04-06T10:00:00.000Z'),
+    createdByUserId: 'user-1',
+    updatedByUserId: 'user-1',
+    createdBy: { firstName: 'Anna', lastName: 'Admin' },
+    updatedBy: { firstName: 'Anna', lastName: 'Admin' },
+    versions: [makeVersionRow()],
     ...overrides,
   }
 }
@@ -61,159 +112,246 @@ function makeTemplateRow(overrides: Record<string, unknown> = {}) {
 describe('communication-templates.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFindMany.mockResolvedValue([makeTemplateRow()])
-    mockFindUnique.mockResolvedValue(makeTemplateRow())
-    mockFindFirst.mockResolvedValue(null)
-    mockCreate.mockResolvedValue(makeTemplateRow({ version: 3 }))
-    mockUpdate.mockResolvedValue(makeTemplateRow({ version: 2, isActive: false }))
+    mockTemplateFindMany.mockResolvedValue([makeTemplateRow()])
+    mockTemplateFindUnique.mockResolvedValue(makeTemplateRow())
+    mockTemplateFindUniqueOrThrow.mockResolvedValue(makeTemplateRow())
+    mockTemplateCreate.mockResolvedValue({ id: 'tpl-family-1' })
+    mockTemplateUpdate.mockResolvedValue(makeTemplateRow())
+    mockVersionFindUnique.mockResolvedValue(makeVersionRow())
+    mockVersionFindFirst.mockResolvedValue({ versionNumber: 1 })
+    mockVersionCreate.mockResolvedValue(makeVersionRow({ id: 'tpl-version-2', versionNumber: 2, status: 'DRAFT', publishedAt: null, publishedByUserId: null, publishedBy: null }))
+    mockVersionUpdate.mockResolvedValue(makeVersionRow({ id: 'tpl-version-2', versionNumber: 2, status: 'PUBLISHED' }))
+    mockVersionUpdateMany.mockResolvedValue({ count: 1 })
+    mockPortingRequestFindFirst.mockResolvedValue({
+      id: 'req-1',
+      caseNumber: 'FNP-001',
+      statusInternal: 'SUBMITTED',
+      primaryNumber: '221234567',
+      rangeStart: null,
+      rangeEnd: null,
+      numberRangeKind: 'SINGLE',
+      requestedPortDate: new Date('2026-04-15T00:00:00.000Z'),
+      confirmedPortDate: null,
+      donorAssignedPortDate: null,
+      rejectionReason: null,
+      client: {
+        clientType: 'INDIVIDUAL',
+        firstName: 'Jan',
+        lastName: 'Kowalski',
+        companyName: null,
+        email: 'jan@example.com',
+        phoneContact: '600700800',
+      },
+      donorOperator: { name: 'Orange Polska' },
+      recipientOperator: { name: 'G-NET' },
+    })
     mockLogAuditEvent.mockResolvedValue(undefined)
   })
 
-  it('lists templates for admin module', async () => {
+  it('lists template families with version counts from backend data', async () => {
     const result = await listCommunicationTemplates()
 
     expect(result.items).toHaveLength(1)
-    expect(result.items[0]?.code).toBe('REQUEST_RECEIVED')
-    expect(result.items[0]?.createdByDisplayName).toBe('System Administrator')
+    expect(result.items[0]?.versionCounts.published).toBe(1)
+    expect(result.items[0]?.publishedVersionNumber).toBe(1)
   })
 
-  it('creates a new template and assigns the next version for code and channel', async () => {
-    mockFindFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ version: 2 })
+  it('creates a template family with the first draft version', async () => {
+    mockTemplateFindUnique.mockResolvedValueOnce(null)
+    mockTemplateFindUniqueOrThrow.mockResolvedValue(
+      makeTemplateRow({
+        versions: [makeVersionRow({ id: 'tpl-version-1', versionNumber: 1, status: 'DRAFT', publishedAt: null, publishedByUserId: null, publishedBy: null })],
+      }),
+    )
 
     const result = await createCommunicationTemplate(
       {
         code: 'REQUEST_RECEIVED',
         name: 'Wniosek przyjety',
-        description: 'Nowa wersja',
+        description: 'Opis',
         channel: 'EMAIL',
         subjectTemplate: 'Sprawa {{caseNumber}}',
         bodyTemplate: 'Dzien dobry {{clientName}}',
-        isActive: true,
       },
       'user-1',
     )
 
-    expect(mockCreate).toHaveBeenCalledWith(
+    expect(mockTemplateCreate).toHaveBeenCalledOnce()
+    expect(mockVersionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          version: 3,
+          status: 'DRAFT',
+          versionNumber: 1,
         }),
       }),
     )
-    expect(result.version).toBe(3)
+    expect(result.versions[0]?.status).toBe('DRAFT')
   })
 
-  it('blocks creating another active template for the same code and channel', async () => {
-    mockFindFirst.mockResolvedValueOnce({
-      id: 'tpl-2',
-      name: 'Aktywny szablon',
-    })
-
-    await expect(
-      createCommunicationTemplate(
-        {
-          code: 'REQUEST_RECEIVED',
-          name: 'Duplikat',
-          channel: 'EMAIL',
-          subjectTemplate: 'Sprawa {{caseNumber}}',
-          bodyTemplate: 'Dzien dobry {{clientName}}',
-          isActive: true,
-        },
-        'user-1',
-      ),
-    ).rejects.toThrow(/Aktywny szablon/)
-
-    expect(mockCreate).not.toHaveBeenCalled()
-  })
-
-  it('updates a template and bumps version', async () => {
-    mockUpdate.mockResolvedValue(
-      makeTemplateRow({
-        version: 2,
-        name: 'Wniosek przyjety v2',
-        subjectTemplate: 'Aktualizacja {{caseNumber}}',
-      }),
-    )
-
-    const result = await updateCommunicationTemplate(
-      'tpl-1',
+  it('creates a new draft version for an existing template family', async () => {
+    const result = await createCommunicationTemplateVersion(
+      'REQUEST_RECEIVED',
       {
-        name: 'Wniosek przyjety v2',
         subjectTemplate: 'Aktualizacja {{caseNumber}}',
+        bodyTemplate: 'Body {{clientName}}',
       },
-      'user-2',
+      'user-1',
     )
 
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockVersionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          version: 2,
-          updatedByUserId: 'user-2',
+          templateId: 'tpl-family-1',
+          versionNumber: 2,
+          status: 'DRAFT',
         }),
       }),
     )
-    expect(result.version).toBe(2)
-    expect(result.name).toBe('Wniosek przyjety v2')
+    expect(result.status).toBe('DRAFT')
+    expect(result.versionNumber).toBe(2)
   })
 
-  it('blocks activating a template when another active one already exists for the same code and channel', async () => {
-    mockFindUnique.mockResolvedValue(
-      makeTemplateRow({
-        id: 'tpl-3',
-        isActive: false,
+  it('publishes a draft version and archives the previous published one atomically', async () => {
+    mockVersionFindUnique.mockResolvedValue(
+      makeVersionRow({
+        id: 'tpl-version-2',
+        versionNumber: 2,
+        status: 'DRAFT',
+        publishedAt: null,
+        publishedByUserId: null,
+        publishedBy: null,
       }),
     )
-    mockFindFirst.mockResolvedValue({
-      id: 'tpl-2',
-      name: 'Aktywny szablon',
+    mockVersionUpdate.mockResolvedValue(
+      makeVersionRow({
+        id: 'tpl-version-2',
+        versionNumber: 2,
+        status: 'PUBLISHED',
+      }),
+    )
+
+    const result = await publishCommunicationTemplateVersion('tpl-version-2', 'user-1')
+
+    expect(mockVersionUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          templateId: 'tpl-family-1',
+          status: 'PUBLISHED',
+        }),
+        data: expect.objectContaining({
+          status: 'ARCHIVED',
+        }),
+      }),
+    )
+    expect(mockVersionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'tpl-version-2' },
+        data: expect.objectContaining({
+          status: 'PUBLISHED',
+        }),
+      }),
+    )
+    expect(result.status).toBe('PUBLISHED')
+  })
+
+  it('archives a draft version correctly', async () => {
+    mockVersionFindUnique.mockResolvedValue(
+      makeVersionRow({
+        id: 'tpl-version-2',
+        versionNumber: 2,
+        status: 'DRAFT',
+        publishedAt: null,
+        publishedByUserId: null,
+        publishedBy: null,
+      }),
+    )
+    mockVersionUpdate.mockResolvedValue(
+      makeVersionRow({
+        id: 'tpl-version-2',
+        versionNumber: 2,
+        status: 'ARCHIVED',
+        publishedAt: null,
+        publishedByUserId: null,
+        publishedBy: null,
+      }),
+    )
+
+    const result = await archiveCommunicationTemplateVersion('tpl-version-2', 'user-1')
+
+    expect(mockVersionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'tpl-version-2' },
+        data: expect.objectContaining({
+          status: 'ARCHIVED',
+        }),
+      }),
+    )
+    expect(result.status).toBe('ARCHIVED')
+  })
+
+  it('clones an existing version into a new draft', async () => {
+    const result = await cloneCommunicationTemplateVersion('tpl-version-1', 'user-1')
+
+    expect(mockVersionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          templateId: 'tpl-family-1',
+          status: 'DRAFT',
+          versionNumber: 2,
+        }),
+      }),
+    )
+    expect(result.status).toBe('DRAFT')
+  })
+
+  it('renders preview for a real case without side effects', async () => {
+    const result = await previewCommunicationTemplateVersionForRealCase('tpl-version-1', {
+      caseNumber: 'FNP-001',
     })
 
-    await expect(activateCommunicationTemplate('tpl-3', 'user-1')).rejects.toThrow(
-      /Aktywny szablon/,
-    )
-
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(result.isRenderable).toBe(true)
+    expect(result.previewContextSummary.caseNumber).toBe('FNP-001')
+    expect(result.renderedSubject).toContain('FNP-001')
+    expect(result.warnings).toEqual([])
   })
 
-  it('activates and deactivates a template without throwing when no conflicting active version exists', async () => {
-    mockFindUnique.mockResolvedValue(
-      makeTemplateRow({
-        id: 'tpl-3',
-        isActive: false,
-      }),
-    )
-    mockFindFirst.mockResolvedValue(null)
-    mockUpdate.mockResolvedValueOnce(
-      makeTemplateRow({
-        id: 'tpl-3',
-        isActive: true,
-        version: 2,
+  it('returns missing placeholders for incomplete real case data instead of crashing', async () => {
+    mockPortingRequestFindFirst.mockResolvedValue({
+      id: 'req-1',
+      caseNumber: 'FNP-001',
+      statusInternal: 'SUBMITTED',
+      primaryNumber: '221234567',
+      rangeStart: null,
+      rangeEnd: null,
+      numberRangeKind: 'SINGLE',
+      requestedPortDate: null,
+      confirmedPortDate: null,
+      donorAssignedPortDate: null,
+      rejectionReason: null,
+      client: {
+        clientType: 'INDIVIDUAL',
+        firstName: 'Jan',
+        lastName: 'Kowalski',
+        companyName: null,
+        email: 'jan@example.com',
+        phoneContact: '600700800',
+      },
+      donorOperator: { name: 'Orange Polska' },
+      recipientOperator: { name: 'G-NET' },
+    })
+    mockVersionFindUnique.mockResolvedValue(
+      makeVersionRow({
+        subjectTemplate: 'Termin {{plannedPortDate}}',
+        bodyTemplate: 'Problem {{issueDescription}}',
       }),
     )
 
-    const activated = await activateCommunicationTemplate('tpl-3', 'user-1')
+    const result = await previewCommunicationTemplateVersionForRealCase('tpl-version-1', {
+      caseNumber: 'FNP-001',
+    })
 
-    mockFindUnique.mockResolvedValue(
-      makeTemplateRow({
-        id: 'tpl-3',
-        isActive: true,
-        version: 2,
-      }),
-    )
-    mockUpdate.mockResolvedValueOnce(
-      makeTemplateRow({
-        id: 'tpl-3',
-        isActive: false,
-        version: 3,
-      }),
-    )
-
-    const deactivated = await deactivateCommunicationTemplate('tpl-3', 'user-1')
-
-    expect(activated.isActive).toBe(true)
-    expect(deactivated.isActive).toBe(false)
-    expect(mockUpdate).toHaveBeenCalledTimes(2)
+    expect(result.isRenderable).toBe(false)
+    expect(result.missingPlaceholders).toEqual(['issueDescription', 'plannedPortDate'])
+    expect(result.warnings[0]).toContain('Brakuje danych sprawy')
   })
 })

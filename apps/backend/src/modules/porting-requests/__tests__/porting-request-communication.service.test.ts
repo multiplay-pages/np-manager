@@ -8,7 +8,7 @@ const mockCommunicationUpdate = vi.fn()
 const mockCaseHistoryFindMany = vi.fn()
 const mockIntegrationFindMany = vi.fn()
 const mockLogAuditEvent = vi.fn()
-const mockGetActiveCommunicationTemplateOrThrow = vi.fn()
+const mockGetPublishedCommunicationTemplateVersionOrThrow = vi.fn()
 const mockResolveCommunicationTemplateCodeForAction = vi.fn()
 
 vi.mock('../../../config/database', () => ({
@@ -36,8 +36,8 @@ vi.mock('../../../shared/audit/audit.service', () => ({
 }))
 
 vi.mock('../../communications/communication-templates.service', () => ({
-  getActiveCommunicationTemplateOrThrow: (...args: unknown[]) =>
-    mockGetActiveCommunicationTemplateOrThrow(...args),
+  getPublishedCommunicationTemplateVersionOrThrow: (...args: unknown[]) =>
+    mockGetPublishedCommunicationTemplateVersionOrThrow(...args),
   resolveCommunicationTemplateCodeForAction: (...args: unknown[]) =>
     mockResolveCommunicationTemplateCodeForAction(...args),
 }))
@@ -123,22 +123,16 @@ describe('porting-request-communication.service', () => {
       sentAt: new Date('2026-04-06T11:00:00.000Z'),
     })
     mockLogAuditEvent.mockResolvedValue(undefined)
-    mockGetActiveCommunicationTemplateOrThrow.mockResolvedValue({
-      id: 'tpl-1',
+    mockGetPublishedCommunicationTemplateVersionOrThrow.mockResolvedValue({
+      templateId: 'tpl-family-1',
       code: 'REQUEST_RECEIVED',
       name: 'Wniosek przyjety',
       description: 'Opis',
       channel: 'EMAIL',
+      versionId: 'tpl-version-1',
+      versionNumber: 1,
       subjectTemplate: 'Sprawa {{caseNumber}}',
       bodyTemplate: 'Dzien dobry {{clientName}}',
-      isActive: true,
-      version: 1,
-      createdAt: '2026-04-06T09:00:00.000Z',
-      updatedAt: '2026-04-06T09:00:00.000Z',
-      createdByUserId: USER_ID,
-      updatedByUserId: USER_ID,
-      createdByDisplayName: 'Anna Nowak',
-      updatedByDisplayName: 'Anna Nowak',
     })
     mockResolveCommunicationTemplateCodeForAction.mockReturnValue('REQUEST_RECEIVED')
   })
@@ -168,6 +162,10 @@ describe('porting-request-communication.service', () => {
         },
       },
       metadata: { source: 'manual' },
+      templateVersion: {
+        versionId: 'tpl-version-1',
+        versionNumber: 1,
+      },
     })
 
     expect(createData.portingRequest).toEqual({ connect: { id: REQUEST_ID } })
@@ -176,6 +174,8 @@ describe('porting-request-communication.service', () => {
       source: 'manual',
       actionType: 'CLIENT_CONFIRMATION',
       communicationTemplateCode: 'REQUEST_RECEIVED',
+      communicationTemplateVersionId: 'tpl-version-1',
+      communicationTemplateVersionNumber: 1,
     })
   })
 
@@ -243,8 +243,8 @@ describe('porting-request-communication.service', () => {
   })
 
   it('blocks draft creation when there is no active template for resolved communication code', async () => {
-    mockGetActiveCommunicationTemplateOrThrow.mockRejectedValue(
-      new Error('Brak aktywnego szablonu dla komunikacji REQUEST_RECEIVED (EMAIL).'),
+    mockGetPublishedCommunicationTemplateVersionOrThrow.mockRejectedValue(
+      new Error('Brak opublikowanej wersji szablonu dla komunikacji REQUEST_RECEIVED (EMAIL).'),
     )
 
     await expect(
@@ -254,7 +254,7 @@ describe('porting-request-communication.service', () => {
         USER_ID,
         'ADMIN',
       ),
-    ).rejects.toThrow(/Brak aktywnego szablonu/)
+    ).rejects.toThrow(/Brak opublikowanej wersji szablonu/)
 
     expect(mockCommunicationCreate).not.toHaveBeenCalled()
   })
@@ -267,22 +267,16 @@ describe('porting-request-communication.service', () => {
       donorAssignedPortDate: null,
     })
     mockResolveCommunicationTemplateCodeForAction.mockReturnValue('PORT_DATE_RECEIVED')
-    mockGetActiveCommunicationTemplateOrThrow.mockResolvedValue({
-      id: 'tpl-2',
+    mockGetPublishedCommunicationTemplateVersionOrThrow.mockResolvedValue({
+      templateId: 'tpl-family-2',
       code: 'PORT_DATE_RECEIVED',
       name: 'Data przeniesienia',
       description: 'Opis',
       channel: 'EMAIL',
+      versionId: 'tpl-version-2',
+      versionNumber: 1,
       subjectTemplate: 'Termin {{plannedPortDate}}',
       bodyTemplate: 'Numer {{portedNumber}}, termin {{plannedPortDate}}',
-      isActive: true,
-      version: 1,
-      createdAt: '2026-04-06T09:00:00.000Z',
-      updatedAt: '2026-04-06T09:00:00.000Z',
-      createdByUserId: USER_ID,
-      updatedByUserId: USER_ID,
-      createdByDisplayName: 'Anna Nowak',
-      updatedByDisplayName: 'Anna Nowak',
     })
 
     await expect(

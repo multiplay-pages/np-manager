@@ -11,7 +11,15 @@ interface CommunicationTemplatePreviewModalProps {
   subtitle?: string
   preview: CommunicationTemplatePreviewResult
   mode: 'TEST' | 'REAL'
+  realCaseReference: string
+  realCaseLabel: string
+  isRealCaseAvailable: boolean
+  isRealCaseLoading: boolean
+  realCaseError: string | null
+  realCaseHelpText: string | null
   onModeChange: (mode: 'TEST' | 'REAL') => void
+  onRealCaseReferenceChange: (value: string) => void
+  onRunRealCasePreview: () => void
   onClose: () => void
 }
 
@@ -21,7 +29,15 @@ export function CommunicationTemplatePreviewModal({
   subtitle,
   preview,
   mode,
+  realCaseReference,
+  realCaseLabel,
+  isRealCaseAvailable,
+  isRealCaseLoading,
+  realCaseError,
+  realCaseHelpText,
   onModeChange,
+  onRealCaseReferenceChange,
+  onRunRealCasePreview,
   onClose,
 }: CommunicationTemplatePreviewModalProps) {
   useEffect(() => {
@@ -87,14 +103,93 @@ export function CommunicationTemplatePreviewModal({
           </div>
 
           {mode === 'REAL' && (
-            <div className="mt-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              Podglad na realnej sprawie bedzie dostepny w kolejnym etapie po rozszerzeniu backendowego preview.
+            <div className="mt-4 space-y-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+              <div className="grid gap-3 lg:grid-cols-[1.4fr,auto]">
+                <label className="block">
+                  <span className="label">Numer sprawy lub ID sprawy</span>
+                  <input
+                    type="text"
+                    value={realCaseReference}
+                    onChange={(event) => onRealCaseReferenceChange(event.target.value)}
+                    className="input-field mt-1"
+                    placeholder="Np. FNP-SEED-COMM-DRAFT-001 albo UUID sprawy"
+                    disabled={!isRealCaseAvailable || isRealCaseLoading}
+                  />
+                </label>
+
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={onRunRealCasePreview}
+                    className="btn-primary"
+                    disabled={!isRealCaseAvailable || isRealCaseLoading}
+                  >
+                    {isRealCaseLoading ? 'Ladowanie...' : 'Uruchom preview'}
+                  </button>
+                </div>
+              </div>
+
+              {!isRealCaseAvailable && (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-sm text-gray-600">
+                  {realCaseHelpText ??
+                    'Preview na realnej sprawie jest dostepny dla zapisanych wersji backendowych.'}
+                </div>
+              )}
+
+              {isRealCaseAvailable && realCaseHelpText && (
+                <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+                  {realCaseHelpText}
+                </div>
+              )}
+
+              {realCaseError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {realCaseError}
+                </div>
+              )}
             </div>
           )}
         </div>
 
         <div className="grid max-h-[calc(90vh-180px)] gap-6 overflow-y-auto px-6 py-6 lg:grid-cols-[1.45fr,0.95fr]">
           <div className="space-y-5">
+            {mode === 'REAL' && preview.previewContextSummary && (
+              <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700">
+                  Preview realnej sprawy
+                </h3>
+                <div className="mt-3 grid gap-3 text-sm text-blue-900 md:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                      Sprawa
+                    </div>
+                    <div className="mt-1">{preview.previewContextSummary.caseNumber}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                      Klient
+                    </div>
+                    <div className="mt-1">{preview.previewContextSummary.clientName}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                      Dawca
+                    </div>
+                    <div className="mt-1">{preview.previewContextSummary.donorOperatorName}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                      Planowana data
+                    </div>
+                    <div className="mt-1">{preview.previewContextSummary.plannedPortDate ?? 'Brak danych'}</div>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-blue-800">
+                  Preview uruchomiono na: {realCaseLabel}
+                </p>
+              </section>
+            )}
+
             <section className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
               <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">
                 Temat
@@ -127,7 +222,9 @@ export function CommunicationTemplatePreviewModal({
                 }`}
               >
                 {preview.isRenderable
-                  ? 'Szablon jest renderowalny na danych testowych.'
+                  ? mode === 'REAL'
+                    ? 'Szablon jest renderowalny na wskazanej sprawie.'
+                    : 'Szablon jest renderowalny na danych testowych.'
                   : 'Szablon wymaga poprawek przed publikacja.'}
               </div>
             </section>
@@ -165,8 +262,19 @@ export function CommunicationTemplatePreviewModal({
                 <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700">
                   {preview.missingPlaceholders.length > 0
                     ? `Brakujace dane: ${preview.missingPlaceholders.map((item) => `{{${item}}}`).join(', ')}`
-                    : 'Brak brakujacych danych testowych.'}
+                    : mode === 'REAL'
+                      ? 'Brak brakujacych danych w wybranej sprawie.'
+                      : 'Brak brakujacych danych testowych.'}
                 </div>
+                {preview.warnings.length > 0 && (
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-orange-700">
+                    <ul className="space-y-1">
+                      {preview.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </section>
 

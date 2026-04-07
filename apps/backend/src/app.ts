@@ -19,7 +19,7 @@ const REGISTERED_API_PREFIXES = [
   '/api/clients',
   '/api/operators',
   '/api/porting-requests',
-  '/api/admin/communication-templates',
+  '/api/admin',
 ] as const
 
 export const REQUIRED_RUNTIME_ROUTES = [
@@ -97,7 +97,7 @@ export async function buildApp() {
   await app.register(clientsRouter, { prefix: '/api/clients' })
   await app.register(operatorsRouter, { prefix: '/api/operators' })
   await app.register(portingRequestsRouter, { prefix: '/api/porting-requests' })
-  await app.register(communicationTemplatesRouter, { prefix: '/api/admin/communication-templates' })
+  await app.register(communicationTemplatesRouter, { prefix: '/api/admin' })
 
   app.get('/health', async () => {
     return {

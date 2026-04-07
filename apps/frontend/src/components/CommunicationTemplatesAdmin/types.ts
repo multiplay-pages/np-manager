@@ -1,15 +1,17 @@
 import type { CommunicationTemplateCode, ContactChannel } from '@np-manager/shared'
+import type { CommunicationTemplateVersionStatus } from '@np-manager/shared'
 
 export interface CommunicationTemplateEditorFormState {
   id: string | null
+  templateId: string | null
   code: CommunicationTemplateCode
   name: string
   description: string
   channel: ContactChannel
   subjectTemplate: string
   bodyTemplate: string
-  isActive: boolean
-  version: number | null
+  status: CommunicationTemplateVersionStatus | null
+  versionNumber: number | null
 }
 
 export interface CommunicationTemplateEditorStatusInfo {

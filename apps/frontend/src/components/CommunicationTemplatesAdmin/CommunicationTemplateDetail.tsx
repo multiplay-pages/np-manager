@@ -13,6 +13,7 @@ interface CommunicationTemplateDetailProps {
   onEditDraft: (version: CommunicationTemplateVersionView) => void
   onPreviewVersion: (version: CommunicationTemplateVersionView) => void
   onPublishVersion: (version: CommunicationTemplateVersionView) => void
+  onArchiveVersion: (version: CommunicationTemplateVersionView) => void
   onCloneVersion: (version: CommunicationTemplateVersionView) => void
   onDetailsVersion: (version: CommunicationTemplateVersionView) => void
 }
@@ -42,6 +43,7 @@ export function CommunicationTemplateDetail({
   onEditDraft,
   onPreviewVersion,
   onPublishVersion,
+  onArchiveVersion,
   onCloneVersion,
   onDetailsVersion,
 }: CommunicationTemplateDetailProps) {
@@ -101,7 +103,9 @@ export function CommunicationTemplateDetail({
               {group.publishedVersion ? 'Opublikowana' : 'Brak opublikowanej wersji'}
             </span>
             <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-medium">
-              {group.publishedVersion ? `Wersja aktywna: v${group.publishedVersion.version}` : 'Wersja aktywna: brak'}
+              {group.publishedVersion
+                ? `Wersja aktywna: v${group.publishedVersion.versionNumber}`
+                : 'Wersja aktywna: brak'}
             </span>
           </div>
         </div>
@@ -124,20 +128,18 @@ export function CommunicationTemplateDetail({
       )}
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Aktualnie uzywane operacyjnie</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              To ta wersja jest obecnie wykorzystywana przez system przy tworzeniu nowych draftow komunikacji.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Aktualnie uzywane operacyjnie</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            To ta wersja jest obecnie wykorzystywana przez system przy tworzeniu nowych draftow komunikacji.
+          </p>
         </div>
 
         {group.publishedVersion ? (
           <CommunicationTemplateVersionCard
             version={group.publishedVersion}
             title={group.name}
-            subtitle={`Opublikowana ${formatDateTime(group.publishedVersion.updatedAt)} przez ${group.publishedVersion.updatedByDisplayName ?? 'nieznanego autora'}.`}
+            subtitle={`Opublikowana ${formatDateTime(group.publishedVersion.publishedAt ?? group.publishedVersion.updatedAt)} przez ${group.publishedVersion.publishedByDisplayName ?? group.publishedVersion.updatedByDisplayName ?? 'nieznanego autora'}.`}
             highlight
             onPreview={onPreviewVersion}
             onClone={onCloneVersion}
@@ -169,6 +171,7 @@ export function CommunicationTemplateDetail({
                 onPreview={onPreviewVersion}
                 onEdit={onEditDraft}
                 onPublish={onPublishVersion}
+                onArchive={onArchiveVersion}
                 onClone={onCloneVersion}
                 onDetails={onDetailsVersion}
               />
@@ -194,9 +197,10 @@ export function CommunicationTemplateDetail({
             <CommunicationTemplateVersionCard
               key={version.id}
               version={version}
-              title={`${group.name} - v${version.version}`}
+              title={`${group.name} - v${version.versionNumber}`}
               subtitle={`Utworzono ${formatDateTime(version.createdAt)} · ostatnia zmiana ${formatDateTime(version.updatedAt)}.`}
               onPreview={onPreviewVersion}
+              onArchive={version.status === 'DRAFT' ? onArchiveVersion : undefined}
               onClone={onCloneVersion}
               onDetails={onDetailsVersion}
             />

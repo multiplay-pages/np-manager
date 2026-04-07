@@ -37,7 +37,7 @@ export function CommunicationTemplateValidationPanel({
     )
   }
 
-  warnings.push('Walidacja na realnej sprawie bedzie dostepna po rozszerzeniu backendowego preview.')
+  warnings.push('Preview na realnej sprawie uruchomisz z poziomu pelnego podgladu wersji.')
 
   const isReady = issues.length === 0 && !hasEmptyRequiredFields
 

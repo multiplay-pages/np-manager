@@ -14,7 +14,7 @@ describe('runtime route diagnostics', () => {
         '/api/clients',
         '/api/operators',
         '/api/porting-requests',
-        '/api/admin/communication-templates',
+        '/api/admin',
       ])
 
       expect(diagnostics.requiredRoutes).toEqual([
@@ -34,7 +34,7 @@ describe('runtime route diagnostics', () => {
       ])
 
       expect(diagnostics.routeTable).toContain('login (POST)')
-      expect(diagnostics.routeTable).toContain('communication-templates')
+      expect(diagnostics.routeTable).toContain('communication-template')
       expect(diagnostics.routeTable).toContain('porting-requests')
       expect(diagnostics.routeTable).toContain('preview (POST)')
       expect(diagnostics.routeTable).toContain('drafts (POST)')

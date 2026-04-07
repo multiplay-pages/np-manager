@@ -1,7 +1,9 @@
 import type {
   CommunicationTemplateCode,
+  CommunicationTemplateVersionStatus,
   CommunicationTemplatePlaceholder,
   ContactChannel,
+  PortingCaseStatus,
   PortingCommunicationStatus,
   PortingCommunicationTemplateKey,
   PortingCommunicationTriggerType,
@@ -109,20 +111,65 @@ export interface CommunicationTemplateDto {
   name: string
   description: string | null
   channel: ContactChannel
-  subjectTemplate: string
-  bodyTemplate: string
-  isActive: boolean
-  version: number
   createdAt: string
   updatedAt: string
   createdByUserId: string
   updatedByUserId: string
   createdByDisplayName: string | null
   updatedByDisplayName: string | null
+  publishedVersionId: string | null
+  publishedVersionNumber: number | null
+  publishedAt: string | null
+  publishedByDisplayName: string | null
+  versions: CommunicationTemplateVersionDto[]
+}
+
+export interface CommunicationTemplateVersionDto {
+  id: string
+  templateId: string
+  versionNumber: number
+  status: CommunicationTemplateVersionStatus
+  subjectTemplate: string
+  bodyTemplate: string
+  createdAt: string
+  updatedAt: string
+  createdByUserId: string
+  updatedByUserId: string
+  createdByDisplayName: string | null
+  updatedByDisplayName: string | null
+  publishedAt: string | null
+  publishedByUserId: string | null
+  publishedByDisplayName: string | null
+}
+
+export interface CommunicationTemplateListItemDto {
+  id: string
+  code: CommunicationTemplateCode
+  name: string
+  description: string | null
+  channel: ContactChannel
+  createdAt: string
+  updatedAt: string
+  createdByUserId: string
+  updatedByUserId: string
+  createdByDisplayName: string | null
+  updatedByDisplayName: string | null
+  publishedVersionId: string | null
+  publishedVersionNumber: number | null
+  publishedAt: string | null
+  publishedByDisplayName: string | null
+  lastVersionUpdatedAt: string | null
+  lastVersionUpdatedByDisplayName: string | null
+  versionCounts: {
+    total: number
+    draft: number
+    published: number
+    archived: number
+  }
 }
 
 export interface CommunicationTemplateListResultDto {
-  items: CommunicationTemplateDto[]
+  items: CommunicationTemplateListItemDto[]
 }
 
 export interface CreateCommunicationTemplateDto {
@@ -132,23 +179,53 @@ export interface CreateCommunicationTemplateDto {
   channel: ContactChannel
   subjectTemplate: string
   bodyTemplate: string
-  isActive?: boolean
 }
 
-export interface UpdateCommunicationTemplateDto {
-  code?: CommunicationTemplateCode
+export interface CreateCommunicationTemplateVersionDto {
   name?: string
   description?: string | null
-  channel?: ContactChannel
+  subjectTemplate: string
+  bodyTemplate: string
+  sourceVersionId?: string | null
+}
+
+export interface UpdateCommunicationTemplateVersionDto {
+  name?: string
+  description?: string | null
   subjectTemplate?: string
   bodyTemplate?: string
-  isActive?: boolean
+}
+
+export interface CommunicationTemplateVersionListResultDto {
+  items: CommunicationTemplateVersionDto[]
 }
 
 export interface RenderCommunicationTemplateResultDto {
   renderedSubject: string
   renderedBody: string
+  usedPlaceholders: string[]
   missingPlaceholders: CommunicationTemplatePlaceholder[]
   unknownPlaceholders: string[]
   isRenderable: boolean
+}
+
+export interface CommunicationTemplatePreviewContextSummaryDto {
+  portingRequestId: string
+  caseNumber: string
+  clientName: string
+  donorOperatorName: string
+  recipientOperatorName: string
+  plannedPortDate: string | null
+  statusInternal: PortingCaseStatus
+}
+
+export interface CommunicationTemplatePreviewRealCaseRequestDto {
+  portingRequestId?: string
+  caseNumber?: string
+  issueDescription?: string | null
+}
+
+export interface CommunicationTemplatePreviewRealCaseDto extends RenderCommunicationTemplateResultDto {
+  previewContextSummary: CommunicationTemplatePreviewContextSummaryDto
+  warnings: string[]
 }
