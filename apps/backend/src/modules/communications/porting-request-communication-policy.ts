@@ -39,7 +39,7 @@ interface CommunicationActionPolicy {
 
 const OPERATIONAL_ROLES: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
 const REVIEW_ROLES: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
-const ACTIVE_DRAFT_STATUSES: PortingCommunicationStatus[] = ['DRAFT', 'READY']
+const ACTIVE_DRAFT_STATUSES: PortingCommunicationStatus[] = ['DRAFT', 'READY_TO_SEND']
 
 const COMMUNICATION_ACTION_POLICIES: CommunicationActionPolicy[] = [
   {

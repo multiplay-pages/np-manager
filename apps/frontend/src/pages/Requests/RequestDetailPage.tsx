@@ -4,9 +4,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import {
+  cancelPortingCommunication,
   createPortingCommunicationDraft,
   executePortingRequestExternalAction,
   exportPortingRequest,
+  getPortingCommunicationDeliveryAttempts,
   getPortingRequestById,
   getPortingRequestCaseHistory,
   getPortingRequestCommunicationHistory,
@@ -19,6 +21,8 @@ import {
   getPortingRequestXmlPreview,
   markPortingCommunicationAsSent,
   previewPortingCommunicationDraft,
+  retryPortingCommunication,
+  sendPortingCommunication,
   triggerManualPliCbdExport,
   type PliCbdTechnicalPayloadApiMessageType,
   syncPortingRequest,
@@ -32,6 +36,7 @@ import {
   PORTING_CASE_STATUS_LABELS,
   PORTING_MODE_LABELS,
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
+  type CommunicationDeliveryAttemptsResultDto,
   type PliCbdAnyTechnicalPayloadBuildResultDto,
   type PliCbdAnyXmlPreviewBuildResultDto,
   type PliCbdE03DraftBuildResultDto,
@@ -290,6 +295,13 @@ export function RequestDetailPage() {
   const [communicationFeedbackError, setCommunicationFeedbackError] = useState<string | null>(null)
   const [communicationFeedbackSuccess, setCommunicationFeedbackSuccess] = useState<string | null>(null)
   const [markingCommunicationId, setMarkingCommunicationId] = useState<string | null>(null)
+  const [sendingCommunicationId, setSendingCommunicationId] = useState<string | null>(null)
+  const [retryingCommunicationId, setRetryingCommunicationId] = useState<string | null>(null)
+  const [cancellingCommunicationId, setCancellingCommunicationId] = useState<string | null>(null)
+  const [deliveryAttemptsByCommId, setDeliveryAttemptsByCommId] = useState<
+    Record<string, CommunicationDeliveryAttemptsResultDto>
+  >({})
+  const [loadingDeliveryAttemptsId, setLoadingDeliveryAttemptsId] = useState<string | null>(null)
   const communicationFeedbackTimeoutRef = useRef<number | null>(null)
 
   const [selectedStatusAction, setSelectedStatusAction] = useState<PortingRequestStatusActionDto | null>(null)
@@ -774,6 +786,81 @@ export function RequestDetailPage() {
     }
   }
 
+  const handleSendCommunication = async (communicationId: string) => {
+    if (!id || sendingCommunicationId) return
+
+    setSendingCommunicationId(communicationId)
+    resetCommunicationFeedback()
+
+    try {
+      await sendPortingCommunication(id, communicationId)
+      await refreshCommunicationSection()
+      showTemporaryCommunicationFeedback('success', 'Komunikat zostal wyslany.')
+    } catch (err) {
+      showTemporaryCommunicationFeedback(
+        'error',
+        getCommunicationActionErrorMessage(err, 'Nie udalo sie wyslac komunikatu.'),
+      )
+    } finally {
+      setSendingCommunicationId(null)
+    }
+  }
+
+  const handleRetryCommunication = async (communicationId: string) => {
+    if (!id || retryingCommunicationId) return
+
+    setRetryingCommunicationId(communicationId)
+    resetCommunicationFeedback()
+
+    try {
+      await retryPortingCommunication(id, communicationId)
+      await refreshCommunicationSection()
+      showTemporaryCommunicationFeedback('success', 'Ponowna wysylka zakonczona.')
+    } catch (err) {
+      showTemporaryCommunicationFeedback(
+        'error',
+        getCommunicationActionErrorMessage(err, 'Nie udalo sie ponowic wysylki.'),
+      )
+    } finally {
+      setRetryingCommunicationId(null)
+    }
+  }
+
+  const handleCancelCommunication = async (communicationId: string) => {
+    if (!id || cancellingCommunicationId) return
+
+    setCancellingCommunicationId(communicationId)
+    resetCommunicationFeedback()
+
+    try {
+      await cancelPortingCommunication(id, communicationId)
+      await refreshCommunicationSection()
+      showTemporaryCommunicationFeedback('success', 'Komunikat zostal anulowany.')
+    } catch (err) {
+      showTemporaryCommunicationFeedback(
+        'error',
+        getCommunicationActionErrorMessage(err, 'Nie udalo sie anulowac komunikatu.'),
+      )
+    } finally {
+      setCancellingCommunicationId(null)
+    }
+  }
+
+  const handleLoadDeliveryAttempts = async (communicationId: string) => {
+    if (!id || loadingDeliveryAttemptsId === communicationId) return
+
+    setLoadingDeliveryAttemptsId(communicationId)
+
+    try {
+      const result = await getPortingCommunicationDeliveryAttempts(id, communicationId)
+      setDeliveryAttemptsByCommId((prev) => ({ ...prev, [communicationId]: result }))
+    } catch {
+      // silent fail — nie zasmiecamy UI glownym bledem
+    } finally {
+      setLoadingDeliveryAttemptsId(null)
+    }
+  }
+
   const handleSelectExternalAction = (action: PortingRequestExternalActionDto) => {
     setExternalActionError(null)
     setExternalActionSuccess(null)
@@ -1021,9 +1108,18 @@ export function RequestDetailPage() {
             previewingActionType={previewingCommunicationActionType}
             creatingDraftActionType={creatingCommunicationActionType}
             markingSentId={markingCommunicationId}
+            sendingId={sendingCommunicationId}
+            retryingId={retryingCommunicationId}
+            cancellingId={cancellingCommunicationId}
+            deliveryAttemptsByCommId={deliveryAttemptsByCommId}
+            loadingDeliveryAttemptsId={loadingDeliveryAttemptsId}
             onCreateDraft={(actionType) => void handleCreateCommunicationDraft(actionType)}
             onPreviewDraft={(actionType) => void handlePreviewCommunicationDraft(actionType)}
             onMarkAsSent={(communicationId) => void handleMarkCommunicationAsSent(communicationId)}
+            onSend={(communicationId) => void handleSendCommunication(communicationId)}
+            onRetry={(communicationId) => void handleRetryCommunication(communicationId)}
+            onCancel={(communicationId) => void handleCancelCommunication(communicationId)}
+            onLoadDeliveryAttempts={(communicationId) => void handleLoadDeliveryAttempts(communicationId)}
           />
 
           <PortingCaseHistory items={caseHistoryItems} isLoading={isCaseHistoryLoading} />

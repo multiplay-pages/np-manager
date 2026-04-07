@@ -26,6 +26,12 @@ import {
   markPortingCommunicationAsSent,
   previewPortingCommunication,
 } from './porting-request-communication.service'
+import {
+  cancelPortingCommunication,
+  getPortingCommunicationDeliveryAttempts,
+  retryPortingCommunication,
+  sendPortingCommunication,
+} from './communication-delivery.service'
 import { getPortingRequestTimeline } from './porting-events.service'
 import { getPortingRequestCaseHistory } from './porting-request-case-history.service'
 import {
@@ -308,6 +314,67 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
       )
 
       return reply.status(200).send({ success: true, data: { communication: result } })
+    },
+  )
+
+  app.post<{ Params: { id: string; communicationId: string } }>(
+    '/:id/communications/:communicationId/send',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const result = await sendPortingCommunication(
+        request.params.id,
+        request.params.communicationId,
+        request.user.id,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.post<{ Params: { id: string; communicationId: string } }>(
+    '/:id/communications/:communicationId/retry',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const result = await retryPortingCommunication(
+        request.params.id,
+        request.params.communicationId,
+        request.user.id,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.post<{ Params: { id: string; communicationId: string } }>(
+    '/:id/communications/:communicationId/cancel',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const result = await cancelPortingCommunication(
+        request.params.id,
+        request.params.communicationId,
+        request.user.id,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { communication: result } })
+    },
+  )
+
+  app.get<{ Params: { id: string; communicationId: string } }>(
+    '/:id/communications/:communicationId/delivery-attempts',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const result = await getPortingCommunicationDeliveryAttempts(
+        request.params.id,
+        request.params.communicationId,
+      )
+
+      return reply.status(200).send({ success: true, data: result })
     },
   )
 

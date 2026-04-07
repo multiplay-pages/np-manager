@@ -1,5 +1,6 @@
 import { apiClient } from './api.client'
 import type {
+  CommunicationDeliveryAttemptsResultDto,
   CreatePortingRequestDto,
   ExecutePortingRequestExternalActionDto,
   ExecutePortingRequestExternalActionResultDto,
@@ -21,6 +22,7 @@ import type {
   PortingRequestListResultDto,
   PreparePortingCommunicationDraftDto,
   PortingTimelineResultDto,
+  SendPortingCommunicationResultDto,
   UpdatePortingRequestStatusDto,
 } from '@np-manager/shared'
 
@@ -166,6 +168,54 @@ export async function markPortingCommunicationAsSent(
   }>(`/porting-requests/${id}/communications/${communicationId}/mark-sent`, {})
 
   return response.data.data.communication
+}
+
+export async function sendPortingCommunication(
+  id: string,
+  communicationId: string,
+): Promise<SendPortingCommunicationResultDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: SendPortingCommunicationResultDto
+  }>(`/porting-requests/${id}/communications/${communicationId}/send`)
+
+  return response.data.data
+}
+
+export async function retryPortingCommunication(
+  id: string,
+  communicationId: string,
+): Promise<SendPortingCommunicationResultDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: SendPortingCommunicationResultDto
+  }>(`/porting-requests/${id}/communications/${communicationId}/retry`)
+
+  return response.data.data
+}
+
+export async function cancelPortingCommunication(
+  id: string,
+  communicationId: string,
+): Promise<PortingCommunicationDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: { communication: PortingCommunicationDto }
+  }>(`/porting-requests/${id}/communications/${communicationId}/cancel`)
+
+  return response.data.data.communication
+}
+
+export async function getPortingCommunicationDeliveryAttempts(
+  id: string,
+  communicationId: string,
+): Promise<CommunicationDeliveryAttemptsResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: CommunicationDeliveryAttemptsResultDto
+  }>(`/porting-requests/${id}/communications/${communicationId}/delivery-attempts`)
+
+  return response.data.data
 }
 
 export async function executePortingRequestExternalAction(

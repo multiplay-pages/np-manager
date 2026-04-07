@@ -175,9 +175,17 @@ enum PortingCommunicationType {
 
 enum PortingCommunicationStatus {
   DRAFT
-  READY
+  READY_TO_SEND
+  SENDING
   SENT
   FAILED
+  CANCELLED
+}
+
+enum CommunicationDeliveryOutcome {
+  SUCCESS
+  FAILED
+  STUBBED
 }
 
 enum PortingCommunicationTriggerType {
@@ -249,6 +257,7 @@ model User {
   createdCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionCreatedBy")
   updatedCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionUpdatedBy")
   publishedCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionPublishedBy")
+  communicationDeliveryAttempts          CommunicationDeliveryAttempt[] @relation("CommunicationDeliveryAttemptBy")
 
   @@map("users")
 }
@@ -588,13 +597,40 @@ model PortingCommunication {
   createdAt        DateTime                          @default(now())
   updatedAt        DateTime                          @updatedAt
 
-  portingRequest PortingRequest @relation(fields: [portingRequestId], references: [id], onDelete: Cascade)
-  createdBy      User           @relation("PortingCommunicationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  portingRequest    PortingRequest                   @relation(fields: [portingRequestId], references: [id], onDelete: Cascade)
+  createdBy         User                             @relation("PortingCommunicationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  deliveryAttempts  CommunicationDeliveryAttempt[]
 
   @@index([portingRequestId])
   @@index([portingRequestId, createdAt])
   @@index([status])
   @@map("porting_communications")
+}
+
+model CommunicationDeliveryAttempt {
+  id                  String                       @id @default(uuid())
+  communicationId     String
+  attemptedAt         DateTime                     @default(now())
+  attemptedByUserId   String
+  channel             PortingCommunicationType
+  recipient           String                       @db.VarChar(200)
+  subjectSnapshot     String                       @db.VarChar(300)
+  bodySnapshot        String                       @db.Text
+  outcome             CommunicationDeliveryOutcome
+  transportMessageId  String?                      @db.VarChar(200)
+  transportReference  String?                      @db.VarChar(200)
+  errorCode           String?                      @db.VarChar(100)
+  errorMessage        String?                      @db.Text
+  responsePayloadJson Json?
+  adapterName         String                       @db.VarChar(100)
+  createdAt           DateTime                     @default(now())
+
+  communication  PortingCommunication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+  attemptedBy    User                 @relation("CommunicationDeliveryAttemptBy", fields: [attemptedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([communicationId])
+  @@index([communicationId, attemptedAt])
+  @@map("communication_delivery_attempts")
 }
 
 model CommunicationTemplate {

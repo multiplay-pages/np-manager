@@ -563,10 +563,17 @@ export async function markPortingCommunicationAsSent(
     )
   }
 
-  if (existingDto.status === 'FAILED') {
+  if (existingDto.status === 'CANCELLED') {
     throw AppError.badRequest(
-      'Nie mozna oznaczyc jako wyslanej komunikacji zakonczonej bledem.',
-      'PORTING_COMMUNICATION_FAILED_CANNOT_MARK_SENT',
+      'Nie mozna oznaczyc anulowanego komunikatu jako wyslanego.',
+      'PORTING_COMMUNICATION_CANCELLED',
+    )
+  }
+
+  if (existingDto.status === 'SENDING') {
+    throw AppError.conflict(
+      'Wysylka tego komunikatu jest juz w toku.',
+      'PORTING_COMMUNICATION_SENDING_IN_PROGRESS',
     )
   }
 

@@ -1,6 +1,9 @@
 import {
+  COMMUNICATION_DELIVERY_OUTCOME_LABELS,
   PORTING_COMMUNICATION_STATUS_LABELS,
   PORTING_REQUEST_COMMUNICATION_ACTION_TYPE_LABELS,
+  type CommunicationDeliveryAttemptDto,
+  type CommunicationDeliveryAttemptsResultDto,
   type PortingCommunicationDto,
   type PortingCommunicationPreviewDto,
   type PortingCommunicationSummaryDto,
@@ -27,11 +30,25 @@ function getStatusClass(status: PortingCommunicationDto['status']): string {
     return 'bg-red-100 text-red-700'
   }
 
-  if (status === 'READY') {
+  if (status === 'READY_TO_SEND') {
     return 'bg-blue-100 text-blue-700'
   }
 
+  if (status === 'SENDING') {
+    return 'bg-indigo-100 text-indigo-700'
+  }
+
+  if (status === 'CANCELLED') {
+    return 'bg-gray-100 text-gray-500'
+  }
+
   return 'bg-amber-100 text-amber-700'
+}
+
+function getDeliveryOutcomeClass(outcome: CommunicationDeliveryAttemptDto['outcome']): string {
+  if (outcome === 'SUCCESS') return 'bg-green-100 text-green-700'
+  if (outcome === 'FAILED') return 'bg-red-100 text-red-700'
+  return 'bg-yellow-100 text-yellow-700'
 }
 
 function renderSummaryValue(value: string | null): string {
@@ -40,6 +57,18 @@ function renderSummaryValue(value: string | null): string {
 
 function getActionTypeLabel(type: PortingRequestCommunicationActionType): string {
   return PORTING_REQUEST_COMMUNICATION_ACTION_TYPE_LABELS[type]
+}
+
+function canSend(status: PortingCommunicationDto['status']): boolean {
+  return status === 'DRAFT' || status === 'READY_TO_SEND'
+}
+
+function canRetry(status: PortingCommunicationDto['status']): boolean {
+  return status === 'FAILED'
+}
+
+function canCancel(status: PortingCommunicationDto['status']): boolean {
+  return status === 'DRAFT' || status === 'READY_TO_SEND'
 }
 
 interface PortingCommunicationPanelProps {
@@ -53,9 +82,18 @@ interface PortingCommunicationPanelProps {
   previewingActionType: PortingRequestCommunicationActionType | null
   creatingDraftActionType: PortingRequestCommunicationActionType | null
   markingSentId: string | null
+  sendingId: string | null
+  retryingId: string | null
+  cancellingId: string | null
+  deliveryAttemptsByCommId: Record<string, CommunicationDeliveryAttemptsResultDto>
+  loadingDeliveryAttemptsId: string | null
   onPreviewDraft: (actionType: PortingRequestCommunicationActionType) => void
   onCreateDraft: (actionType: PortingRequestCommunicationActionType) => void
   onMarkAsSent: (communicationId: string) => void
+  onSend: (communicationId: string) => void
+  onRetry: (communicationId: string) => void
+  onCancel: (communicationId: string) => void
+  onLoadDeliveryAttempts: (communicationId: string) => void
 }
 
 export function PortingCommunicationPanel({
@@ -69,9 +107,18 @@ export function PortingCommunicationPanel({
   previewingActionType,
   creatingDraftActionType,
   markingSentId,
+  sendingId,
+  retryingId,
+  cancellingId,
+  deliveryAttemptsByCommId,
+  loadingDeliveryAttemptsId,
   onPreviewDraft,
   onCreateDraft,
   onMarkAsSent,
+  onSend,
+  onRetry,
+  onCancel,
+  onLoadDeliveryAttempts,
 }: PortingCommunicationPanelProps) {
   return (
     <div className="card p-5">
@@ -225,12 +272,12 @@ export function PortingCommunicationPanel({
         )}
       </div>
 
+      {/* Historia komunikacji */}
       <div className="mt-6 border-t border-gray-100 pt-5">
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-gray-900">Historia komunikacji</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Lista komunikacji jest sortowana malejaco po dacie utworzenia i pokazuje tylko dane
-            potrzebne operacyjnie.
+            Lista komunikacji sortowana malejaco po dacie utworzenia.
           </p>
         </div>
 
@@ -240,63 +287,174 @@ export function PortingCommunicationPanel({
           </div>
         ) : items.length > 0 ? (
           <div className="space-y-3">
-            {items.map((item) => (
-              <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-900">
-                        {getActionTypeLabel(item.actionType)}
-                      </span>
-                      <span
-                        className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${getStatusClass(item.status)}`}
-                      >
-                        {PORTING_COMMUNICATION_STATUS_LABELS[item.status]}
-                      </span>
+            {items.map((item) => {
+              const isSending = sendingId === item.id
+              const isRetrying = retryingId === item.id
+              const isCancelling = cancellingId === item.id
+              const isLoadingAttempts = loadingDeliveryAttemptsId === item.id
+              const deliveryResult = deliveryAttemptsByCommId[item.id]
+
+              return (
+                <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {getActionTypeLabel(item.actionType)}
+                        </span>
+                        <span
+                          className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${getStatusClass(item.status)}`}
+                        >
+                          {PORTING_COMMUNICATION_STATUS_LABELS[item.status]}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-700">{item.subject}</p>
                     </div>
-                    <p className="mt-1 text-sm text-gray-700">{item.subject}</p>
+
+                    {/* Akcje dla elementu historii */}
+                    <div className="flex flex-wrap gap-2">
+                      {item.status !== 'SENT' && item.status !== 'CANCELLED' && (
+                        <button
+                          type="button"
+                          onClick={() => onMarkAsSent(item.id)}
+                          className="btn-secondary"
+                          disabled={markingSentId === item.id || isSending || isRetrying || isCancelling}
+                        >
+                          {markingSentId === item.id ? 'Zapisywanie...' : 'Oznacz jako wyslane'}
+                        </button>
+                      )}
+
+                      {canSend(item.status) && (
+                        <button
+                          type="button"
+                          onClick={() => onSend(item.id)}
+                          className="btn-primary"
+                          disabled={isSending || isRetrying || isCancelling || markingSentId === item.id}
+                        >
+                          {isSending ? 'Wysylanie...' : 'Wyslij'}
+                        </button>
+                      )}
+
+                      {canRetry(item.status) && (
+                        <button
+                          type="button"
+                          onClick={() => onRetry(item.id)}
+                          className="btn-primary"
+                          disabled={isRetrying || isSending || isCancelling}
+                        >
+                          {isRetrying ? 'Ponawianie...' : 'Ponow wysylke'}
+                        </button>
+                      )}
+
+                      {canCancel(item.status) && (
+                        <button
+                          type="button"
+                          onClick={() => onCancel(item.id)}
+                          className="btn-secondary"
+                          disabled={isCancelling || isSending || isRetrying || markingSentId === item.id}
+                        >
+                          {isCancelling ? 'Anulowanie...' : 'Anuluj'}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {item.status !== 'SENT' && (
-                    <button
-                      type="button"
-                      onClick={() => onMarkAsSent(item.id)}
-                      className="btn-secondary"
-                      disabled={markingSentId === item.id}
-                    >
-                      {markingSentId === item.id ? 'Zapisywanie...' : 'Oznacz jako wyslane'}
-                    </button>
+                  <div className="mt-3 grid gap-3 text-sm text-gray-600 md:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-gray-500">Utworzono</p>
+                      <p>{formatDateTime(item.createdAt)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Autor</p>
+                      <p>{renderSummaryValue(item.createdByDisplayName)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Odbiorca</p>
+                      <p>{item.recipient}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Wyslano</p>
+                      <p>{item.sentAt ? formatDateTime(item.sentAt) : '-'}</p>
+                    </div>
+                  </div>
+
+                  <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{item.body}</p>
+
+                  {item.errorMessage && (
+                    <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      <p className="font-medium">Blad wysylki:</p>
+                      <p className="mt-1">{item.errorMessage}</p>
+                    </div>
                   )}
+
+                  {/* Historia prob doreczenia */}
+                  <div className="mt-3 border-t border-gray-100 pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Historia prob doreczenia
+                        {deliveryResult
+                          ? ` (${deliveryResult.attempts.length})`
+                          : ''}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onLoadDeliveryAttempts(item.id)}
+                        className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                        disabled={isLoadingAttempts}
+                      >
+                        {isLoadingAttempts ? 'Ladowanie...' : 'Pokaz'}
+                      </button>
+                    </div>
+
+                    {deliveryResult && (
+                      <div className="mt-2">
+                        {deliveryResult.attempts.length === 0 ? (
+                          <p className="text-xs text-gray-400">Brak prob doreczenia.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {deliveryResult.attempts.map((attempt) => (
+                              <div
+                                key={attempt.id}
+                                className="rounded border border-gray-100 bg-gray-50 px-3 py-2 text-xs"
+                              >
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium ${getDeliveryOutcomeClass(attempt.outcome)}`}
+                                  >
+                                    {COMMUNICATION_DELIVERY_OUTCOME_LABELS[attempt.outcome]}
+                                  </span>
+                                  <span className="text-gray-500">
+                                    {formatDateTime(attempt.attemptedAt)}
+                                  </span>
+                                  {attempt.attemptedByDisplayName && (
+                                    <span className="text-gray-500">
+                                      · {attempt.attemptedByDisplayName}
+                                    </span>
+                                  )}
+                                  <span className="rounded bg-gray-200 px-1 py-0.5 font-mono text-gray-600">
+                                    {attempt.adapterName}
+                                  </span>
+                                </div>
+                                {attempt.transportMessageId && (
+                                  <p className="mt-1 font-mono text-gray-500">
+                                    msg: {attempt.transportMessageId}
+                                  </p>
+                                )}
+                                {attempt.errorCode && (
+                                  <p className="mt-1 text-red-600">
+                                    [{attempt.errorCode}] {attempt.errorMessage}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div className="mt-3 grid gap-3 text-sm text-gray-600 md:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-gray-500">Utworzono</p>
-                    <p>{formatDateTime(item.createdAt)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Autor</p>
-                    <p>{renderSummaryValue(item.createdByDisplayName)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Odbiorca</p>
-                    <p>{item.recipient}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Wyslano</p>
-                    <p>{item.sentAt ? formatDateTime(item.sentAt) : '-'}</p>
-                  </div>
-                </div>
-
-                <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{item.body}</p>
-
-                {item.errorMessage && (
-                  <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {item.errorMessage}
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-sm text-gray-600">

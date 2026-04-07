@@ -349,9 +349,11 @@ export const PORTING_COMMUNICATION_TYPE_LABELS: Record<PortingCommunicationType,
 
 export const PORTING_COMMUNICATION_STATUSES = {
   DRAFT: 'DRAFT',
-  READY: 'READY',
+  READY_TO_SEND: 'READY_TO_SEND',
+  SENDING: 'SENDING',
   SENT: 'SENT',
   FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
 } as const
 
 export type PortingCommunicationStatus =
@@ -359,9 +361,30 @@ export type PortingCommunicationStatus =
 
 export const PORTING_COMMUNICATION_STATUS_LABELS: Record<PortingCommunicationStatus, string> = {
   DRAFT: 'Draft',
-  READY: 'Gotowe do wysylki',
+  READY_TO_SEND: 'Gotowe do wysylki',
+  SENDING: 'W trakcie wysylki',
   SENT: 'Wyslane',
   FAILED: 'Blad wysylki',
+  CANCELLED: 'Anulowane',
+}
+
+// ============================================================
+// STATUSY PROBY DORECZENIA KOMUNIKACJI
+// ============================================================
+
+export const COMMUNICATION_DELIVERY_OUTCOMES = {
+  SUCCESS: 'SUCCESS',
+  FAILED: 'FAILED',
+  STUBBED: 'STUBBED',
+} as const
+
+export type CommunicationDeliveryOutcome =
+  (typeof COMMUNICATION_DELIVERY_OUTCOMES)[keyof typeof COMMUNICATION_DELIVERY_OUTCOMES]
+
+export const COMMUNICATION_DELIVERY_OUTCOME_LABELS: Record<CommunicationDeliveryOutcome, string> = {
+  SUCCESS: 'Sukces',
+  FAILED: 'Blad',
+  STUBBED: 'STUB (symulowany)',
 }
 
 export const PORTING_COMMUNICATION_TRIGGER_TYPES = {

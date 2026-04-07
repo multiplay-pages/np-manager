@@ -1,4 +1,5 @@
 import type {
+  CommunicationDeliveryOutcome,
   CommunicationTemplateCode,
   CommunicationTemplateVersionStatus,
   CommunicationTemplatePlaceholder,
@@ -103,6 +104,35 @@ export interface PortingCommunicationSummaryDto {
 
 export interface MarkPortingCommunicationSentDto {
   sentAt?: string
+}
+
+export interface CommunicationDeliveryAttemptDto {
+  id: string
+  communicationId: string
+  attemptedAt: string
+  attemptedByUserId: string
+  attemptedByDisplayName: string | null
+  channel: PortingCommunicationType
+  recipient: string
+  subjectSnapshot: string
+  bodySnapshot: string
+  outcome: CommunicationDeliveryOutcome
+  transportMessageId: string | null
+  transportReference: string | null
+  errorCode: string | null
+  errorMessage: string | null
+  responsePayloadJson: Record<string, unknown> | null
+  adapterName: string
+}
+
+export interface CommunicationDeliveryAttemptsResultDto {
+  communicationId: string
+  attempts: CommunicationDeliveryAttemptDto[]
+}
+
+export interface SendPortingCommunicationResultDto {
+  communication: PortingCommunicationDto
+  attempt: CommunicationDeliveryAttemptDto
 }
 
 export interface CommunicationTemplateDto {

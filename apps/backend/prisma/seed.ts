@@ -16,6 +16,7 @@
  *  - FNP-SEED-E18-001: etap READY_TO_PORT, happy path Draft E18
  *  - FNP-SEED-COMM-DRAFT-001: detail z dostepnym "Utworz draft" dla komunikacji
  *  - FNP-SEED-COMM-DUPLICATE-001: detail z aktywnym draftem blokujacym duplikat
+ *  - FNP-SEED-COMM-FAILED-001: detail z komunikacja FAILED gotowa do retry
  *
  * Seed jest idempotentny — używa upsert, można uruchomić wielokrotnie.
  *
@@ -84,6 +85,46 @@ export const COMMUNICATION_TEMPLATE_SEED_DATA = [
     versionNumber: 1,
   },
 ] as const
+
+export const QA_FAILED_COMMUNICATION_SEED_FIXTURE = {
+  caseNumber: 'FNP-SEED-COMM-FAILED-001',
+  requestDocumentNumber: 'DOC-SEED-COMM-FAIL-001',
+  primaryNumber: '221234573',
+  requestRegisteredAt: '2026-04-04T10:20:00.000Z',
+  requestedPortDate: '2026-04-20T00:00:00.000Z',
+  internalNotes:
+    'Seed QA: sprawa z komunikacja FAILED i historia nieudanej proby doreczenia do testu retry.',
+  communication: {
+    id: '00000000-0000-4000-8000-000000000702',
+    status: 'FAILED',
+    type: 'EMAIL',
+    triggerType: 'MANUAL',
+    templateKey: 'missing_documents',
+    templateCode: 'ISSUE_NOTICE',
+    actionType: 'MISSING_DOCUMENTS',
+    actionLabel: 'Brakujace dokumenty',
+    subject: 'Sprawa FNP-SEED-COMM-FAILED-001 - brakujace dokumenty do uzupelnienia',
+    body:
+      'Dzien dobry Jan Testowy,\n\npodczas weryfikacji sprawy FNP-SEED-COMM-FAILED-001 dotyczacej numeru 221234573 stwierdzilismy brak podpisanego pelnomocnictwa i potwierdzenia danych adresowych.\n\nProsimy o uzupelnienie brakow, aby kontynuowac proces portowania.\n\nPozdrawiamy,\nZespol NP-Manager',
+    errorMessage:
+      'Wysylka nie powiodla sie: serwer odbiorcy odrzucil wiadomosc dla adresu jan.testowy@np-manager.local.',
+    createdAt: '2026-04-04T10:45:00.000Z',
+    updatedAt: '2026-04-04T10:47:00.000Z',
+  },
+  deliveryAttempt: {
+    id: '00000000-0000-4000-8000-000000000703',
+    attemptedAt: '2026-04-04T10:47:00.000Z',
+    outcome: 'FAILED',
+    adapterName: 'stub-email-adapter',
+    errorCode: 'SMTP_550_RECIPIENT_REJECTED',
+    errorMessage:
+      'Odpowiedz serwera SMTP 550 5.1.1: odbiorca jan.testowy@np-manager.local nie zaakceptowal wiadomosci.',
+    responsePayloadJson: {
+      provider: 'stub-smtp',
+      smtpStatus: '550 5.1.1 Recipient rejected',
+    },
+  },
+} as const
 
 // ============================================================
 // DANE STATUSÓW
@@ -1368,10 +1409,89 @@ export async function seedMain() {
     },
   })
 
+  const communicationFailedRequest = await prisma.portingRequest.upsert({
+    where: { caseNumber: QA_FAILED_COMMUNICATION_SEED_FIXTURE.caseNumber },
+    update: {
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: QA_FAILED_COMMUNICATION_SEED_FIXTURE.primaryNumber,
+      rangeStart: null,
+      rangeEnd: null,
+      requestDocumentNumber: QA_FAILED_COMMUNICATION_SEED_FIXTURE.requestDocumentNumber,
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      infrastructureOperatorId: null,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.requestRegisteredAt),
+      requestedPortDate: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.requestedPortDate),
+      requestedPortTime: '00:00',
+      earliestAcceptablePortDate: null,
+      confirmedPortDate: null,
+      donorAssignedPortDate: null,
+      donorAssignedPortTime: null,
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      statusPliCbd: null,
+      pliCbdCaseId: null,
+      pliCbdCaseNumber: null,
+      pliCbdPackageId: null,
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      pliCbdLastSyncAt: null,
+      lastExxReceived: null,
+      lastPliCbdStatusCode: null,
+      lastPliCbdStatusDescription: null,
+      rejectionCode: null,
+      rejectionReason: null,
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      subscriberCompanyName: null,
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes: QA_FAILED_COMMUNICATION_SEED_FIXTURE.internalNotes,
+      createdByUserId: adminUser.id,
+    },
+    create: {
+      caseNumber: QA_FAILED_COMMUNICATION_SEED_FIXTURE.caseNumber,
+      clientId: qaClient.id,
+      numberType: 'FIXED_LINE',
+      numberRangeKind: 'SINGLE',
+      primaryNumber: QA_FAILED_COMMUNICATION_SEED_FIXTURE.primaryNumber,
+      requestDocumentNumber: QA_FAILED_COMMUNICATION_SEED_FIXTURE.requestDocumentNumber,
+      donorOperatorId: donorOperator.id,
+      recipientOperatorId: recipientOperator.id,
+      donorRoutingNumber: donorOperator.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.requestRegisteredAt),
+      requestedPortDate: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.requestedPortDate),
+      requestedPortTime: '00:00',
+      portingMode: 'DAY',
+      statusInternal: 'SUBMITTED',
+      pliCbdExportStatus: 'NOT_EXPORTED',
+      subscriberKind: 'INDIVIDUAL',
+      subscriberFirstName: 'Jan',
+      subscriberLastName: 'Testowy',
+      identityType: 'PESEL',
+      identityValue: '90010112345',
+      correspondenceAddress: 'ul. Testowa 10/5, 00-001 Warszawa',
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL',
+      internalNotes: QA_FAILED_COMMUNICATION_SEED_FIXTURE.internalNotes,
+      createdByUserId: adminUser.id,
+    },
+  })
+
   await prisma.portingCommunication.deleteMany({
     where: {
       portingRequestId: {
-        in: [communicationDraftRequest.id, communicationDuplicateRequest.id],
+        in: [communicationDraftRequest.id, communicationDuplicateRequest.id, communicationFailedRequest.id],
       },
     },
   })
@@ -1404,8 +1524,67 @@ export async function seedMain() {
       updatedAt: new Date('2026-04-03T09:00:00.000Z'),
     },
   })
+
+  await prisma.portingCommunication.create({
+    data: {
+      id: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.id,
+      portingRequestId: communicationFailedRequest.id,
+      type: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.type,
+      status: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.status,
+      triggerType: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.triggerType,
+      recipient: qaClient.email,
+      subject: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.subject,
+      body: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.body,
+      templateKey: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.templateKey,
+      createdByUserId: adminUser.id,
+      sentAt: null,
+      errorMessage: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.errorMessage,
+      metadata: {
+        actionType: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.actionType,
+        actionLabel: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.actionLabel,
+        issueDescription: 'Brak podpisanego pelnomocnictwa i potwierdzenia danych adresowych.',
+        communicationTemplateCode: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.templateCode,
+        communicationTemplateVersionId:
+          publishedTemplateVersionByCode.get(
+            QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.templateCode,
+          )?.id ?? '00000000-0000-4000-9000-000000000804',
+        communicationTemplateVersionNumber:
+          publishedTemplateVersionByCode.get(
+            QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.templateCode,
+          )?.versionNumber ?? 1,
+        seedFixture: QA_FAILED_COMMUNICATION_SEED_FIXTURE.caseNumber,
+      },
+      createdAt: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.createdAt),
+      updatedAt: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.updatedAt),
+    },
+  })
+
+  await prisma.communicationDeliveryAttempt.create({
+    data: {
+      id: QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.id,
+      communicationId: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.id,
+      attemptedAt: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.attemptedAt),
+      attemptedByUserId: adminUser.id,
+      channel: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.type,
+      recipient: qaClient.email,
+      subjectSnapshot: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.subject,
+      bodySnapshot: QA_FAILED_COMMUNICATION_SEED_FIXTURE.communication.body,
+      outcome: QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.outcome,
+      errorCode: QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.errorCode,
+      errorMessage: QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.errorMessage,
+      responsePayloadJson:
+        QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.responsePayloadJson as Record<
+          string,
+          string
+        >,
+      adapterName: QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.adapterName,
+      transportMessageId: null,
+      transportReference: null,
+      createdAt: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.attemptedAt),
+    },
+  })
   console.info(
-    'Dodano klienta QA oraz 5 spraw portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18 + komunikacja create-draft + komunikacja duplicate-block)',
+    'Dodano klienta QA oraz 6 spraw portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18 + komunikacja create-draft + komunikacja duplicate-block + komunikacja failed-retry)',
   )
 
   // ----------------------------------------------------------
