@@ -1,4 +1,7 @@
 import type {
+  CommunicationTemplateCode,
+  CommunicationTemplatePlaceholder,
+  ContactChannel,
   PortingCommunicationStatus,
   PortingCommunicationTemplateKey,
   PortingCommunicationTriggerType,
@@ -10,9 +13,13 @@ import type {
 export interface PortingCommunicationTemplateContextDto {
   clientName: string
   caseNumber: string
-  phoneNumber: string
-  scheduledPortDate: string | null
-  rejectionReason: string | null
+  portedNumber: string
+  donorOperatorName: string
+  recipientOperatorName: string
+  plannedPortDate: string | null
+  issueDescription: string | null
+  contactEmail: string | null
+  contactPhone: string | null
 }
 
 export interface PreparePortingCommunicationDraftDto {
@@ -94,4 +101,54 @@ export interface PortingCommunicationSummaryDto {
 
 export interface MarkPortingCommunicationSentDto {
   sentAt?: string
+}
+
+export interface CommunicationTemplateDto {
+  id: string
+  code: CommunicationTemplateCode
+  name: string
+  description: string | null
+  channel: ContactChannel
+  subjectTemplate: string
+  bodyTemplate: string
+  isActive: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+  createdByUserId: string
+  updatedByUserId: string
+  createdByDisplayName: string | null
+  updatedByDisplayName: string | null
+}
+
+export interface CommunicationTemplateListResultDto {
+  items: CommunicationTemplateDto[]
+}
+
+export interface CreateCommunicationTemplateDto {
+  code: CommunicationTemplateCode
+  name: string
+  description?: string | null
+  channel: ContactChannel
+  subjectTemplate: string
+  bodyTemplate: string
+  isActive?: boolean
+}
+
+export interface UpdateCommunicationTemplateDto {
+  code?: CommunicationTemplateCode
+  name?: string
+  description?: string | null
+  channel?: ContactChannel
+  subjectTemplate?: string
+  bodyTemplate?: string
+  isActive?: boolean
+}
+
+export interface RenderCommunicationTemplateResultDto {
+  renderedSubject: string
+  renderedBody: string
+  missingPlaceholders: CommunicationTemplatePlaceholder[]
+  unknownPlaceholders: string[]
+  isRenderable: boolean
 }

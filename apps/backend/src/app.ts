@@ -8,6 +8,7 @@ import { usersRouter } from './modules/users/users.router'
 import { clientsRouter } from './modules/clients/clients.router'
 import { operatorsRouter } from './modules/operators/operators.router'
 import { portingRequestsRouter } from './modules/porting-requests/porting-requests.router'
+import { communicationTemplatesRouter } from './modules/communications/communication-templates.router'
 import { errorHandler } from './shared/errors/error-handler'
 import { buildReadinessResult } from './shared/health/readiness'
 import type { FastifyInstance } from 'fastify'
@@ -18,6 +19,7 @@ const REGISTERED_API_PREFIXES = [
   '/api/clients',
   '/api/operators',
   '/api/porting-requests',
+  '/api/admin/communication-templates',
 ] as const
 
 export const REQUIRED_RUNTIME_ROUTES = [
@@ -95,6 +97,7 @@ export async function buildApp() {
   await app.register(clientsRouter, { prefix: '/api/clients' })
   await app.register(operatorsRouter, { prefix: '/api/operators' })
   await app.register(portingRequestsRouter, { prefix: '/api/porting-requests' })
+  await app.register(communicationTemplatesRouter, { prefix: '/api/admin/communication-templates' })
 
   app.get('/health', async () => {
     return {

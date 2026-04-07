@@ -8,6 +8,8 @@ const mockCommunicationUpdate = vi.fn()
 const mockCaseHistoryFindMany = vi.fn()
 const mockIntegrationFindMany = vi.fn()
 const mockLogAuditEvent = vi.fn()
+const mockGetActiveCommunicationTemplateOrThrow = vi.fn()
+const mockResolveCommunicationTemplateCodeForAction = vi.fn()
 
 vi.mock('../../../config/database', () => ({
   prisma: {
@@ -31,6 +33,13 @@ vi.mock('../../../config/database', () => ({
 
 vi.mock('../../../shared/audit/audit.service', () => ({
   logAuditEvent: (...args: unknown[]) => mockLogAuditEvent(...args),
+}))
+
+vi.mock('../../communications/communication-templates.service', () => ({
+  getActiveCommunicationTemplateOrThrow: (...args: unknown[]) =>
+    mockGetActiveCommunicationTemplateOrThrow(...args),
+  resolveCommunicationTemplateCodeForAction: (...args: unknown[]) =>
+    mockResolveCommunicationTemplateCodeForAction(...args),
 }))
 
 import {
@@ -64,6 +73,13 @@ function makeSnapshot(statusInternal: 'SUBMITTED' | 'REJECTED' | 'PORTED' = 'SUB
       lastName: 'Kowalski',
       companyName: null,
       email: 'jan.kowalski@example.com',
+      phoneContact: '600700800',
+    },
+    donorOperator: {
+      name: 'Orange Polska',
+    },
+    recipientOperator: {
+      name: 'G-NET',
     },
   }
 }
@@ -107,6 +123,24 @@ describe('porting-request-communication.service', () => {
       sentAt: new Date('2026-04-06T11:00:00.000Z'),
     })
     mockLogAuditEvent.mockResolvedValue(undefined)
+    mockGetActiveCommunicationTemplateOrThrow.mockResolvedValue({
+      id: 'tpl-1',
+      code: 'REQUEST_RECEIVED',
+      name: 'Wniosek przyjety',
+      description: 'Opis',
+      channel: 'EMAIL',
+      subjectTemplate: 'Sprawa {{caseNumber}}',
+      bodyTemplate: 'Dzien dobry {{clientName}}',
+      isActive: true,
+      version: 1,
+      createdAt: '2026-04-06T09:00:00.000Z',
+      updatedAt: '2026-04-06T09:00:00.000Z',
+      createdByUserId: USER_ID,
+      updatedByUserId: USER_ID,
+      createdByDisplayName: 'Anna Nowak',
+      updatedByDisplayName: 'Anna Nowak',
+    })
+    mockResolveCommunicationTemplateCodeForAction.mockReturnValue('REQUEST_RECEIVED')
   })
 
   it('builds create payload linked to porting request and preserves action metadata', () => {
@@ -124,9 +158,13 @@ describe('porting-request-communication.service', () => {
         context: {
           clientName: 'Jan Kowalski',
           caseNumber: 'FNP-20260406-XYZ123',
-          phoneNumber: '221234567',
-          scheduledPortDate: null,
-          rejectionReason: null,
+          portedNumber: '221234567',
+          donorOperatorName: 'Orange Polska',
+          recipientOperatorName: 'G-NET',
+          plannedPortDate: null,
+          issueDescription: null,
+          contactEmail: 'jan.kowalski@example.com',
+          contactPhone: '600700800',
         },
       },
       metadata: { source: 'manual' },
@@ -137,6 +175,7 @@ describe('porting-request-communication.service', () => {
     expect(createData.metadata).toMatchObject({
       source: 'manual',
       actionType: 'CLIENT_CONFIRMATION',
+      communicationTemplateCode: 'REQUEST_RECEIVED',
     })
   })
 
@@ -201,6 +240,64 @@ describe('porting-request-communication.service', () => {
         'ADMIN',
       ),
     ).rejects.toThrow(/Aktualny status: SUBMITTED/)
+  })
+
+  it('blocks draft creation when there is no active template for resolved communication code', async () => {
+    mockGetActiveCommunicationTemplateOrThrow.mockRejectedValue(
+      new Error('Brak aktywnego szablonu dla komunikacji REQUEST_RECEIVED (EMAIL).'),
+    )
+
+    await expect(
+      createPortingCommunicationDraft(
+        REQUEST_ID,
+        { actionType: 'CLIENT_CONFIRMATION' },
+        USER_ID,
+        'ADMIN',
+      ),
+    ).rejects.toThrow(/Brak aktywnego szablonu/)
+
+    expect(mockCommunicationCreate).not.toHaveBeenCalled()
+  })
+
+  it('blocks draft creation when active template requires missing request data', async () => {
+    mockRequestFindUnique.mockResolvedValue({
+      ...makeSnapshot(),
+      requestedPortDate: null,
+      confirmedPortDate: null,
+      donorAssignedPortDate: null,
+    })
+    mockResolveCommunicationTemplateCodeForAction.mockReturnValue('PORT_DATE_RECEIVED')
+    mockGetActiveCommunicationTemplateOrThrow.mockResolvedValue({
+      id: 'tpl-2',
+      code: 'PORT_DATE_RECEIVED',
+      name: 'Data przeniesienia',
+      description: 'Opis',
+      channel: 'EMAIL',
+      subjectTemplate: 'Termin {{plannedPortDate}}',
+      bodyTemplate: 'Numer {{portedNumber}}, termin {{plannedPortDate}}',
+      isActive: true,
+      version: 1,
+      createdAt: '2026-04-06T09:00:00.000Z',
+      updatedAt: '2026-04-06T09:00:00.000Z',
+      createdByUserId: USER_ID,
+      updatedByUserId: USER_ID,
+      createdByDisplayName: 'Anna Nowak',
+      updatedByDisplayName: 'Anna Nowak',
+    })
+
+    await expect(
+      createPortingCommunicationDraft(
+        REQUEST_ID,
+        {
+          actionType: 'CLIENT_CONFIRMATION',
+          triggerType: 'PORT_DATE_SCHEDULED',
+        },
+        USER_ID,
+        'ADMIN',
+      ),
+    ).rejects.toThrow(/plannedPortDate/)
+
+    expect(mockCommunicationCreate).not.toHaveBeenCalled()
   })
 
   it('mark-sent rejects invalid communication status transitions', async () => {

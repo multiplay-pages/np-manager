@@ -30,6 +30,57 @@ import bcrypt from 'bcrypt'
 
 const prisma = new PrismaClient()
 
+export const COMMUNICATION_TEMPLATE_SEED_DATA = [
+  {
+    id: '00000000-0000-4000-8000-000000000801',
+    code: 'REQUEST_RECEIVED',
+    name: 'Potwierdzenie przyjecia sprawy',
+    description: 'Szablon dla komunikacji po przyjeciu wniosku lub przekazaniu sprawy do procesu.',
+    channel: 'EMAIL',
+    subjectTemplate: 'Sprawa {{caseNumber}} - potwierdzenie przyjecia',
+    bodyTemplate:
+      'Dzien dobry {{clientName}},\n\npotwierdzamy przyjecie sprawy {{caseNumber}} dotyczacej numeru {{portedNumber}}.\nOperator biorca: {{recipientOperatorName}}.\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
+    isActive: true,
+    version: 1,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000802',
+    code: 'PORT_DATE_RECEIVED',
+    name: 'Potwierdzenie daty przeniesienia',
+    description: 'Szablon dla komunikacji po otrzymaniu daty przeniesienia od Operatora Dawcy.',
+    channel: 'EMAIL',
+    subjectTemplate: 'Sprawa {{caseNumber}} - data przeniesienia {{plannedPortDate}}',
+    bodyTemplate:
+      'Dzien dobry {{clientName}},\n\nOperator Dawca ({{donorOperatorName}}) potwierdzil planowana date przeniesienia numeru {{portedNumber}} na {{plannedPortDate}}.\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
+    isActive: true,
+    version: 1,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000803',
+    code: 'PORTING_DAY',
+    name: 'Komunikat na dzien przeniesienia',
+    description: 'Szablon dla komunikacji w dniu przeniesienia numeru.',
+    channel: 'EMAIL',
+    subjectTemplate: 'Sprawa {{caseNumber}} - dzien przeniesienia numeru',
+    bodyTemplate:
+      'Dzien dobry {{clientName}},\n\nnumer {{portedNumber}} jest obslugiwany w ramach sprawy {{caseNumber}} z planowana data przeniesienia {{plannedPortDate}}.\nOperator biorca: {{recipientOperatorName}}.\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
+    isActive: true,
+    version: 1,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000804',
+    code: 'ISSUE_NOTICE',
+    name: 'Informacja o problemie',
+    description: 'Szablon dla komunikacji operacyjnych wymagajacych przekazania problemu lub brakow.',
+    channel: 'EMAIL',
+    subjectTemplate: 'Sprawa {{caseNumber}} - wymagana uwaga',
+    bodyTemplate:
+      'Dzien dobry {{clientName}},\n\nw sprawie {{caseNumber}} dotyczacej numeru {{portedNumber}} pojawila sie kwestia wymagajaca uwagi:\n{{issueDescription}}\n\nW razie pytan prosimy o kontakt: {{contactEmail}}, tel. {{contactPhone}}.\n\nPozdrawiamy,\nZespol NP-Manager',
+    isActive: true,
+    version: 1,
+  },
+] as const
+
 // ============================================================
 // DANE STATUSÓW
 // ============================================================
@@ -497,7 +548,7 @@ const transitionData: TransitionDef[] = [
 // MAIN SEED
 // ============================================================
 
-async function main() {
+export async function seedMain() {
   console.info('🌱 Rozpoczynam seed danych startowych NP-Manager...')
 
   // ----------------------------------------------------------
@@ -702,6 +753,30 @@ async function main() {
   console.info('   🔑  Hasło:   Admin@NP2026!  ← ZMIEŃ PO PIERWSZYM LOGOWANIU')
 
   // Konto testowe BOK — do weryfikacji RBAC (brak uprawnień ADMIN)
+  for (const template of COMMUNICATION_TEMPLATE_SEED_DATA) {
+    await prisma.communicationTemplate.upsert({
+      where: { id: template.id },
+      update: {
+        code: template.code,
+        name: template.name,
+        description: template.description,
+        channel: template.channel,
+        subjectTemplate: template.subjectTemplate,
+        bodyTemplate: template.bodyTemplate,
+        isActive: template.isActive,
+        version: template.version,
+        createdByUserId: adminUser.id,
+        updatedByUserId: adminUser.id,
+      },
+      create: {
+        ...template,
+        createdByUserId: adminUser.id,
+        updatedByUserId: adminUser.id,
+      },
+    })
+  }
+
+  // Konto testowe BOK â€” do weryfikacji RBAC (brak uprawnieĹ„ ADMIN)
   const bokPassword = 'Bok@NP2026!'
   const bokPasswordHash = await bcrypt.hash(bokPassword, 12)
 
@@ -1222,6 +1297,7 @@ async function main() {
       metadata: {
         actionType: 'CLIENT_CONFIRMATION',
         actionLabel: 'Potwierdzenie dla klienta',
+        communicationTemplateCode: 'REQUEST_RECEIVED',
         seedFixture: 'FNP-SEED-COMM-DUPLICATE-001',
       },
       createdAt: new Date('2026-04-03T09:00:00.000Z'),
@@ -1340,11 +1416,13 @@ async function main() {
   console.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 }
 
-main()
-  .catch((err) => {
-    console.error('❌ Błąd podczas seeda:', err)
-    process.exit(1)
-  })
-  .finally(() => {
-    void prisma.$disconnect()
-  })
+if (require.main === module) {
+  seedMain()
+    .catch((err) => {
+      console.error('❌ Błąd podczas seeda:', err)
+      process.exit(1)
+    })
+    .finally(() => {
+      void prisma.$disconnect()
+    })
+}

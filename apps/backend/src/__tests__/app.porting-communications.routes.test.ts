@@ -106,9 +106,13 @@ describe('porting communication routes', () => {
       context: {
         clientName: 'Jan Kowalski',
         caseNumber: 'FNP-123',
-        phoneNumber: '221234567',
-        scheduledPortDate: null,
-        rejectionReason: null,
+        portedNumber: '221234567',
+        donorOperatorName: 'Orange Polska',
+        recipientOperatorName: 'G-NET',
+        plannedPortDate: null,
+        issueDescription: null,
+        contactEmail: 'jan@example.com',
+        contactPhone: '600700800',
       },
     })
 

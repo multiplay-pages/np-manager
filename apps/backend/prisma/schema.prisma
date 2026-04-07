@@ -202,6 +202,13 @@ enum PortingCommunicationTemplateKey {
   internal_note_email
 }
 
+enum CommunicationTemplateCode {
+  REQUEST_RECEIVED
+  PORT_DATE_RECEIVED
+  PORTING_DAY
+  ISSUE_NOTICE
+}
+
 // ============================================================
 // USERS — Użytkownicy systemu
 // ============================================================
@@ -231,6 +238,8 @@ model User {
   pliCbdIntegrationEvents          PliCbdIntegrationEvent[]    @relation("PliCbdIntegrationTriggeredBy")
   portingRequestCaseHistoryEntries PortingRequestCaseHistory[] @relation("PortingRequestCaseHistoryActor")
   createdPortingCommunications     PortingCommunication[]      @relation("PortingCommunicationCreatedBy")
+  createdCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateCreatedBy")
+  updatedCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateUpdatedBy")
 
   @@map("users")
 }
@@ -577,6 +586,29 @@ model PortingCommunication {
   @@index([portingRequestId, createdAt])
   @@index([status])
   @@map("porting_communications")
+}
+
+model CommunicationTemplate {
+  id               String                    @id @default(uuid())
+  code             CommunicationTemplateCode
+  name             String                    @db.VarChar(150)
+  description      String?                   @db.Text
+  channel          ContactChannel
+  subjectTemplate  String                    @db.VarChar(300)
+  bodyTemplate     String                    @db.Text
+  isActive         Boolean                   @default(true)
+  version          Int                       @default(1)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  createdByUserId  String
+  updatedByUserId  String
+
+  createdBy User @relation("CommunicationTemplateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy User @relation("CommunicationTemplateUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([code, channel])
+  @@index([code, channel, isActive])
+  @@map("communication_templates")
 }
 
 // ============================================================

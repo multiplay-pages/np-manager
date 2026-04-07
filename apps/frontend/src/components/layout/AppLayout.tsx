@@ -9,144 +9,164 @@ interface NavItem {
   path: string
   icon: string
   roles?: string[]
+  exact?: boolean
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', path: ROUTES.DASHBOARD, icon: '⊞' },
-  { label: 'Sprawy', path: ROUTES.REQUESTS, icon: '📋' },
-  { label: 'Klienci', path: ROUTES.CLIENTS, icon: '👥' },
-  { label: 'Zadania', path: ROUTES.TASKS, icon: '✓' },
-  { label: 'Raporty', path: ROUTES.REPORTS, icon: '📊', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
-  { label: 'Operatorzy', path: ROUTES.OPERATORS, icon: '📡' },
-  { label: 'Administracja', path: ROUTES.ADMIN, icon: '⚙', roles: ['ADMIN'] },
+const primaryNavItems: NavItem[] = [
+  { label: 'Dashboard', path: ROUTES.DASHBOARD, icon: 'D', exact: true },
+  { label: 'Sprawy', path: ROUTES.REQUESTS, icon: 'S' },
+  { label: 'Klienci', path: ROUTES.CLIENTS, icon: 'K' },
+  { label: 'Zadania', path: ROUTES.TASKS, icon: 'Z' },
+  { label: 'Raporty', path: ROUTES.REPORTS, icon: 'R', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
+  { label: 'Operatorzy', path: ROUTES.OPERATORS, icon: 'O' },
 ]
+
+const adminNavItems: NavItem[] = [
+  { label: 'Operatorzy', path: ROUTES.ADMIN_OPERATORS, icon: 'O' },
+  { label: 'Szablony komunikatow', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
+]
+
+function SidebarLink({
+  item,
+  sidebarCollapsed,
+}: {
+  item: NavItem
+  sidebarCollapsed: boolean
+}) {
+  return (
+    <NavLink
+      to={item.path}
+      end={item.exact ?? false}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ${
+          isActive
+            ? 'bg-blue-600 text-white'
+            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+        }`
+      }
+    >
+      <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-gray-800 text-xs font-semibold text-gray-200">
+        {item.icon}
+      </span>
+      {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+    </NavLink>
+  )
+}
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, clearAuth } = useAuthStore()
   const navigate = useNavigate()
+  const isAdmin = user?.role === 'ADMIN'
 
   const handleLogout = () => {
     clearAuth()
     void navigate(ROUTES.LOGIN)
   }
 
-  const visibleNavItems = navItems.filter((item) => {
+  const visiblePrimaryItems = primaryNavItems.filter((item) => {
+    if (item.path === ROUTES.OPERATORS && isAdmin) {
+      return false
+    }
+
     if (!item.roles) return true
     return user ? item.roles.includes(user.role) : false
   })
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* ====================================================
-          SIDEBAR
-          ==================================================== */}
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       <aside
-        className={`
-          flex flex-col bg-gray-900 text-white transition-all duration-200 flex-shrink-0
-          ${sidebarCollapsed ? 'w-16' : 'w-60'}
-        `}
+        className={`flex flex-shrink-0 flex-col bg-gray-900 text-white transition-all duration-200 ${
+          sidebarCollapsed ? 'w-16' : 'w-64'
+        }`}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-700 h-16">
-          <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+        <div className="flex h-16 items-center gap-3 border-b border-gray-700 px-4 py-4">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
             NP
           </div>
           {!sidebarCollapsed && (
             <div className="overflow-hidden">
-              <div className="font-semibold text-sm truncate">NP-Manager</div>
-              <div className="text-xs text-gray-400 truncate">Portabilność numerów</div>
+              <div className="truncate text-sm font-semibold">NP-Manager</div>
+              <div className="truncate text-xs text-gray-400">Portabilnosc numerow</div>
             </div>
           )}
         </div>
 
-        {/* Nawigacja */}
-        <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-          {visibleNavItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === ROUTES.DASHBOARD}
-              className={({ isActive }) => `
-                flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
-                transition-colors duration-150
-                ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                }
-              `}
-            >
-              <span className="text-base flex-shrink-0">{item.icon}</span>
-              {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-            </NavLink>
-          ))}
+        <nav className="flex-1 overflow-y-auto px-2 py-4">
+          <div className="space-y-1">
+            {visiblePrimaryItems.map((item) => (
+              <SidebarLink key={item.path} item={item} sidebarCollapsed={sidebarCollapsed} />
+            ))}
+          </div>
+
+          {isAdmin && (
+            <div className="mt-6">
+              {!sidebarCollapsed && (
+                <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                  Administracja
+                </div>
+              )}
+              <div className="space-y-1">
+                {adminNavItems.map((item) => (
+                  <SidebarLink key={item.path} item={item} sidebarCollapsed={sidebarCollapsed} />
+                ))}
+              </div>
+            </div>
+          )}
         </nav>
 
-        {/* Profil użytkownika */}
         <div className="border-t border-gray-700 p-3">
           {user && (
             <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-              <div className="flex-shrink-0 w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-sm font-medium">
-                {user.firstName[0]}{user.lastName[0]}
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-600 text-sm font-medium">
+                {user.firstName[0]}
+                {user.lastName[0]}
               </div>
               {!sidebarCollapsed && (
                 <div className="flex-1 overflow-hidden">
-                  <div className="text-sm font-medium truncate">
+                  <div className="truncate text-sm font-medium">
                     {user.firstName} {user.lastName}
                   </div>
-                  <div className="text-xs text-gray-400 truncate">
-                    {USER_ROLE_LABELS[user.role]}
-                  </div>
+                  <div className="truncate text-xs text-gray-400">{USER_ROLE_LABELS[user.role]}</div>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Toggle sidebar */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="flex items-center justify-center h-10 text-gray-400 hover:text-white hover:bg-gray-700 transition-colors border-t border-gray-700"
-          title={sidebarCollapsed ? 'Rozwiń menu' : 'Zwiń menu'}
+          className="flex h-10 items-center justify-center border-t border-gray-700 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
+          title={sidebarCollapsed ? 'Rozwin menu' : 'Zwin menu'}
         >
-          <span className="text-sm">{sidebarCollapsed ? '→' : '←'}</span>
+          <span className="text-sm">{sidebarCollapsed ? '>' : '<'}</span>
         </button>
       </aside>
 
-      {/* ====================================================
-          GŁÓWNA TREŚĆ
-          ==================================================== */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6">
           <div className="flex items-center gap-4">
-            {/* Breadcrumb będzie tu w następnym sprincie */}
-            <span className="text-sm text-gray-500">System zarządzania portabilnością</span>
+            <span className="text-sm text-gray-500">System zarzadzania portabilnoscia</span>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Powiadomienia — placeholder (Sprint 7) */}
             <button
-              className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="relative rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               title="Powiadomienia"
             >
-              <span className="text-lg">🔔</span>
-              {/* Badge będzie dynamiczny po implementacji powiadomień */}
+              <span className="text-lg">!</span>
             </button>
 
-            {/* Wylogowanie */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
             >
-              <span>↩</span>
+              <span>{'<'}</span>
               <span>Wyloguj</span>
             </button>
           </div>
         </header>
 
-        {/* Treść strony */}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>

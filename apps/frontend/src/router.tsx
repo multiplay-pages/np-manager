@@ -11,15 +11,9 @@ import { OperatorsPage } from '@/pages/Operators/OperatorsPage'
 import { RequestsPage } from '@/pages/Requests/RequestsPage'
 import { RequestNewPage } from '@/pages/Requests/RequestNewPage'
 import { RequestDetailPage } from '@/pages/Requests/RequestDetailPage'
+import { CommunicationTemplatesAdminPage } from '@/pages/Admin/CommunicationTemplatesAdminPage'
 import { useAuthStore } from '@/stores/auth.store'
 
-/**
- * Komponent chroniący trasy wymagające zalogowania.
- *
- * Czeka na zakończenie rehydracji sessionStorage (isHydrated).
- * Renderowanie null podczas rehydracji zapobiega flicker — React nie
- * mountuje jeszcze żadnego widoku, dopóki nie wiadomo czy sesja istnieje.
- */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isHydrated } = useAuthStore()
 
@@ -32,9 +26,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-/**
- * Komponent blokujący trasy dostępne tylko dla niezalogowanych (np. /login).
- */
 function GuestOnlyRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isHydrated } = useAuthStore()
 
@@ -47,16 +38,28 @@ function GuestOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-/**
- * Konfiguracja routera aplikacji.
- * Dodawanie nowych tras — tylko tutaj i w ROUTES.
- *
- * Ważna kolejność tras:
- *  - /clients/new musi być PRZED /clients/:id (React Router v6 preferuje trasy statyczne)
- *  - /clients/:id/edit jest rozpoznawane przez React Router poprawnie obok /clients/:id
- */
+function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { user, isHydrated } = useAuthStore()
+
+  if (!isHydrated) return null
+
+  if (user?.role !== 'ADMIN') {
+    return (
+      <div className="p-6">
+        <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+          <h1 className="text-2xl font-semibold text-gray-900">Brak dostepu do administracji</h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
+            Ta sekcja jest dostepna tylko dla administratora systemu.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
 export const router = createBrowserRouter([
-  // Strona logowania — tylko dla niezalogowanych
   {
     path: ROUTES.LOGIN,
     element: (
@@ -65,8 +68,6 @@ export const router = createBrowserRouter([
       </GuestOnlyRoute>
     ),
   },
-
-  // Trasy chronione — wymagają zalogowania
   {
     path: '/',
     element: (
@@ -79,32 +80,26 @@ export const router = createBrowserRouter([
         index: true,
         element: <DashboardPage />,
       },
-
-      // ── KLIENCI ──────────────────────────────────────────────
       {
-        path: ROUTES.CLIENTS,          // /clients
+        path: ROUTES.CLIENTS,
         element: <ClientsPage />,
       },
       {
-        path: ROUTES.CLIENT_NEW,       // /clients/new — PRZED /:id
+        path: ROUTES.CLIENT_NEW,
         element: <ClientNewPage />,
       },
       {
-        path: ROUTES.CLIENT_DETAIL,    // /clients/:id
+        path: ROUTES.CLIENT_DETAIL,
         element: <ClientDetailPage />,
       },
       {
-        path: ROUTES.CLIENT_EDIT,      // /clients/:id/edit
+        path: ROUTES.CLIENT_EDIT,
         element: <ClientEditPage />,
       },
-
-      // ── OPERATORZY ───────────────────────────────────────────
       {
         path: ROUTES.OPERATORS,
         element: <OperatorsPage />,
       },
-
-      // ── POZOSTAŁE MODUŁY (placeholders) ──────────────────────
       {
         path: ROUTES.REQUESTS,
         element: <RequestsPage />,
@@ -127,26 +122,67 @@ export const router = createBrowserRouter([
       },
       {
         path: ROUTES.ADMIN,
-        element: <PlaceholderPage title="Administracja" description="Implementacja w Sprint 2" />,
+        element: (
+          <AdminOnlyRoute>
+            <Navigate to={ROUTES.ADMIN_COMMUNICATION_TEMPLATES} replace />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_OPERATORS,
+        element: (
+          <AdminOnlyRoute>
+            <OperatorsPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES,
+        element: (
+          <AdminOnlyRoute>
+            <CommunicationTemplatesAdminPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_COMMUNICATION_TEMPLATE_NEW,
+        element: (
+          <AdminOnlyRoute>
+            <CommunicationTemplatesAdminPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_COMMUNICATION_TEMPLATE_DETAIL,
+        element: (
+          <AdminOnlyRoute>
+            <CommunicationTemplatesAdminPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_COMMUNICATION_TEMPLATE_EDIT,
+        element: (
+          <AdminOnlyRoute>
+            <CommunicationTemplatesAdminPage />
+          </AdminOnlyRoute>
+        ),
       },
     ],
   },
-
-  // Przekierowanie na dashboard dla nieznanych tras
   {
     path: '*',
     element: <Navigate to={ROUTES.DASHBOARD} replace />,
   },
 ])
 
-// Placeholder komponent dla niezaimplementowanych jeszcze modułów
 function PlaceholderPage({ title, description }: { title: string; description: string }) {
   return (
     <div className="p-6">
-      <div className="card p-12 flex flex-col items-center justify-center text-center">
-        <div className="text-5xl mb-4">🚧</div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">{title}</h2>
-        <p className="text-gray-500 text-sm">{description}</p>
+      <div className="card flex flex-col items-center justify-center p-12 text-center">
+        <div className="mb-4 text-5xl">...</div>
+        <h2 className="mb-2 text-xl font-semibold text-gray-900">{title}</h2>
+        <p className="text-sm text-gray-500">{description}</p>
       </div>
     </div>
   )

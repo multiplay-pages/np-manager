@@ -420,6 +420,53 @@ export const PORTING_COMMUNICATION_TEMPLATE_LABELS: Record<
   internal_note_email: 'Wiadomosc wewnetrzna',
 }
 
+export const COMMUNICATION_TEMPLATE_CODES = {
+  REQUEST_RECEIVED: 'REQUEST_RECEIVED',
+  PORT_DATE_RECEIVED: 'PORT_DATE_RECEIVED',
+  PORTING_DAY: 'PORTING_DAY',
+  ISSUE_NOTICE: 'ISSUE_NOTICE',
+} as const
+
+export type CommunicationTemplateCode =
+  (typeof COMMUNICATION_TEMPLATE_CODES)[keyof typeof COMMUNICATION_TEMPLATE_CODES]
+
+export const COMMUNICATION_TEMPLATE_CODE_LABELS: Record<CommunicationTemplateCode, string> = {
+  REQUEST_RECEIVED: 'Wniosek przyjety / przekazany',
+  PORT_DATE_RECEIVED: 'Otrzymano date przeniesienia',
+  PORTING_DAY: 'Dzien przeniesienia',
+  ISSUE_NOTICE: 'Informacja o problemie',
+}
+
+export const COMMUNICATION_TEMPLATE_PLACEHOLDERS = {
+  CLIENT_NAME: 'clientName',
+  CASE_NUMBER: 'caseNumber',
+  PORTED_NUMBER: 'portedNumber',
+  DONOR_OPERATOR_NAME: 'donorOperatorName',
+  RECIPIENT_OPERATOR_NAME: 'recipientOperatorName',
+  PLANNED_PORT_DATE: 'plannedPortDate',
+  ISSUE_DESCRIPTION: 'issueDescription',
+  CONTACT_EMAIL: 'contactEmail',
+  CONTACT_PHONE: 'contactPhone',
+} as const
+
+export type CommunicationTemplatePlaceholder =
+  (typeof COMMUNICATION_TEMPLATE_PLACEHOLDERS)[keyof typeof COMMUNICATION_TEMPLATE_PLACEHOLDERS]
+
+export const COMMUNICATION_TEMPLATE_PLACEHOLDER_LABELS: Record<
+  CommunicationTemplatePlaceholder,
+  string
+> = {
+  clientName: 'Imie i nazwisko / nazwa klienta',
+  caseNumber: 'Numer sprawy',
+  portedNumber: 'Numer lub zakres przenoszony',
+  donorOperatorName: 'Operator Dawca',
+  recipientOperatorName: 'Operator Biorca',
+  plannedPortDate: 'Planowana data przeniesienia',
+  issueDescription: 'Opis problemu',
+  contactEmail: 'Adres e-mail kontaktowy',
+  contactPhone: 'Telefon kontaktowy',
+}
+
 // ============================================================
 // KODY EXX Z PLI CBD
 // ============================================================

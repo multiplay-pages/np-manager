@@ -206,9 +206,13 @@ describe('porting communications e2e flow with real request ID', () => {
       context: {
         clientName: 'Jan Testowy',
         caseNumber: REAL_CASE_NUMBER,
-        phoneNumber: REAL_PHONE,
-        scheduledPortDate: null,
-        rejectionReason: null,
+        portedNumber: REAL_PHONE,
+        donorOperatorName: 'Orange Polska',
+        recipientOperatorName: 'G-NET',
+        plannedPortDate: null,
+        issueDescription: null,
+        contactEmail: 'jan.testowy@np-manager.local',
+        contactPhone: '600700800',
       },
     })
 

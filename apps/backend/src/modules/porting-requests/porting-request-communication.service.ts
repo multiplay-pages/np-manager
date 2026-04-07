@@ -8,11 +8,16 @@ import type {
   PortingCommunicationListResultDto,
   PortingCommunicationPreviewDto,
   PortingCommunicationTemplateContextDto,
+  PortingCommunicationTriggerType,
   PortingRequestCommunicationActionType,
   PreparePortingCommunicationDraftDto,
   UserRole,
 } from '@np-manager/shared'
-import { buildCommunicationPreview } from './porting-request-communication.templates'
+import { renderCommunicationTemplate } from '../communications/communication-template-renderer'
+import {
+  getActiveCommunicationTemplateOrThrow,
+  resolveCommunicationTemplateCodeForAction,
+} from '../communications/communication-templates.service'
 import {
   getAvailableCommunicationActionsForRequest,
   getCommunicationActionPolicy,
@@ -23,6 +28,7 @@ import {
   resolveCommunicationTriggerTypeForAction,
   resolveSuggestedCommunicationActionType,
 } from '../communications/porting-request-communication-policy'
+import { resolveSuggestedCommunicationTriggerType } from './porting-request-communication.templates'
 
 type CommunicationDbClient = PrismaClient | Prisma.TransactionClient
 
@@ -46,6 +52,17 @@ const REQUEST_COMMUNICATION_SNAPSHOT_SELECT = {
       lastName: true,
       companyName: true,
       email: true,
+      phoneContact: true,
+    },
+  },
+  donorOperator: {
+    select: {
+      name: true,
+    },
+  },
+  recipientOperator: {
+    select: {
+      name: true,
     },
   },
 } as const
@@ -225,15 +242,40 @@ export function mapCommunicationToDto(row: CommunicationRow): PortingCommunicati
 
 export function buildCommunicationTemplateContext(
   snapshot: RequestCommunicationSnapshotRow,
+  params: {
+    actionType: PortingRequestCommunicationActionType
+    triggerType: PortingCommunicationTriggerType
+    metadata?: Record<string, string | number | boolean | null> | null
+  },
 ): PortingCommunicationTemplateContextDto {
+  const metadataIssueDescription =
+    typeof params.metadata?.issueDescription === 'string' &&
+    params.metadata.issueDescription.trim().length > 0
+      ? params.metadata.issueDescription.trim()
+      : null
+  const defaultIssueDescription =
+    params.actionType === 'MISSING_DOCUMENTS'
+      ? 'Brakuje dokumentow lub danych wymaganych do dalszej obslugi sprawy.'
+      : params.actionType === 'REJECTION_NOTICE'
+        ? snapshot.rejectionReason?.trim() || 'Sprawa wymaga korekty po stronie klienta.'
+        : params.actionType === 'INTERNAL_NOTE_EMAIL'
+          ? 'Wiadomosc operacyjna wymaga uwagi po stronie odbiorcy.'
+          : params.triggerType === 'CASE_REJECTED'
+            ? snapshot.rejectionReason?.trim() || 'Wystapil problem po stronie procesu portowania.'
+            : null
+
   return {
     clientName: getClientDisplayName(snapshot.client),
     caseNumber: snapshot.caseNumber,
-    phoneNumber: getPhoneNumberDisplay(snapshot),
-    scheduledPortDate: formatDateForTemplate(
+    portedNumber: getPhoneNumberDisplay(snapshot),
+    donorOperatorName: snapshot.donorOperator.name,
+    recipientOperatorName: snapshot.recipientOperator.name,
+    plannedPortDate: formatDateForTemplate(
       snapshot.donorAssignedPortDate ?? snapshot.confirmedPortDate ?? snapshot.requestedPortDate,
     ),
-    rejectionReason: snapshot.rejectionReason?.trim() || null,
+    issueDescription: metadataIssueDescription ?? defaultIssueDescription,
+    contactEmail: snapshot.client.email?.trim() || null,
+    contactPhone: snapshot.client.phoneContact?.trim() || null,
   }
 }
 
@@ -252,10 +294,26 @@ async function getPortingRequestCommunicationSnapshotOrThrow(
   return request
 }
 
-export function resolveCommunicationPreview(
+function resolvePreviewTriggerType(
+  snapshot: RequestCommunicationSnapshotRow,
+  actionType: PortingRequestCommunicationActionType,
+  body: PreparePortingCommunicationDraftDto,
+): PortingCommunicationTriggerType {
+  if (body.triggerType) {
+    return body.triggerType
+  }
+
+  if (actionType === 'CLIENT_CONFIRMATION') {
+    return resolveSuggestedCommunicationTriggerType(snapshot)
+  }
+
+  return resolveCommunicationTriggerTypeForAction(actionType)
+}
+
+export async function resolveCommunicationPreview(
   snapshot: RequestCommunicationSnapshotRow,
   body: PreparePortingCommunicationDraftDto,
-): PortingCommunicationPreviewDto {
+): Promise<PortingCommunicationPreviewDto> {
   const actionType = resolveActionType(snapshot, body)
   const type = body.type ?? 'EMAIL'
 
@@ -266,7 +324,7 @@ export function resolveCommunicationPreview(
     )
   }
 
-  const triggerType = body.triggerType ?? resolveCommunicationTriggerTypeForAction(actionType)
+  const triggerType = resolvePreviewTriggerType(snapshot, actionType, body)
   const templateKey = body.templateKey ?? resolveCommunicationTemplateKeyForAction(actionType)
   const recipient = body.recipient?.trim() || snapshot.client.email?.trim()
 
@@ -277,14 +335,48 @@ export function resolveCommunicationPreview(
     )
   }
 
-  return buildCommunicationPreview({
+  const templateCode = resolveCommunicationTemplateCodeForAction({
+    actionType,
+    triggerType,
+  })
+  const activeTemplate = await getActiveCommunicationTemplateOrThrow(templateCode, 'EMAIL')
+  const context = buildCommunicationTemplateContext(snapshot, {
+    actionType,
+    triggerType,
+    metadata: body.metadata ?? null,
+  })
+  const renderResult = renderCommunicationTemplate(
+    {
+      subjectTemplate: activeTemplate.subjectTemplate,
+      bodyTemplate: activeTemplate.bodyTemplate,
+    },
+    context,
+  )
+
+  if (renderResult.unknownPlaceholders.length > 0) {
+    throw AppError.badRequest(
+      `Aktywny szablon zawiera nieznane placeholdery: ${renderResult.unknownPlaceholders.join(', ')}.`,
+      'COMMUNICATION_TEMPLATE_RENDER_UNKNOWN_PLACEHOLDERS',
+    )
+  }
+
+  if (renderResult.missingPlaceholders.length > 0) {
+    throw AppError.badRequest(
+      `Nie mozna wyrenderowac komunikacji. Brakuje danych dla placeholderow: ${renderResult.missingPlaceholders.join(', ')}.`,
+      'COMMUNICATION_TEMPLATE_RENDER_MISSING_PLACEHOLDERS',
+    )
+  }
+
+  return {
     actionType,
     type,
     triggerType,
     templateKey,
     recipient,
-    context: buildCommunicationTemplateContext(snapshot),
-  })
+    subject: renderResult.renderedSubject,
+    body: renderResult.renderedBody,
+    context,
+  }
 }
 
 export function buildCommunicationCreateData(params: {
@@ -293,6 +385,11 @@ export function buildCommunicationCreateData(params: {
   createdByUserId: string
   metadata?: Record<string, string | number | boolean | null> | null
 }): Prisma.PortingCommunicationCreateInput {
+  const templateCode = resolveCommunicationTemplateCodeForAction({
+    actionType: params.preview.actionType,
+    triggerType: params.preview.triggerType,
+  })
+
   return {
     portingRequest: { connect: { id: params.requestId } },
     type: params.preview.type,
@@ -307,6 +404,7 @@ export function buildCommunicationCreateData(params: {
       ...(params.metadata ?? {}),
       actionType: params.preview.actionType,
       actionLabel: getCommunicationActionPolicy(params.preview.actionType).label,
+      communicationTemplateCode: templateCode,
     },
   }
 }
@@ -375,7 +473,7 @@ export async function createPortingCommunicationDraft(
     )
   }
 
-  const preview = resolveCommunicationPreview(snapshot, body)
+  const preview = await resolveCommunicationPreview(snapshot, body)
   const createdCommunication = await db.portingCommunication.create({
     data: buildCommunicationCreateData({
       requestId,
