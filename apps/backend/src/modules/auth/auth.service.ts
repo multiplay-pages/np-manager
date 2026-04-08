@@ -2,7 +2,16 @@ import bcrypt from 'bcrypt'
 import { prisma } from '../../config/database'
 import { AppError } from '../../shared/errors/app-error'
 import { logAuditEvent } from '../../shared/audit/audit.service'
-import type { LoginBody, LoginResponseDto, AuthUserDto, JwtTokenPayload } from './auth.schema'
+import type {
+  LoginBody,
+  LoginResponseDto,
+  AuthUserDto,
+  JwtTokenPayload,
+  ChangePasswordBody,
+  ChangePasswordResponseDto,
+} from './auth.schema'
+
+const BCRYPT_ROUNDS = 12
 
 // ============================================================
 // LOGIN
@@ -76,10 +85,7 @@ export async function login(
     }
 
     // Zawsze ten sam komunikat — niezależnie od przyczyny (email, hasło, aktywność)
-    throw AppError.unauthorized(
-      'Nieprawidłowy adres e-mail lub hasło.',
-      'INVALID_CREDENTIALS',
-    )
+    throw AppError.unauthorized('Nieprawidłowy adres e-mail lub hasło.', 'INVALID_CREDENTIALS')
   }
 
   // 4. Generuj token JWT — payload zawiera wyłącznie id i role
@@ -157,5 +163,81 @@ export async function getMe(userId: string): Promise<AuthUserDto> {
     lastName: user.lastName,
     role: user.role,
     forcePasswordChange: user.forcePasswordChange,
+  }
+}
+
+// ============================================================
+// CHANGE OWN PASSWORD
+// ============================================================
+
+/**
+ * Zmienia hasło aktualnie zalogowanego użytkownika.
+ *
+ * Po sukcesie:
+ * - aktualizuje passwordHash
+ * - ustawia forcePasswordChange = false
+ * - odświeża passwordChangedAt
+ */
+export async function changePassword(
+  userId: string,
+  body: ChangePasswordBody,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<ChangePasswordResponseDto> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      isActive: true,
+      passwordHash: true,
+    },
+  })
+
+  if (!user || !user.isActive) {
+    throw AppError.unauthorized(
+      'Konto użytkownika nie istnieje lub zostało dezaktywowane.',
+      'ACCOUNT_UNAVAILABLE',
+    )
+  }
+
+  const currentPasswordMatches = await bcrypt.compare(body.currentPassword, user.passwordHash)
+
+  if (!currentPasswordMatches) {
+    throw AppError.badRequest('Obecne hasło jest nieprawidłowe.', 'INVALID_CURRENT_PASSWORD')
+  }
+
+  if (body.currentPassword === body.newPassword) {
+    throw AppError.badRequest(
+      'Nowe hasło nie może być takie samo jak obecne.',
+      'PASSWORD_REUSE_NOT_ALLOWED',
+    )
+  }
+
+  const nextPasswordHash = await bcrypt.hash(body.newPassword, BCRYPT_ROUNDS)
+  const now = new Date()
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash: nextPasswordHash,
+      forcePasswordChange: false,
+      passwordChangedAt: now,
+    },
+  })
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    userId,
+    entityType: 'user',
+    entityId: userId,
+    fieldName: 'passwordChangedAt',
+    newValue: 'SELF_SERVICE_PASSWORD_CHANGE',
+    ipAddress,
+    userAgent,
+  }).catch(() => {})
+
+  return {
+    message: 'Hasło zostało zmienione.',
   }
 }

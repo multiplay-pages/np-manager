@@ -14,12 +14,26 @@ export const loginBodySchema = z.object({
     .email('Nieprawidłowy format adresu e-mail')
     .toLowerCase()
     .trim(),
-  password: z
-    .string({ required_error: 'Hasło jest wymagane' })
-    .min(1, 'Hasło jest wymagane'),
+  password: z.string({ required_error: 'Hasło jest wymagane' }).min(1, 'Hasło jest wymagane'),
 })
 
 export type LoginBody = z.infer<typeof loginBodySchema>
+
+/**
+ * Schemat walidacji body dla PATCH /api/auth/change-password.
+ * confirmNewPassword zostaje po stronie frontendu.
+ */
+export const changePasswordBodySchema = z.object({
+  currentPassword: z
+    .string({ required_error: 'Obecne hasło jest wymagane' })
+    .min(1, 'Obecne hasło jest wymagane'),
+  newPassword: z
+    .string({ required_error: 'Nowe hasło jest wymagane' })
+    .min(8, 'Hasło musi mieć minimum 8 znaków')
+    .max(128, 'Hasło nie może przekraczać 128 znaków'),
+})
+
+export type ChangePasswordBody = z.infer<typeof changePasswordBodySchema>
 
 // ============================================================
 // RESPONSE TYPES
@@ -39,6 +53,11 @@ export interface AuthUserDto {
 export interface LoginResponseDto {
   token: string
   user: AuthUserDto
+}
+
+/** Odpowiedź PATCH /api/auth/change-password */
+export interface ChangePasswordResponseDto {
+  message: string
 }
 
 // ============================================================

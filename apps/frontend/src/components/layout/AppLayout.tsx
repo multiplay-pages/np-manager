@@ -27,22 +27,14 @@ const adminNavItems: NavItem[] = [
   { label: 'Szablony komunikatow', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
 ]
 
-function SidebarLink({
-  item,
-  sidebarCollapsed,
-}: {
-  item: NavItem
-  sidebarCollapsed: boolean
-}) {
+function SidebarLink({ item, sidebarCollapsed }: { item: NavItem; sidebarCollapsed: boolean }) {
   return (
     <NavLink
       to={item.path}
       end={item.exact ?? false}
       className={({ isActive }) =>
         `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ${
-          isActive
-            ? 'bg-blue-600 text-white'
-            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+          isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
         }`
       }
     >
@@ -128,7 +120,9 @@ export function AppLayout() {
                   <div className="truncate text-sm font-medium">
                     {user.firstName} {user.lastName}
                   </div>
-                  <div className="truncate text-xs text-gray-400">{USER_ROLE_LABELS[user.role]}</div>
+                  <div className="truncate text-xs text-gray-400">
+                    {USER_ROLE_LABELS[user.role]}
+                  </div>
                 </div>
               )}
             </div>
@@ -169,13 +163,6 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          {user?.forcePasswordChange && (
-            <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-800">
-              To konto ma aktywne wymaganie zmiany hasla. Finalny ekran zmiany hasla zostanie
-              dodany w kolejnym etapie, ale flaga jest juz poprawnie utrzymywana w stanie
-              autoryzacji.
-            </div>
-          )}
           <Outlet />
         </main>
       </div>

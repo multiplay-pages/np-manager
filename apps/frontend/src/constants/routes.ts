@@ -5,6 +5,7 @@
 export const ROUTES = {
   // Autoryzacja
   LOGIN: '/login',
+  FORCE_PASSWORD_CHANGE: '/force-password-change',
 
   // Główny dashboard
   DASHBOARD: '/',

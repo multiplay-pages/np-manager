@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import type { AuthUser } from '@np-manager/shared'
-import { ROUTES } from '@/constants/routes'
+import { getDefaultAuthenticatedRoute } from '@/lib/authFlow'
 import { apiClient } from '@/services/api.client'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -49,14 +49,14 @@ export function LoginPage() {
     setIsLoading(true)
 
     try {
-      const response = await apiClient.post<{ success: true; data: LoginResponse }>(
-        '/auth/login',
-        { email: email.trim().toLowerCase(), password },
-      )
+      const response = await apiClient.post<{ success: true; data: LoginResponse }>('/auth/login', {
+        email: email.trim().toLowerCase(),
+        password,
+      })
 
       const { token, user } = response.data.data
       setAuth(token, user)
-      void navigate(ROUTES.DASHBOARD, { replace: true })
+      void navigate(getDefaultAuthenticatedRoute(user), { replace: true })
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status
@@ -79,9 +79,7 @@ export function LoginPage() {
             'Backend dziala, ale lokalna baza danych jest niedostepna. Sprawdz GET /health/ready, uruchom PostgreSQL, wykonaj migracje i seed, a nastepnie sproboj ponownie.',
           )
         } else {
-          setError(
-            apiError?.error?.message ?? 'Wystapil blad serwera. Sprobuj ponownie.',
-          )
+          setError(apiError?.error?.message ?? 'Wystapil blad serwera. Sprobuj ponownie.')
         }
       } else {
         setError('Brak polaczenia z serwerem. Sprawdz polaczenie z siecia.')
@@ -145,11 +143,7 @@ export function LoginPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary w-full py-2.5"
-            >
+            <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5">
               {isLoading ? (
                 <>
                   <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -162,7 +156,9 @@ export function LoginPage() {
           </form>
 
           <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs text-blue-700 font-medium mb-1">Dane konta administratora (seed):</p>
+            <p className="text-xs text-blue-700 font-medium mb-1">
+              Dane konta administratora (seed):
+            </p>
             <p className="text-xs text-blue-600 font-mono">admin@np-manager.local</p>
             <p className="text-xs text-blue-600 font-mono">Admin@NP2026!</p>
           </div>

@@ -1,6 +1,7 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { LoginPage } from '@/pages/Login/LoginPage'
+import { ForcePasswordChangePage } from '@/pages/Auth/ForcePasswordChangePage'
 import { DashboardPage } from '@/pages/Dashboard/DashboardPage'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ClientsPage } from '@/pages/Clients/ClientsPage'
@@ -13,27 +14,56 @@ import { RequestNewPage } from '@/pages/Requests/RequestNewPage'
 import { RequestDetailPage } from '@/pages/Requests/RequestDetailPage'
 import { CommunicationTemplatesAdminPage } from '@/pages/Admin/CommunicationTemplatesAdminPage'
 import { AdminUsersPage } from '@/pages/Admin/AdminUsersPage'
+import {
+  getDefaultAuthenticatedRoute,
+  getForcePasswordChangeRouteRedirect,
+  getProtectedRouteRedirect,
+} from '@/lib/authFlow'
 import { useAuthStore } from '@/stores/auth.store'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isHydrated } = useAuthStore()
+  const { isAuthenticated, isHydrated, user } = useAuthStore()
+  const location = useLocation()
 
   if (!isHydrated) return null
 
-  if (!isAuthenticated) {
-    return <Navigate to={ROUTES.LOGIN} replace />
+  const redirectTo = getProtectedRouteRedirect({
+    isAuthenticated,
+    user,
+    pathname: location.pathname,
+  })
+
+  if (redirectTo) {
+    return <Navigate to={redirectTo} replace />
   }
 
   return <>{children}</>
 }
 
 function GuestOnlyRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isHydrated } = useAuthStore()
+  const { isAuthenticated, isHydrated, user } = useAuthStore()
 
   if (!isHydrated) return null
 
-  if (isAuthenticated) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultAuthenticatedRoute(user)} replace />
+  }
+
+  return <>{children}</>
+}
+
+function ForcePasswordChangeRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isHydrated, user } = useAuthStore()
+
+  if (!isHydrated) return null
+
+  const redirectTo = getForcePasswordChangeRouteRedirect({
+    isAuthenticated,
+    user,
+  })
+
+  if (redirectTo) {
+    return <Navigate to={redirectTo} replace />
   }
 
   return <>{children}</>
@@ -67,6 +97,14 @@ export const router = createBrowserRouter([
       <GuestOnlyRoute>
         <LoginPage />
       </GuestOnlyRoute>
+    ),
+  },
+  {
+    path: ROUTES.FORCE_PASSWORD_CHANGE,
+    element: (
+      <ForcePasswordChangeRoute>
+        <ForcePasswordChangePage />
+      </ForcePasswordChangeRoute>
     ),
   },
   {
@@ -115,7 +153,9 @@ export const router = createBrowserRouter([
       },
       {
         path: ROUTES.TASKS,
-        element: <PlaceholderPage title="Zadania" description="Implementacja w Sprint 2 (Faza 2)" />,
+        element: (
+          <PlaceholderPage title="Zadania" description="Implementacja w Sprint 2 (Faza 2)" />
+        ),
       },
       {
         path: ROUTES.REPORTS,
