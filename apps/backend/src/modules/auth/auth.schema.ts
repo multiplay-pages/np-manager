@@ -32,6 +32,7 @@ export interface AuthUserDto {
   firstName: string
   lastName: string
   role: string
+  forcePasswordChange: boolean
 }
 
 /** Odpowiedź POST /api/auth/login */

@@ -67,6 +67,15 @@ enum AuditAction {
   SECURITY_ALERT
 }
 
+enum UserAdminActionType {
+  USER_CREATED
+  USER_ROLE_CHANGED
+  USER_DEACTIVATED
+  USER_REACTIVATED
+  USER_PASSWORD_RESET
+  USER_FORCE_PASSWORD_CHANGE_SET
+}
+
 enum PhoneNumberType {
   GEOGRAPHIC
   NON_GEOGRAPHIC
@@ -228,16 +237,22 @@ enum CommunicationTemplateVersionStatus {
 // ============================================================
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique @db.VarChar(200)
-  passwordHash String    @db.VarChar(255)
-  firstName    String    @db.VarChar(100)
-  lastName     String    @db.VarChar(100)
-  role         UserRole
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  email               String    @unique @db.VarChar(200)
+  passwordHash        String    @db.VarChar(255)
+  firstName           String    @db.VarChar(100)
+  lastName            String    @db.VarChar(100)
+  role                UserRole
+  isActive            Boolean   @default(true)
+  forcePasswordChange Boolean   @default(false)
+  passwordChangedAt   DateTime?
+  lastLoginAt         DateTime?
+  deactivatedAt       DateTime?
+  deactivatedByUserId String?
+  reactivatedAt       DateTime?
+  reactivatedByUserId String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   auditLogs                        AuditLog[]
   comments                         Comment[]
@@ -254,10 +269,12 @@ model User {
   createdPortingCommunications     PortingCommunication[]      @relation("PortingCommunicationCreatedBy")
   createdCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateCreatedBy")
   updatedCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateUpdatedBy")
-  createdCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionCreatedBy")
-  updatedCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionUpdatedBy")
+  createdCommunicationTemplateVersions   CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionCreatedBy")
+  updatedCommunicationTemplateVersions   CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionUpdatedBy")
   publishedCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionPublishedBy")
   communicationDeliveryAttempts          CommunicationDeliveryAttempt[] @relation("CommunicationDeliveryAttemptBy")
+  adminActionsPerformed                  UserAdminAuditLog[]            @relation("UserAdminAuditLogActor")
+  adminActionsReceived                   UserAdminAuditLog[]            @relation("UserAdminAuditLogTarget")
 
   @@map("users")
 }
@@ -831,4 +848,27 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+// ============================================================
+// USER ADMIN AUDIT LOG — Historia administracyjna użytkowników (append-only)
+// ============================================================
+
+model UserAdminAuditLog {
+  id                String              @id @default(uuid())
+  targetUserId      String
+  actorUserId       String
+  actionType        UserAdminActionType
+  previousStateJson Json?
+  nextStateJson     Json?
+  reason            String?             @db.VarChar(500)
+  createdAt         DateTime            @default(now())
+
+  targetUser User @relation("UserAdminAuditLogTarget", fields: [targetUserId], references: [id])
+  actorUser  User @relation("UserAdminAuditLogActor", fields: [actorUserId], references: [id])
+
+  @@index([targetUserId])
+  @@index([actorUserId])
+  @@index([createdAt])
+  @@map("user_admin_audit_log")
 }

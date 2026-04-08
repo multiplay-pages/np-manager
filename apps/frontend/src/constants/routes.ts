@@ -32,6 +32,8 @@ export const ROUTES = {
   // Administracja
   ADMIN: '/admin',
   ADMIN_USERS: '/admin/users',
+  ADMIN_USER_NEW: '/admin/users/new',
+  ADMIN_USER_DETAIL: '/admin/users/:id',
   ADMIN_OPERATORS: '/admin/operators',
   ADMIN_COMMUNICATION_TEMPLATES: '/admin/communication-templates',
   ADMIN_COMMUNICATION_TEMPLATE_NEW: '/admin/communication-templates/new',

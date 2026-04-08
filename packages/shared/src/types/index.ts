@@ -49,6 +49,7 @@ export interface AuthUser {
   firstName: string
   lastName: string
   role: UserRole
+  forcePasswordChange: boolean
 }
 
 export interface UserDto {

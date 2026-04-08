@@ -64,6 +64,7 @@ export interface UserDto {
   lastName: string
   role: UserRole
   isActive: boolean
+  forcePasswordChange: boolean
   createdAt: Date
 }
 
@@ -75,5 +76,6 @@ export const USER_SAFE_SELECT = {
   lastName: true,
   role: true,
   isActive: true,
+  forcePasswordChange: true,
   createdAt: true,
 } as const

@@ -12,6 +12,7 @@ import { RequestsPage } from '@/pages/Requests/RequestsPage'
 import { RequestNewPage } from '@/pages/Requests/RequestNewPage'
 import { RequestDetailPage } from '@/pages/Requests/RequestDetailPage'
 import { CommunicationTemplatesAdminPage } from '@/pages/Admin/CommunicationTemplatesAdminPage'
+import { AdminUsersPage } from '@/pages/Admin/AdminUsersPage'
 import { useAuthStore } from '@/stores/auth.store'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -38,7 +39,7 @@ function GuestOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
+export function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user, isHydrated } = useAuthStore()
 
   if (!isHydrated) return null
@@ -124,7 +125,31 @@ export const router = createBrowserRouter([
         path: ROUTES.ADMIN,
         element: (
           <AdminOnlyRoute>
-            <Navigate to={ROUTES.ADMIN_COMMUNICATION_TEMPLATES} replace />
+            <Navigate to={ROUTES.ADMIN_USERS} replace />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_USERS,
+        element: (
+          <AdminOnlyRoute>
+            <AdminUsersPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_USER_NEW,
+        element: (
+          <AdminOnlyRoute>
+            <AdminUsersPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_USER_DETAIL,
+        element: (
+          <AdminOnlyRoute>
+            <AdminUsersPage />
           </AdminOnlyRoute>
         ),
       },

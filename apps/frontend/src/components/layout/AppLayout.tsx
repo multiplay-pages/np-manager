@@ -22,6 +22,7 @@ const primaryNavItems: NavItem[] = [
 ]
 
 const adminNavItems: NavItem[] = [
+  { label: 'Uzytkownicy', path: ROUTES.ADMIN_USERS, icon: 'U' },
   { label: 'Operatorzy', path: ROUTES.ADMIN_OPERATORS, icon: 'O' },
   { label: 'Szablony komunikatow', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
 ]
@@ -168,6 +169,13 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1 overflow-y-auto">
+          {user?.forcePasswordChange && (
+            <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-800">
+              To konto ma aktywne wymaganie zmiany hasla. Finalny ekran zmiany hasla zostanie
+              dodany w kolejnym etapie, ale flaga jest juz poprawnie utrzymywana w stanie
+              autoryzacji.
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

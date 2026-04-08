@@ -44,6 +44,7 @@ export async function login(
       lastName: true,
       role: true,
       isActive: true,
+      forcePasswordChange: true,
       passwordHash: true,
     },
   })
@@ -109,6 +110,7 @@ export async function login(
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role,
+    forcePasswordChange: user.forcePasswordChange,
   }
 
   return { token, user: userDto }
@@ -135,6 +137,7 @@ export async function getMe(userId: string): Promise<AuthUserDto> {
       lastName: true,
       role: true,
       isActive: true,
+      forcePasswordChange: true,
     },
   })
 
@@ -153,5 +156,6 @@ export async function getMe(userId: string): Promise<AuthUserDto> {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role,
+    forcePasswordChange: user.forcePasswordChange,
   }
 }
