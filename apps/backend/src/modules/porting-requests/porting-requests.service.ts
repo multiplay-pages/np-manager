@@ -17,6 +17,7 @@ import type {
   PliCbdIntegrationEventsResultDto,
   PortingRequestListItemDto,
   PortingRequestListResultDto,
+  PortingRequestOperationalSummaryDto,
 } from '@np-manager/shared'
 import {
   PORTING_CASE_STATUS_LABELS,
@@ -25,6 +26,7 @@ import type {
   CreatePortingRequestBody,
   ExecutePortingRequestExternalActionBody,
   PortingRequestListQuery,
+  PortingRequestSummaryQuery,
   UpdatePortingRequestAssignmentBody,
   UpdatePortingRequestCommercialOwnerBody,
   UpdatePortingRequestStatusBody,
@@ -63,6 +65,17 @@ import {
 
 const CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
 const PLI_CBD_MANUAL_TRIGGER_ACTION = 'MANUAL_FOUNDATION_TRIGGER'
+const DISPATCH_TITLE_PREFIX = '[Dispatch] '
+const NOTIFICATION_FAILURE_OUTCOMES = ['FAILED', 'MISCONFIGURED'] as const
+
+const NOTIFICATION_FAILURE_EVENT_WHERE: Prisma.PortingRequestEventWhereInput = {
+  eventSource: 'INTERNAL',
+  eventType: 'NOTE',
+  title: { startsWith: DISPATCH_TITLE_PREFIX },
+  OR: NOTIFICATION_FAILURE_OUTCOMES.map((outcome) => ({
+    description: { contains: outcome },
+  })),
+}
 
 const CLIENT_SELECT = {
   id: true,
@@ -111,6 +124,14 @@ const LIST_SELECT = {
   },
   assignedUser: {
     select: ASSIGNEE_SELECT,
+  },
+  commercialOwner: {
+    select: ASSIGNEE_SELECT,
+  },
+  events: {
+    where: NOTIFICATION_FAILURE_EVENT_WHERE,
+    select: { id: true },
+    take: 1,
   },
 } as const
 
@@ -648,6 +669,8 @@ function toListItem(row: ListRow): PortingRequestListItemDto {
     portingMode: row.portingMode,
     statusInternal: row.statusInternal,
     assignedUserSummary: toAssigneeSummary(row.assignedUser),
+    commercialOwnerSummary: toCommercialOwnerSummary(row.commercialOwner),
+    hasNotificationFailures: row.events.length > 0,
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -857,6 +880,42 @@ export async function listPortingRequests(
   query: PortingRequestListQuery,
   currentUserId: string,
 ): Promise<PortingRequestListResultDto> {
+  const page = query.page ?? 1
+  const pageSize = query.pageSize ?? 20
+  const where = buildPortingRequestListWhere(query, currentUserId)
+
+  const [total, requests] = await prisma.$transaction([
+    prisma.portingRequest.count({ where }),
+    prisma.portingRequest.findMany({
+      where,
+      select: LIST_SELECT,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ])
+
+  return {
+    items: requests.map(toListItem),
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    },
+  }
+}
+
+interface BuildListWhereOptions {
+  ignoreCommercialOwnerFilter?: boolean
+  ignoreNotificationHealthFilter?: boolean
+}
+
+function buildPortingRequestListWhere(
+  query: PortingRequestListQuery | PortingRequestSummaryQuery,
+  currentUserId: string,
+  options: BuildListWhereOptions = {},
+): Prisma.PortingRequestWhereInput {
   const where: Prisma.PortingRequestWhereInput = {}
 
   if (query.status) {
@@ -875,6 +934,24 @@ export async function listPortingRequests(
     where.assignedUserId = currentUserId
   } else if (query.ownership === 'UNASSIGNED') {
     where.assignedUserId = null
+  }
+
+  if (!options.ignoreCommercialOwnerFilter) {
+    if (query.commercialOwnerFilter === 'WITH_OWNER') {
+      where.commercialOwnerUserId = { not: null }
+    } else if (query.commercialOwnerFilter === 'WITHOUT_OWNER') {
+      where.commercialOwnerUserId = null
+    } else if (query.commercialOwnerFilter === 'MINE') {
+      where.commercialOwnerUserId = currentUserId
+    }
+  }
+
+  if (!options.ignoreNotificationHealthFilter) {
+    if (query.notificationHealthFilter === 'HAS_FAILURES') {
+      where.events = { some: NOTIFICATION_FAILURE_EVENT_WHERE }
+    } else if (query.notificationHealthFilter === 'NO_FAILURES') {
+      where.events = { none: NOTIFICATION_FAILURE_EVENT_WHERE }
+    }
   }
 
   if (query.search?.trim()) {
@@ -898,25 +975,66 @@ export async function listPortingRequests(
     ]
   }
 
-  const [total, requests] = await prisma.$transaction([
-    prisma.portingRequest.count({ where }),
-    prisma.portingRequest.findMany({
-      where,
-      select: LIST_SELECT,
-      orderBy: { createdAt: 'desc' },
-      skip: (query.page - 1) * query.pageSize,
-      take: query.pageSize,
-    }),
-  ])
+  return where
+}
+
+function withAdditionalWhere(
+  baseWhere: Prisma.PortingRequestWhereInput,
+  extraWhere: Prisma.PortingRequestWhereInput,
+): Prisma.PortingRequestWhereInput {
+  const clauses = [baseWhere, extraWhere].filter((clause) => Object.keys(clause).length > 0)
+
+  if (clauses.length === 0) {
+    return {}
+  }
+
+  if (clauses.length === 1) {
+    return clauses[0] as Prisma.PortingRequestWhereInput
+  }
+
+  return { AND: clauses }
+}
+
+export async function getPortingRequestsOperationalSummary(
+  query: PortingRequestSummaryQuery,
+  currentUserId: string,
+): Promise<PortingRequestOperationalSummaryDto> {
+  const baseWhere = buildPortingRequestListWhere(query, currentUserId, {
+    ignoreCommercialOwnerFilter: true,
+    ignoreNotificationHealthFilter: true,
+  })
+
+  const [totalRequests, withCommercialOwner, withoutCommercialOwner, myCommercialRequests, requestsWithNotificationFailures] =
+    await prisma.$transaction([
+      prisma.portingRequest.count({ where: baseWhere }),
+      prisma.portingRequest.count({
+        where: withAdditionalWhere(baseWhere, {
+          commercialOwnerUserId: { not: null },
+        }),
+      }),
+      prisma.portingRequest.count({
+        where: withAdditionalWhere(baseWhere, {
+          commercialOwnerUserId: null,
+        }),
+      }),
+      prisma.portingRequest.count({
+        where: withAdditionalWhere(baseWhere, {
+          commercialOwnerUserId: currentUserId,
+        }),
+      }),
+      prisma.portingRequest.count({
+        where: withAdditionalWhere(baseWhere, {
+          events: { some: NOTIFICATION_FAILURE_EVENT_WHERE },
+        }),
+      }),
+    ])
 
   return {
-    items: requests.map(toListItem),
-    pagination: {
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-      totalPages: Math.ceil(total / query.pageSize),
-    },
+    totalRequests,
+    withCommercialOwner,
+    withoutCommercialOwner,
+    myCommercialRequests,
+    requestsWithNotificationFailures,
   }
 }
 

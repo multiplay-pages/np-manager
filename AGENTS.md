@@ -125,7 +125,7 @@ Glowne podmioty:
 
 Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez backend - frontend tylko wyswietla dozwolone akcje.
 
-### Semantyka ownership i notyfikacji (PR13A+, PR13B, PR14)
+### Semantyka ownership i notyfikacji (PR13A+, PR13B, PR14, PR15)
 
 - Biznesowo ownership operacyjny jest po stronie **zespolu BOK**, a nie personalnie pojedynczego pracownika.
 - `assignedUserId` pozostaje na razie mechanizmem technicznym (additive, bez destrukcyjnego usuwania), ale nie jest glowna osia rozwoju domeny.
@@ -157,6 +157,19 @@ Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez b
 - Legacy klucze `porting_notify_*` sa utrzymane tylko dla kompatybilnosci odczytu.
 - Diagnostyka env (`email adapter mode`, `SMTP configured`) jest read-only.
 - Nadal nie mieszamy notyfikacji wewnetrznych z komunikacja do klienta koncowego.
+
+#### Widoki operacyjne commercial owner (PR15)
+
+- Lista spraw wspiera backendowe filtry operacyjne:
+  - `commercialOwnerFilter`: `ALL | WITH_OWNER | WITHOUT_OWNER | MINE`
+  - `notificationHealthFilter`: `ALL | HAS_FAILURES | NO_FAILURES`
+- `MINE` zawsze opiera sie o `request.user.id` z JWT (backend source of truth).
+- Definicja `HAS_FAILURES`:
+  - sprawa ma co najmniej jeden `[Dispatch]` transport audit z wynikiem `FAILED` lub `MISCONFIGURED`.
+- Dostepny jest lekki endpoint summary dla listy:
+  - `GET /api/porting-requests/summary`
+  - liczniki: wszystkie, z opiekunem, bez opiekuna, moje handlowe, z bledami notyfikacji.
+- Frontend `RequestsPage` pokazuje operacyjne summary cards + szybkie filtry i sygnal bledow notyfikacji w tabeli.
 
 ---
 

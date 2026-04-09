@@ -24,6 +24,8 @@ import type {
 // ============================================================
 
 export type OwnershipFilter = 'ALL' | 'MINE' | 'UNASSIGNED'
+export type CommercialOwnerFilter = 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE'
+export type NotificationHealthFilter = 'ALL' | 'HAS_FAILURES' | 'NO_FAILURES'
 
 // ============================================================
 // OPIEKUN HANDLOWY
@@ -61,8 +63,20 @@ export interface PortingRequestListQueryDto {
   portingMode?: PortingMode
   donorOperatorId?: string
   ownership?: OwnershipFilter
+  commercialOwnerFilter?: CommercialOwnerFilter
+  notificationHealthFilter?: NotificationHealthFilter
   page?: number
   pageSize?: number
+}
+
+export interface PortingRequestSummaryQueryDto {
+  search?: string
+  status?: PortingCaseStatus
+  portingMode?: PortingMode
+  donorOperatorId?: string
+  ownership?: OwnershipFilter
+  commercialOwnerFilter?: CommercialOwnerFilter
+  notificationHealthFilter?: NotificationHealthFilter
 }
 
 export interface PortingRequestListItemDto {
@@ -76,6 +90,8 @@ export interface PortingRequestListItemDto {
   portingMode: PortingMode
   statusInternal: PortingCaseStatus
   assignedUserSummary: PortingRequestAssigneeSummaryDto | null
+  commercialOwnerSummary: CommercialOwnerSummaryDto | null
+  hasNotificationFailures: boolean
   createdAt: string
 }
 
@@ -87,6 +103,14 @@ export interface PortingRequestListResultDto {
     total: number
     totalPages: number
   }
+}
+
+export interface PortingRequestOperationalSummaryDto {
+  totalRequests: number
+  withCommercialOwner: number
+  withoutCommercialOwner: number
+  myCommercialRequests: number
+  requestsWithNotificationFailures: number
 }
 
 // ============================================================

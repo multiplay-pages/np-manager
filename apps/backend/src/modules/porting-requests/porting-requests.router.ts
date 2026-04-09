@@ -7,6 +7,7 @@ import {
   executePortingRequestExternalActionSchema,
   markPortingCommunicationSentSchema,
   portingRequestListQuerySchema,
+  portingRequestSummaryQuerySchema,
   preparePortingCommunicationDraftSchema,
   updatePortingRequestAssignmentSchema,
   updatePortingRequestCommercialOwnerSchema,
@@ -23,6 +24,7 @@ import {
   listAssignablePortingRequestUsers,
   listCommercialOwnerCandidates,
   listPortingRequests,
+  getPortingRequestsOperationalSummary,
   syncPortingRequestFromPliCbd,
   updatePortingRequestAssignment,
   updateCommercialOwner,
@@ -67,6 +69,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     'TECHNICAL',
     'LEGAL',
     'AUDITOR',
+    'SALES',
   ]
   const writeRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
   const assignmentWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT']
@@ -79,6 +82,16 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     const result = await listPortingRequests(query, request.user.id)
     return reply.status(200).send({ success: true, data: result })
   })
+
+  app.get(
+    '/summary',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const query = portingRequestSummaryQuerySchema.parse(request.query)
+      const result = await getPortingRequestsOperationalSummary(query, request.user.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
 
   app.get(
     '/assignment-users',

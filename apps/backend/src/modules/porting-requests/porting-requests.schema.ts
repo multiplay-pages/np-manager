@@ -58,6 +58,10 @@ const statusEnum = z.enum([
   'ERROR',
 ])
 
+const ownershipFilterEnum = z.enum(['ALL', 'MINE', 'UNASSIGNED'])
+const commercialOwnerFilterEnum = z.enum(['ALL', 'WITH_OWNER', 'WITHOUT_OWNER', 'MINE'])
+const notificationHealthFilterEnum = z.enum(['ALL', 'HAS_FAILURES', 'NO_FAILURES'])
+
 function validateDeferredEarliestDate(
   value: string | undefined,
   ctx: z.RefinementCtx,
@@ -348,12 +352,21 @@ export const portingRequestListQuerySchema = z.object({
   status: statusEnum.optional(),
   portingMode: z.enum(['DAY', 'END', 'EOP']).optional(),
   donorOperatorId: z.string().uuid().optional(),
-  ownership: z.enum(['ALL', 'MINE', 'UNASSIGNED']).optional().default('ALL'),
+  ownership: ownershipFilterEnum.optional().default('ALL'),
+  commercialOwnerFilter: commercialOwnerFilterEnum.optional().default('ALL'),
+  notificationHealthFilter: notificationHealthFilterEnum.optional().default('ALL'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })
 
-export type PortingRequestListQuery = z.infer<typeof portingRequestListQuerySchema>
+export type PortingRequestListQuery = z.input<typeof portingRequestListQuerySchema>
+
+export const portingRequestSummaryQuerySchema = portingRequestListQuerySchema.omit({
+  page: true,
+  pageSize: true,
+})
+
+export type PortingRequestSummaryQuery = z.input<typeof portingRequestSummaryQuerySchema>
 
 export const updatePortingRequestAssignmentSchema = z.object({
   assignedUserId: z.preprocess(
