@@ -348,6 +348,7 @@ export const portingRequestListQuerySchema = z.object({
   status: statusEnum.optional(),
   portingMode: z.enum(['DAY', 'END', 'EOP']).optional(),
   donorOperatorId: z.string().uuid().optional(),
+  ownership: z.enum(['ALL', 'MINE', 'UNASSIGNED']).optional().default('ALL'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })

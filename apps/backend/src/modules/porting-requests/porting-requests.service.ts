@@ -834,6 +834,7 @@ export async function createPortingRequest(
 
 export async function listPortingRequests(
   query: PortingRequestListQuery,
+  currentUserId: string,
 ): Promise<PortingRequestListResultDto> {
   const where: Prisma.PortingRequestWhereInput = {}
 
@@ -847,6 +848,12 @@ export async function listPortingRequests(
 
   if (query.donorOperatorId) {
     where.donorOperatorId = query.donorOperatorId
+  }
+
+  if (query.ownership === 'MINE') {
+    where.assignedUserId = currentUserId
+  } else if (query.ownership === 'UNASSIGNED') {
+    where.assignedUserId = null
   }
 
   if (query.search?.trim()) {
