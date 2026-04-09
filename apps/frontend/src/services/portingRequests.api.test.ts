@@ -45,6 +45,36 @@ describe('portingRequests.api assignment flow', () => {
     )
   })
 
+  it('includes ownership=MINE in query string when filter is MINE', async () => {
+    await getPortingRequests({ ownership: 'MINE', page: 1, pageSize: 20 })
+
+    expect(getMock).toHaveBeenCalledWith(
+      expect.stringContaining('ownership=MINE'),
+    )
+  })
+
+  it('includes ownership=UNASSIGNED in query string when filter is UNASSIGNED', async () => {
+    await getPortingRequests({ ownership: 'UNASSIGNED', page: 1, pageSize: 20 })
+
+    expect(getMock).toHaveBeenCalledWith(
+      expect.stringContaining('ownership=UNASSIGNED'),
+    )
+  })
+
+  it('omits ownership param when filter is ALL', async () => {
+    await getPortingRequests({ ownership: 'ALL', page: 1, pageSize: 20 })
+
+    const calledUrl = getMock.mock.calls[0]?.[0] as string
+    expect(calledUrl).not.toContain('ownership=')
+  })
+
+  it('omits ownership param when ownership is not provided', async () => {
+    await getPortingRequests({ page: 1, pageSize: 20 })
+
+    const calledUrl = getMock.mock.calls[0]?.[0] as string
+    expect(calledUrl).not.toContain('ownership=')
+  })
+
   it('calls PATCH assignment endpoint with selected user id or null', async () => {
     await updatePortingRequestAssignment('request-1', { assignedUserId: 'user-1' })
     await updatePortingRequestAssignment('request-1', { assignedUserId: null })

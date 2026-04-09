@@ -5,12 +5,10 @@ import { useOperators } from '@/hooks/useOperators'
 import { getPortingRequests } from '@/services/portingRequests.api'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import {
-  filterPortingRequestsByOwnership,
   formatAssigneeLabel,
   parseOwnershipFilter,
   type OwnershipFilter,
 } from '@/lib/portingOwnership'
-import { useAuthStore } from '@/stores/auth.store'
 import {
   PORTING_CASE_STATUSES,
   PORTING_MODE_LABELS,
@@ -108,7 +106,6 @@ function RequestRow({
 export function RequestsPage() {
   const navigate = useNavigate()
   const { operators } = useOperators()
-  const { user } = useAuthStore()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Derive filter state from URL
@@ -192,6 +189,7 @@ export function RequestsPage() {
         status: statusFilter ?? undefined,
         portingMode: portingModeFilter ?? undefined,
         donorOperatorId: donorOperatorId || undefined,
+        ownership: ownershipFilter !== 'ALL' ? ownershipFilter : undefined,
         page,
         pageSize: PAGE_SIZE,
       })
@@ -201,7 +199,7 @@ export function RequestsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [searchInput, statusFilter, portingModeFilter, donorOperatorId, page])
+  }, [searchInput, statusFilter, portingModeFilter, donorOperatorId, ownershipFilter, page])
 
   useEffect(() => {
     void loadData()
@@ -217,7 +215,6 @@ export function RequestsPage() {
     })
 
   const { items = [], pagination } = result ?? {}
-  const filteredItems = filterPortingRequestsByOwnership(items, ownershipFilter, user?.id)
 
   // ============================================================
   // Render
@@ -390,7 +387,7 @@ export function RequestsPage() {
               Spróbuj ponownie
             </button>
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-2">
             <span className="text-3xl">📋</span>
             <p className="text-sm font-medium text-gray-600">Brak spraw portowania</p>
@@ -431,7 +428,7 @@ export function RequestsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredItems.map((request) => (
+                {items.map((request) => (
                   <RequestRow
                     key={request.id}
                     request={request}

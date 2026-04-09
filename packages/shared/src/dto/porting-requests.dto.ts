@@ -23,11 +23,14 @@ import type {
 // QUERY / LISTA
 // ============================================================
 
+export type OwnershipFilter = 'ALL' | 'MINE' | 'UNASSIGNED'
+
 export interface PortingRequestListQueryDto {
   search?: string
   status?: PortingCaseStatus
   portingMode?: PortingMode
   donorOperatorId?: string
+  ownership?: OwnershipFilter
   page?: number
   pageSize?: number
 }

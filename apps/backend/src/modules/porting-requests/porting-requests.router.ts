@@ -71,7 +71,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get('/', { preHandler: [authenticate, authorize(readRoles)] }, async (request, reply) => {
     const query = portingRequestListQuerySchema.parse(request.query)
-    const result = await listPortingRequests(query)
+    const result = await listPortingRequests(query, request.user.id)
     return reply.status(200).send({ success: true, data: result })
   })
 
