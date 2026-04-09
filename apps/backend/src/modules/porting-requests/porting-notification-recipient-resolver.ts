@@ -1,31 +1,19 @@
 /**
- * Resolver odbiorców powiadomień wewnętrznych dla spraw portowania.
+ * Recipient resolver for internal porting notifications.
  *
- * Logika:
- *  1. Jeśli sprawa ma ustawionego opiekuna handlowego (commercialOwnerUserId)
- *     i jest on aktywnym użytkownikiem systemu → powiadomienie tylko do niego.
- *  2. Fallback — brak opiekuna lub użytkownik nieaktywny → powiadomienie
- *     do wspólnych odbiorców zespołowych (e-mail z system_settings).
- *
- * Zwracany typ jest rozszerzalny: w przyszłości można dodać
- *   { kind: 'TEAMS_WEBHOOK'; webhookUrl: string }
- * lub inne kanały bez zmiany interfejsu wywołującego.
+ * Routing rules:
+ * 1) active commercial owner -> USER recipient,
+ * 2) otherwise fallback to configured shared team recipients
+ *    (emails and optional Teams webhook).
  */
 
-import { prisma } from '../../config/database'
 import { SYSTEM_SETTING_KEYS } from '@np-manager/shared'
-
-// ============================================================
-// Typy odbiorców
-// ============================================================
+import { prisma } from '../../config/database'
 
 export type NotificationRecipient =
   | { kind: 'USER'; userId: string; email: string; displayName: string }
   | { kind: 'TEAM_EMAIL'; emails: string[] }
-
-// ============================================================
-// Resolver
-// ============================================================
+  | { kind: 'TEAM_WEBHOOK'; webhookUrl: string }
 
 export async function resolvePortingNotificationRecipients(
   commercialOwnerUserId: string | null | undefined,
@@ -39,28 +27,78 @@ export async function resolvePortingNotificationRecipients(
     if (owner?.isActive) {
       const displayName =
         [owner.firstName, owner.lastName].filter(Boolean).join(' ') || owner.email
+
       return [{ kind: 'USER', userId: owner.id, email: owner.email, displayName }]
     }
-    // Opiekun istnieje ale jest nieaktywny — przechodzimy do fallbacku
   }
 
   return resolveTeamFallbackRecipients()
 }
 
 async function resolveTeamFallbackRecipients(): Promise<NotificationRecipient[]> {
-  const setting = await prisma.systemSetting.findUnique({
-    where: { key: SYSTEM_SETTING_KEYS.PORTING_NOTIFY_SHARED_EMAILS },
-    select: { value: true },
-  })
+  const sharedEmailsValue = await readSettingValue([
+    SYSTEM_SETTING_KEYS.PORTING_STATUS_NOTIFY_SHARED_EMAILS,
+    SYSTEM_SETTING_KEYS.PORTING_NOTIFY_SHARED_EMAILS,
+  ])
 
-  const emails = (setting?.value ?? '')
-    .split(',')
-    .map((e: string) => e.trim())
-    .filter(Boolean)
+  const teamsEnabledValue = await readSettingValue([
+    SYSTEM_SETTING_KEYS.PORTING_STATUS_TEAMS_ENABLED,
+    SYSTEM_SETTING_KEYS.PORTING_NOTIFY_TEAMS_ENABLED,
+  ])
 
-  if (emails.length === 0) {
+  const teamsWebhookValue = await readSettingValue([
+    SYSTEM_SETTING_KEYS.PORTING_STATUS_NOTIFY_SHARED_TEAMS_WEBHOOK,
+    SYSTEM_SETTING_KEYS.PORTING_NOTIFY_TEAMS_WEBHOOK,
+  ])
+
+  const emails = toEmailList(sharedEmailsValue)
+  const teamsEnabled = parseBooleanSetting(teamsEnabledValue)
+  const teamsWebhookUrl = teamsWebhookValue?.trim() || null
+
+  const recipients: NotificationRecipient[] = []
+
+  if (emails.length > 0) {
+    recipients.push({ kind: 'TEAM_EMAIL', emails })
+  }
+
+  if (teamsEnabled && teamsWebhookUrl) {
+    recipients.push({ kind: 'TEAM_WEBHOOK', webhookUrl: teamsWebhookUrl })
+  }
+
+  return recipients
+}
+
+async function readSettingValue(keys: string[]): Promise<string | null> {
+  for (const key of keys) {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key },
+      select: { value: true },
+    })
+
+    if (setting?.value) {
+      return setting.value
+    }
+  }
+
+  return null
+}
+
+function toEmailList(rawValue: string | null): string[] {
+  if (!rawValue) {
     return []
   }
 
-  return [{ kind: 'TEAM_EMAIL', emails }]
+  return rawValue
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean)
+}
+
+function parseBooleanSetting(rawValue: string | null): boolean {
+  if (!rawValue) {
+    return false
+  }
+
+  const normalized = rawValue.trim().toLowerCase()
+  return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
 }

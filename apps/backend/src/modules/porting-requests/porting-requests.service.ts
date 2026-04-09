@@ -1169,6 +1169,19 @@ export async function updateCommercialOwner(
 ): Promise<PortingRequestDetailDto> {
   const nextOwnerId = body.commercialOwnerUserId
 
+  const current = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: { id: true, caseNumber: true, commercialOwnerUserId: true },
+  })
+
+  if (!current) {
+    throw AppError.notFound('Sprawa portowania nie została znaleziona.')
+  }
+
+  if (current.commercialOwnerUserId === nextOwnerId) {
+    return getPortingRequest(requestId, userRole)
+  }
+
   if (nextOwnerId) {
     const candidate = await prisma.user.findUnique({
       where: { id: nextOwnerId },
@@ -1192,19 +1205,6 @@ export async function updateCommercialOwner(
         'COMMERCIAL_OWNER_INVALID_ROLE',
       )
     }
-  }
-
-  const current = await prisma.portingRequest.findUnique({
-    where: { id: requestId },
-    select: { id: true, caseNumber: true, commercialOwnerUserId: true },
-  })
-
-  if (!current) {
-    throw AppError.notFound('Sprawa portowania nie została znaleziona.')
-  }
-
-  if (current.commercialOwnerUserId === nextOwnerId) {
-    return getPortingRequest(requestId, userRole)
   }
 
   await prisma.portingRequest.update({

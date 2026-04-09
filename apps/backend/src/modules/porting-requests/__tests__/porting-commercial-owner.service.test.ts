@@ -251,8 +251,7 @@ describe('updateCommercialOwner', () => {
     expect(result.commercialOwner).toBeNull()
   })
 
-  it('returns current request without update when owner unchanged', async () => {
-    mockUserFindUnique.mockResolvedValueOnce(makeSalesUser())
+  it('returns current request without side effects when owner is unchanged', async () => {
     mockPortingRequestFindUnique.mockResolvedValueOnce({
       id: 'request-1',
       caseNumber: 'FNP-20260409-XYZ999',
@@ -270,12 +269,19 @@ describe('updateCommercialOwner', () => {
       'ADMIN',
     )
 
-    // No DB update or audit when value unchanged
+    // No validation/update/audit/dispatch when value unchanged
+    expect(mockUserFindUnique).not.toHaveBeenCalled()
     expect(mockPortingRequestUpdate).not.toHaveBeenCalled()
     expect(mockLogAuditEvent).not.toHaveBeenCalled()
+    expect(mockDispatchPortingNotification).not.toHaveBeenCalled()
   })
 
   it('throws NOT_FOUND when candidate user does not exist', async () => {
+    mockPortingRequestFindUnique.mockResolvedValueOnce({
+      id: 'request-1',
+      caseNumber: 'FNP-20260409-XYZ999',
+      commercialOwnerUserId: null,
+    })
     mockUserFindUnique.mockResolvedValueOnce(null)
 
     await expect(
@@ -291,6 +297,11 @@ describe('updateCommercialOwner', () => {
   })
 
   it('throws BAD_REQUEST when candidate user is inactive', async () => {
+    mockPortingRequestFindUnique.mockResolvedValueOnce({
+      id: 'request-1',
+      caseNumber: 'FNP-20260409-XYZ999',
+      commercialOwnerUserId: null,
+    })
     mockUserFindUnique.mockResolvedValueOnce(makeSalesUser({ isActive: false }))
 
     await expect(
@@ -306,6 +317,11 @@ describe('updateCommercialOwner', () => {
   })
 
   it('throws BAD_REQUEST when candidate user does not have SALES role', async () => {
+    mockPortingRequestFindUnique.mockResolvedValueOnce({
+      id: 'request-1',
+      caseNumber: 'FNP-20260409-XYZ999',
+      commercialOwnerUserId: null,
+    })
     mockUserFindUnique.mockResolvedValueOnce(makeSalesUser({ role: 'BOK_CONSULTANT' }))
 
     await expect(
@@ -321,7 +337,6 @@ describe('updateCommercialOwner', () => {
   })
 
   it('throws NOT_FOUND when porting request does not exist', async () => {
-    mockUserFindUnique.mockResolvedValueOnce(makeSalesUser())
     mockPortingRequestFindUnique.mockResolvedValueOnce(null)
 
     await expect(
@@ -332,6 +347,8 @@ describe('updateCommercialOwner', () => {
         'ADMIN',
       ),
     ).rejects.toMatchObject({ statusCode: 404 })
+
+    expect(mockUserFindUnique).not.toHaveBeenCalled()
   })
 })
 

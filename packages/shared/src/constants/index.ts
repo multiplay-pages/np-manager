@@ -627,6 +627,10 @@ export const SYSTEM_SETTING_KEYS = {
   DONOR_RESPONSE_DAYS: 'donor_response_days',
   MAX_FILE_SIZE_MB: 'max_file_size_mb',
   MAX_RETRY_COUNT: 'max_retry_count',
+  // Powiadomienia wewnetrzne - routing zdarzen portowania (preferred keys)
+  PORTING_STATUS_NOTIFY_SHARED_EMAILS: 'porting_status_notify_shared_emails',
+  PORTING_STATUS_TEAMS_ENABLED: 'porting_status_teams_enabled',
+  PORTING_STATUS_NOTIFY_SHARED_TEAMS_WEBHOOK: 'porting_status_notify_shared_teams_webhook',
   // Powiadomienia wewnętrzne — routing zdarzeń portowania
   PORTING_NOTIFY_SHARED_EMAILS: 'porting_notify_shared_emails',
   PORTING_NOTIFY_TEAMS_ENABLED: 'porting_notify_teams_enabled',

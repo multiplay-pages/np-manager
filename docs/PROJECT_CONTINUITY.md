@@ -1,7 +1,6 @@
-# NP-Manager — Project Continuity Guide
+# NP-Manager - Project Continuity Guide
 
-Dokument przeznaczony dla agentów AI i deweloperów przejmujących pracę nad projektem.
-Opisuje stan implementacji, architekturę decyzji i zasady kontynuowania pracy.
+Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architektoniczne i zasady kontynuacji.
 
 ---
 
@@ -9,112 +8,117 @@ Opisuje stan implementacji, architekturę decyzji i zasady kontynuowania pracy.
 
 ### Zrealizowane PR-y
 
-| PR      | Opis                                                              | Status |
-|---------|-------------------------------------------------------------------|--------|
-| PR11A   | Backend foundation — użytkownicy admin, role, JWT auth            | ✅     |
-| PR11B   | Frontend — panel admina użytkowników                              | ✅     |
-| PR12D   | Ownership filter (MINE/UNASSIGNED) przeniesiony na backend        | ✅     |
-| PR13A   | Opiekun handlowy (SALES) + fundament powiadomień wewnętrznych     | ✅     |
+| PR    | Opis                                                                 | Status |
+|-------|----------------------------------------------------------------------|--------|
+| PR11A | Backend foundation - uzytkownicy admin, role, JWT auth              | DONE   |
+| PR11B | Frontend - panel admina uzytkownikow                                | DONE   |
+| PR12D | Ownership filter (MINE/UNASSIGNED) przeniesiony na backend          | DONE   |
+| PR13A | Commercial owner (SALES) + foundation internal event notifications  | DONE   |
 
 ---
 
-## Architektura decyzji
+## Kluczowe decyzje domenowe
 
-### Model ownership spraw portowania
+### Ownership spraw portowania
 
-Sprawa portowania ma **dwa niezależne pola powiązania z użytkownikami**:
+- Biznesowo sprawa nalezy operacyjnie do **zespolu BOK**.
+- `assignedUserId` pozostaje tymczasowo jako mechanizm techniczny/historyczny i jest utrzymany addytywnie.
+- Glowny nowy model biznesowy PR13A: opcjonalny `commercialOwnerUserId` (`User.role = SALES`) na `PortingRequest`.
+- `commercialOwnerUserId` nie usuwa ani nie nadpisuje istniejacego assignmentu BOK, ale jest osia routingu notyfikacji wewnetrznych.
 
-- **`assignedUserId`** — operacyjny właściciel ze strony BOK (kto obsługuje sprawę),  
-  role: BOK_CONSULTANT, BACK_OFFICE, MANAGER, ADMIN
-- **`commercialOwnerUserId`** — opiekun handlowy odpowiedzialny za relację z klientem,  
-  wyłącznie rola SALES
+Future note:
+- W kolejnych etapach mozna rozwazyc domyslnego commercial ownera na poziomie `Client`, ale PR13A celowo wdraza foundation na poziomie `PortingRequest`.
 
-Oba pola są opcjonalne i niezależne — zmiana jednego nie wpływa na drugie.
+### Notyfikacje wewnetrzne (event-driven foundation)
 
-### Notyfikacje wewnętrzne (fundament PR13A)
+Architektura rozdziela trzy warstwy:
 
-System notyfikacji używa dwóch ścieżek:
+1. **Event domenowy** (`PortingNotificationEvent`)
+2. **Resolver odbiorcow** (owner -> USER, fallback -> TEAM_EMAIL / TEAM_WEBHOOK)
+3. **Trace**
+   - `Notification` dla odbiorcy typu USER,
+   - `PortingRequestEvent` typu NOTE dla fallbacku zespolowego bez konkretnego `userId`.
 
-1. **`Notification` (DB record)** — gdy istnieje aktywny `commercialOwner` → zapis na konkretnego `userId`
-2. **`PortingRequestEvent` NOTE** — fallback gdy brak opiekuna lub jest nieaktywny → zapis do dziennika sprawy  
-   *(Notification wymaga non-null `userId`, więc nie można go użyć dla odbiorców "zespołowych")*
+Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
 
-Dispatch jest **non-blocking** (fire-and-forget z `.catch(() => {})`), więc awaria powiadomienia nie blokuje odpowiedzi API.
+### Katalog eventow foundation
 
-### System settings kluczowe dla powiadomień
+- `REQUEST_CREATED`
+- `STATUS_CHANGED` (realnie podlaczony)
+- `E03_SENT`
+- `E06_RECEIVED`
+- `PORT_DATE_CONFIRMED`
+- `E12_SENT`
+- `E13_RECEIVED`
+- `NUMBER_PORTED`
+- `CASE_REJECTED`
+- `COMMERCIAL_OWNER_CHANGED`
 
-| Klucz                                 | Opis                                         |
-|---------------------------------------|----------------------------------------------|
-| `porting_notify_shared_emails`        | Lista e-maili zespołu (CSV), fallback recipient |
-| `porting_notify_teams_enabled`        | Flaga włączenia MS Teams webhook              |
-| `porting_notify_teams_webhook`        | URL webhooka MS Teams                        |
+W PR13A aktywnie podlaczony jest bezpieczny hook `STATUS_CHANGED` (+ zmiana ownera). Pozostale eventy sa gotowe jako punkt rozszerzenia.
 
-Klucze są zdefiniowane w `packages/shared/src/constants/index.ts` → `SYSTEM_SETTING_KEYS`.
+### Rozdzial odpowiedzialnosci komunikacyjnych
 
----
-
-## Konwencje kodowania
-
-### Backend
-
-- **Prisma `$transaction`**: w kodzie używamy `prisma.$transaction([promise1, promise2])` (tablica Promise, NIE funkcja). Mocki w testach:  
-  ```typescript
-  mockPrismaTransaction.mockImplementation(async (arg: unknown) => {
-    if (Array.isArray(arg)) return Promise.all(arg)
-    // ...
-  })
-  ```
-- **AppError**: zawsze `AppError.notFound()` / `AppError.badRequest(msg, code)` — nigdy `throw new Error()`
-- **AuditLog**: każda mutacja musi logować przez `logAuditEvent()` z `apps/backend/src/shared/audit/audit.service.ts`
-- **Zod schemas**: każdy endpoint ma schemat w `*.schema.ts` z walidacją przez Fastify `preHandler`
-
-### Frontend
-
-- **URL-driven state**: filtry listy spraw są w URL params, nie w lokalnym state
-- **Ownership filter security**: backend używa `request.user.id` z JWT dla filtru `MINE` — frontend nigdy nie wysyła userId
-- **API functions**: w `apps/frontend/src/services/portingRequests.api.ts`, zawsze async, zwracają już rozwinięte DTO (nie wrapper `{ success, data }`)
+- **Internal notifications**: routing do opiekuna handlowego albo fallbacku zespolowego.
+- **Komunikacja do klienta koncowego**: osobny strumien funkcjonalny (nie czesc PR13A).
 
 ---
 
-## Struktura kluczowych plików
+## System settings dla notyfikacji
 
-```
+Preferowane klucze:
+- `porting_status_notify_shared_emails`
+- `porting_status_teams_enabled`
+- `porting_status_notify_shared_teams_webhook`
+
+Kompatybilnosc wsteczna (legacy aliases):
+- `porting_notify_shared_emails`
+- `porting_notify_teams_enabled`
+- `porting_notify_teams_webhook`
+
+Resolver najpierw probuje kluczy preferowanych, potem legacy.
+
+---
+
+## Kluczowe pliki
+
+```text
 apps/backend/src/modules/porting-requests/
-  porting-requests.service.ts          # Główny serwis — logika biznesowa
-  porting-requests.router.ts           # Fastify routes + autoryzacja
-  porting-requests.schema.ts           # Zod schemas dla request body/query
-  porting-notification-events.ts       # Enum zdarzeń powiadomień
-  porting-notification-recipient-resolver.ts  # Resolver odbiorców
-  porting-notification.service.ts      # Dispatch powiadomień
+  porting-requests.service.ts
+  porting-requests.router.ts
+  porting-requests.schema.ts
+  porting-notification-events.ts
+  porting-notification-recipient-resolver.ts
+  porting-notification.service.ts
 
 apps/backend/prisma/
-  schema.prisma                        # Główny schemat Prisma
-  migrations/                          # Historia migracji SQL
+  schema.prisma
+  seed.ts
+  migrations/
 
 packages/shared/src/
-  dto/porting-requests.dto.ts          # Kontrakty DTO (frontend ↔ backend)
-  constants/index.ts                   # USER_ROLES, SYSTEM_SETTING_KEYS, etc.
+  constants/index.ts
+  dto/porting-requests.dto.ts
 
 apps/frontend/src/
-  services/portingRequests.api.ts      # Funkcje API klienta
-  pages/Requests/RequestDetailPage.tsx # Strona szczegółów sprawy (duża, ~1750 linii)
+  pages/Requests/RequestDetailPage.tsx
+  services/portingRequests.api.ts
 ```
 
 ---
 
-## Zasady kontynuowania pracy
+## Zasady kontynuacji pracy
 
-1. **Zawsze uruchamiaj testy** przed commitem: `npx vitest run` w obu apps
-2. **Po zmianie Prisma schema** uruchom `npx prisma generate --no-engine` (lub poczekaj na zwolnienie DLL przez inne procesy i uruchom bez flagi)
-3. **TypeScript check**: `npx tsc --noEmit` — oba projekty muszą przechodzić bez błędów
-4. **Shared package**: zmiany w `packages/shared` wymagają aktualizacji DTOs **i** stałych — oba są eksportowane przez `@np-manager/shared`
-5. **Branch naming**: `prXXy/short-description` (np. `pr13b/notification-dispatch`)
-6. **Commit prefix**: `feat(prXXy): opis`
+1. Zawsze uruchamiaj testy: `npx vitest run` w `apps/backend` i `apps/frontend`
+2. Po zmianie Prisma schema: `npx prisma generate --no-engine` (lub pelne `npx prisma generate`)
+3. Typy: `npx tsc --noEmit` w obu apps
+4. Zmiany w `packages/shared` wymagaja spojnosci kontraktow backend/frontend
+5. Branch naming: `prXXy/short-description`
+6. Commit prefix: `feat(prXXy): opis`
 
 ---
 
-## Planowane kolejne kroki
+## Kolejne kroki (poza PR13A)
 
-- **PR13B**: Faktyczny dispatch e-mail/Teams — implementacja serwisu wysyłki opartego o ustawienia systemowe
-- **PR14**: Historia powiadomień w UI + panel ustawień systemowych dla admina
-- **PR15**: Rozszerzenie opiekuna handlowego — raportowanie, widok "moje sprawy" dla SALES
+- PR13B: realny transport adapter dla fallbacku (email/Teams)
+- PR14: historia notyfikacji wewnetrznych i ustawienia systemowe w UI admina
+- PR15: raportowanie i widoki operacyjne dla modelu commercial owner

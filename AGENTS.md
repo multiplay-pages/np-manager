@@ -1,20 +1,20 @@
-# AGENTS.md — NP-Manager
+# AGENTS.md - NP-Manager
 
-Wytyczne dla agentów AI pracujących w tym repozytorium.
+Wytyczne dla agentow AI pracujacych w tym repozytorium.
 
 ---
 
 ## Struktura projektu
 
-Monorepo zarządzane przez npm workspaces:
+Monorepo zarzadzane przez npm workspaces:
 
-```
+```text
 np-manager/
   apps/
     backend/     # Fastify + Prisma 5 + PostgreSQL (port 3001)
     frontend/    # React 18 + Vite + Tailwind CSS (port 5173)
   packages/
-    shared/      # Wspólne typy DTO i stałe (@np-manager/shared)
+    shared/      # Wspolne typy DTO i stale (@np-manager/shared)
   docs/          # Dokumentacja projektu
 ```
 
@@ -26,41 +26,41 @@ np-manager/
 
 ```bash
 cd apps/backend
-npx vitest run              # Uruchom wszystkie testy
-npx tsc --noEmit            # Sprawdź typy TypeScript
-npx prisma generate --no-engine  # Regeneruj klienta Prisma (gdy DLL jest zablokowany)
-npx prisma generate         # Regeneruj klienta Prisma (pełna wersja)
+npx vitest run                    # Uruchom wszystkie testy
+npx tsc --noEmit                  # Sprawdz typy TypeScript
+npx prisma generate --no-engine   # Regeneruj klienta Prisma (gdy DLL jest zablokowany)
+npx prisma generate               # Regeneruj klienta Prisma (pelna wersja)
 ```
 
 ### Frontend
 
 ```bash
 cd apps/frontend
-npx vitest run              # Uruchom wszystkie testy
-npx tsc --noEmit            # Sprawdź typy TypeScript
+npx vitest run                    # Uruchom wszystkie testy
+npx tsc --noEmit                  # Sprawdz typy TypeScript
 ```
 
 ### Shared package
 
 ```bash
-# Zmiany w packages/shared są automatycznie widoczne przez workspaces
-# Nie trzeba budować — import bezpośrednio ze źródeł TypeScript
+# Zmiany w packages/shared sa automatycznie widoczne przez workspaces
+# Nie trzeba budowac - import bezposrednio ze zrodel TypeScript
 ```
 
 ---
 
 ## Zasady pracy
 
-### Przed zakończeniem zadania ZAWSZE
+### Przed zakonczeniem zadania ZAWSZE
 
-1. Uruchom `npx vitest run` w `apps/backend` — wszystkie testy muszą przejść
-2. Uruchom `npx vitest run` w `apps/frontend` — wszystkie testy muszą przejść
-3. Uruchom `npx tsc --noEmit` w obu apps — brak błędów TypeScript
+1. Uruchom `npx vitest run` w `apps/backend` - wszystkie testy musza przejsc
+2. Uruchom `npx vitest run` w `apps/frontend` - wszystkie testy musza przejsc
+3. Uruchom `npx tsc --noEmit` w obu apps - brak bledow TypeScript
 
 ### Testy
 
 - Framework: **Vitest** (nie Jest)
-- Mocki: `vi.hoisted()` + `vi.mock()` na górze pliku — **przed** importami modułów pod testem
+- Mocki: `vi.hoisted()` + `vi.mock()` na gorze pliku - **przed** importami modulow pod testem
 - Prisma mock pattern:
   ```typescript
   mockPrismaTransaction.mockImplementation(async (arg: unknown) => {
@@ -68,50 +68,61 @@ npx tsc --noEmit            # Sprawdź typy TypeScript
     if (typeof arg === 'function') return arg(tx)    // callback z tx
   })
   ```
-- Testy **nie** potrzebują działającej bazy — wszystko przez mocki
+- Testy **nie** potrzebuja dzialajacej bazy - wszystko przez mocki
 
 ### Prisma / baza danych
 
-- Po zmianie `prisma/schema.prisma` → `npx prisma generate`
-- Nowe migracje: utwórz plik SQL w `prisma/migrations/YYYYMMDDHHMMSS_nazwa/migration.sql`
-- Nigdy nie usuwaj istniejących kolumn w migracji — tylko addytywne zmiany
-- `$transaction([p1, p2])` przyjmuje tablicę Promise (nie funkcje)
+- Po zmianie `prisma/schema.prisma` -> `npx prisma generate`
+- Nowe migracje: utworz plik SQL w `prisma/migrations/YYYYMMDDHHMMSS_nazwa/migration.sql`
+- Nigdy nie usuwaj istniejacych kolumn w migracji - tylko addytywne zmiany
+- `$transaction([p1, p2])` przyjmuje tablice Promise (nie funkcje)
 
-### Bezpieczeństwo
+### Bezpieczenstwo
 
-- Backend nigdy nie ufa danym z frontendu dla operacji wymagających tożsamości  
-  (np. filtr `MINE` używa `request.user.id` z JWT, nie query param)
-- Każda mutacja musi logować przez `logAuditEvent()`
-- DTO w `packages/shared` to kontrakt publiczny — nie zawiera pól wrażliwych (np. `passwordHash`)
+- Backend nigdy nie ufa danym z frontendu dla operacji wymagajacych tozsamosci  
+  (np. filtr `MINE` uzywa `request.user.id` z JWT, nie query param)
+- Kazda mutacja musi logowac przez `logAuditEvent()`
+- DTO w `packages/shared` to kontrakt publiczny - nie zawiera pol wrazliwych (np. `passwordHash`)
 
 ### Styl kodu
 
 - TypeScript strict mode (bez `any`)
 - Zod do walidacji body/query w routerach
-- `AppError.notFound()` / `AppError.badRequest(msg, code)` — nigdy `throw new Error()`
-- Polskie komunikaty błędów (system obsługi portowania w Polsce)
+- `AppError.notFound()` / `AppError.badRequest(msg, code)` - nigdy `throw new Error()`
+- Polskie komunikaty bledow (system obslugi portowania w Polsce)
 - Powiadomienia: non-blocking dispatch z `.catch(() => {})`
 
 ---
 
 ## Kontekst biznesowy
 
-NP-Manager to system zarządzania procesem przenoszenia numerów (number portability) w Polsce.
+NP-Manager to system zarzadzania procesem przenoszenia numerow (number portability) w Polsce.
 
-Główne podmioty:
-- **PortingRequest** — sprawa portowania numeru telefonu
-- **User** — pracownik operatora (BOK, BACK_OFFICE, MANAGER, SALES, itp.)
-- **Operator** — operator telefoniczny (donor/recipient)
-- **PLI CBD** — zewnętrzny system regulatora (interfejs XML/SOAP)
+Glowne podmioty:
+- **PortingRequest** - sprawa portowania numeru telefonu
+- **User** - pracownik operatora (BOK, BACK_OFFICE, MANAGER, SALES, itp.)
+- **Operator** - operator telefoniczny (donor/recipient)
+- **PLI CBD** - zewnetrzny system regulatora (interfejs XML/SOAP)
 
-Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez backend — frontend tylko wyświetla dozwolone akcje.
+Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez backend - frontend tylko wyswietla dozwolone akcje.
+
+### Semantyka ownership i notyfikacji (PR13A+)
+
+- Biznesowo ownership operacyjny jest po stronie **zespolu BOK**, a nie personalnie pojedynczego pracownika.
+- `assignedUserId` pozostaje na razie mechanizmem technicznym (additive, bez destrukcyjnego usuwania), ale nie jest glowna osia rozwoju domeny.
+- Sprawa moze miec opcjonalnego `commercialOwnerUserId` (rola `SALES`) odpowiedzialnego za relacje handlowa.
+- Powiadomienia wewnetrzne sa modelowane eventowo (`PortingNotificationEvent`) i routowane:
+  - do opiekuna handlowego, gdy jest aktywny,
+  - do odbiorcow zespolowych (e-mail/Teams fallback), gdy opiekuna brak lub jest nieaktywny.
+- Powiadomienia wewnetrzne sa oddzielone od komunikacji do klienta koncowego (to osobny strumien funkcjonalny).
+- Future note: mozna rozwazyc domyslnego opiekuna handlowego na poziomie `Client`, ale foundation PR13A jest celowo na poziomie `PortingRequest`.
 
 ---
 
-## Ciągłość między sesjami
+## Ciaglosc miedzy sesjami
 
 Stan projektu jest udokumentowany w:
-- `docs/PROJECT_CONTINUITY.md` — szczegółowy opis stanu i decyzji architektonicznych
-- `C:\Users\cicha\.claude\projects\...\memory\MEMORY.md` — zwięzłe podsumowanie dla Claude
+- `docs/PROJECT_CONTINUITY.md` - szczegolowy opis stanu i decyzji architektonicznych
+- `C:\Users\cicha\.claude\projects\...\memory\MEMORY.md` - zwiezle podsumowanie dla Claude
 
-Po każdym PR aktualizuj oba dokumenty.
+Po kazdym PR aktualizuj oba dokumenty.
