@@ -35,6 +35,8 @@ function buildListItem(
           role: 'BOK_CONSULTANT',
         }
       : null,
+    commercialOwnerSummary: null,
+    hasNotificationFailures: false,
     createdAt: '2026-04-09T10:00:00.000Z',
   }
 }

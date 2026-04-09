@@ -25,6 +25,8 @@ import type {
   PortingInternalNotificationHistoryResultDto,
   PortingRequestListQueryDto,
   PortingRequestListResultDto,
+  PortingRequestOperationalSummaryDto,
+  PortingRequestSummaryQueryDto,
   PreparePortingCommunicationDraftDto,
   PortingTimelineResultDto,
   SendPortingCommunicationResultDto,
@@ -32,6 +34,7 @@ import type {
 } from '@np-manager/shared'
 
 export type GetPortingRequestsParams = PortingRequestListQueryDto
+export type GetPortingRequestsSummaryParams = PortingRequestSummaryQueryDto
 export type CreatePortingRequestPayload = CreatePortingRequestDto
 export type UpdatePortingRequestStatusPayload = UpdatePortingRequestStatusDto
 export interface UpdatePortingRequestAssignmentPayload {
@@ -42,22 +45,56 @@ export type PreparePortingCommunicationDraftPayload = PreparePortingCommunicatio
 export type ExecutePortingRequestExternalActionPayload = ExecutePortingRequestExternalActionDto
 export type UpdatePortingRequestCommercialOwnerPayload = UpdatePortingRequestCommercialOwnerDto
 
-export async function getPortingRequests(
-  params: GetPortingRequestsParams = {},
-): Promise<PortingRequestListResultDto> {
-  const query = new URLSearchParams()
-
+function appendListFiltersToQuery(
+  query: URLSearchParams,
+  params: {
+    search?: string
+    status?: string
+    portingMode?: string
+    donorOperatorId?: string
+    ownership?: string
+    commercialOwnerFilter?: string
+    notificationHealthFilter?: string
+  },
+): void {
   if (params.search) query.set('search', params.search)
   if (params.status) query.set('status', params.status)
   if (params.portingMode) query.set('portingMode', params.portingMode)
   if (params.donorOperatorId) query.set('donorOperatorId', params.donorOperatorId)
   if (params.ownership && params.ownership !== 'ALL') query.set('ownership', params.ownership)
+  if (params.commercialOwnerFilter && params.commercialOwnerFilter !== 'ALL') {
+    query.set('commercialOwnerFilter', params.commercialOwnerFilter)
+  }
+  if (params.notificationHealthFilter && params.notificationHealthFilter !== 'ALL') {
+    query.set('notificationHealthFilter', params.notificationHealthFilter)
+  }
+}
+
+export async function getPortingRequests(
+  params: GetPortingRequestsParams = {},
+): Promise<PortingRequestListResultDto> {
+  const query = new URLSearchParams()
+  appendListFiltersToQuery(query, params)
   if (params.page) query.set('page', String(params.page))
   if (params.pageSize) query.set('pageSize', String(params.pageSize))
 
   const suffix = query.toString()
   const response = await apiClient.get<{ success: true; data: PortingRequestListResultDto }>(
     suffix ? `/porting-requests?${suffix}` : '/porting-requests',
+  )
+
+  return response.data.data
+}
+
+export async function getPortingRequestsSummary(
+  params: GetPortingRequestsSummaryParams = {},
+): Promise<PortingRequestOperationalSummaryDto> {
+  const query = new URLSearchParams()
+  appendListFiltersToQuery(query, params)
+
+  const suffix = query.toString()
+  const response = await apiClient.get<{ success: true; data: PortingRequestOperationalSummaryDto }>(
+    suffix ? `/porting-requests/summary?${suffix}` : '/porting-requests/summary',
   )
 
   return response.data.data

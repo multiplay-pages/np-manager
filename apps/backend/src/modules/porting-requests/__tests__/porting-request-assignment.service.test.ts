@@ -121,6 +121,8 @@ function makeListRow(overrides: Record<string, unknown> = {}) {
     donorOperatorId: 'operator-1',
     donorOperator: { id: 'operator-1', name: 'Orange Polska' },
     assignedUser: null,
+    commercialOwner: null,
+    events: [],
     ...overrides,
   }
 }

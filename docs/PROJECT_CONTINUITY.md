@@ -17,6 +17,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR13A | Commercial owner (SALES) + foundation internal event notifications  | DONE   |
 | PR13B | Realny transport wewnetrznych powiadomien email/Teams               | DONE   |
 | PR14  | Historia wewnetrznych notyfikacji w UI + panel admin settings       | DONE   |
+| PR15  | Raportowanie i widoki operacyjne commercial owner                    | DONE   |
 
 ---
 
@@ -64,6 +65,30 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - Admin ma strone `Ustawienia powiadomien portingowych` do konfiguracji fallback email/Teams.
   - Read-only diagnostyka env: `email adapter mode`, `SMTP configured`.
 - Zakres pozostaje wewnetrzny (operacyjny) - bez zmian w customer communication pipeline.
+
+### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
+
+- Backend:
+  - lista spraw (`GET /api/porting-requests`) wspiera dodatkowe filtry:
+    - `commercialOwnerFilter`: `ALL | WITH_OWNER | WITHOUT_OWNER | MINE`
+    - `notificationHealthFilter`: `ALL | HAS_FAILURES | NO_FAILURES`
+  - `MINE` zawsze opiera sie o authenticated user id z JWT (backend source of truth).
+  - definicja health = sprawa ma co najmniej jeden `[Dispatch]` NOTE z outcome `FAILED` lub `MISCONFIGURED`.
+  - nowy endpoint summary: `GET /api/porting-requests/summary`:
+    - `totalRequests`
+    - `withCommercialOwner`
+    - `withoutCommercialOwner`
+    - `myCommercialRequests`
+    - `requestsWithNotificationFailures`
+  - list item DTO zwraca `commercialOwnerSummary` oraz `hasNotificationFailures`.
+- Frontend:
+  - `RequestsPage` ma operacyjne summary cards (5 licznikow) nad lista.
+  - filtry commercial owner i health sa URL-driven i wykonywane backendowo.
+  - tabela pokazuje opiekuna handlowego oraz prosty sygnal health notyfikacji (`OK` / `Blad`).
+- Zakres pozostaje addytywny:
+  - bez migracji DB,
+  - bez przebudowy historii PR14,
+  - bez zmian w customer communication module.
 
 #### Konfiguracja transportu email
 
@@ -140,6 +165,8 @@ packages/shared/src/
 
 apps/frontend/src/
   pages/Requests/RequestDetailPage.tsx
+  pages/Requests/RequestsPage.tsx
+  pages/Requests/requestsOperational.ts
   services/portingRequests.api.ts
 ```
 
@@ -158,7 +185,6 @@ apps/frontend/src/
 
 ## Kolejne kroki
 
-- PR15: raportowanie i widoki operacyjne dla modelu commercial owner
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---

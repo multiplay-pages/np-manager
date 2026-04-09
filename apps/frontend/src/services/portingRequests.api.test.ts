@@ -20,6 +20,7 @@ import {
   getPortingRequestAssignmentUsers,
   getPortingRequestInternalNotifications,
   getPortingRequests,
+  getPortingRequestsSummary,
   updatePortingRequestAssignment,
 } from './portingRequests.api'
 
@@ -37,12 +38,14 @@ describe('portingRequests.api assignment flow', () => {
       status: 'SUBMITTED',
       portingMode: 'DAY',
       donorOperatorId: 'operator-1',
+      commercialOwnerFilter: 'WITH_OWNER',
+      notificationHealthFilter: 'HAS_FAILURES',
       page: 2,
       pageSize: 10,
     })
 
     expect(getMock).toHaveBeenCalledWith(
-      '/porting-requests?search=abc&status=SUBMITTED&portingMode=DAY&donorOperatorId=operator-1&page=2&pageSize=10',
+      '/porting-requests?search=abc&status=SUBMITTED&portingMode=DAY&donorOperatorId=operator-1&commercialOwnerFilter=WITH_OWNER&notificationHealthFilter=HAS_FAILURES&page=2&pageSize=10',
     )
   })
 
@@ -74,6 +77,43 @@ describe('portingRequests.api assignment flow', () => {
 
     const calledUrl = getMock.mock.calls[0]?.[0] as string
     expect(calledUrl).not.toContain('ownership=')
+  })
+
+  it('omits ALL operational filters from list query string', async () => {
+    await getPortingRequests({
+      commercialOwnerFilter: 'ALL',
+      notificationHealthFilter: 'ALL',
+      page: 1,
+      pageSize: 20,
+    })
+
+    const calledUrl = getMock.mock.calls[0]?.[0] as string
+    expect(calledUrl).not.toContain('commercialOwnerFilter=')
+    expect(calledUrl).not.toContain('notificationHealthFilter=')
+  })
+
+  it('builds summary endpoint query params for operational cards', async () => {
+    getMock.mockResolvedValueOnce({
+      data: {
+        data: {
+          totalRequests: 10,
+          withCommercialOwner: 7,
+          withoutCommercialOwner: 3,
+          myCommercialRequests: 2,
+          requestsWithNotificationFailures: 1,
+        },
+      },
+    })
+
+    await getPortingRequestsSummary({
+      search: 'abc',
+      status: 'SUBMITTED',
+      ownership: 'MINE',
+    })
+
+    expect(getMock).toHaveBeenCalledWith(
+      '/porting-requests/summary?search=abc&status=SUBMITTED&ownership=MINE',
+    )
   })
 
   it('calls PATCH assignment endpoint with selected user id or null', async () => {
