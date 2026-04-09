@@ -12,6 +12,7 @@ const {
   mockUpdatePortingRequestAssignment,
   mockAssignPortingRequestToMe,
   mockGetPortingRequestAssignmentHistory,
+  mockListAssignablePortingRequestUsers,
 } = vi.hoisted(() => ({
   mockListPortingRequests: vi.fn(),
   mockGetPortingRequest: vi.fn(),
@@ -24,6 +25,7 @@ const {
   mockUpdatePortingRequestAssignment: vi.fn(),
   mockAssignPortingRequestToMe: vi.fn(),
   mockGetPortingRequestAssignmentHistory: vi.fn(),
+  mockListAssignablePortingRequestUsers: vi.fn(),
 }))
 
 vi.mock('../modules/auth/auth.router', () => ({ authRouter: async () => {} }))
@@ -46,6 +48,8 @@ vi.mock('../modules/porting-requests/porting-requests.service', () => ({
     mockGetPortingRequestIntegrationEvents(...args),
   getPortingRequest: (...args: unknown[]) => mockGetPortingRequest(...args),
   listPortingRequests: (...args: unknown[]) => mockListPortingRequests(...args),
+  listAssignablePortingRequestUsers: (...args: unknown[]) =>
+    mockListAssignablePortingRequestUsers(...args),
   syncPortingRequestFromPliCbd: (...args: unknown[]) => mockSyncPortingRequestFromPliCbd(...args),
   updatePortingRequestStatus: (...args: unknown[]) => mockUpdatePortingRequestStatus(...args),
   updatePortingRequestAssignment: (...args: unknown[]) => mockUpdatePortingRequestAssignment(...args),
@@ -166,6 +170,11 @@ describe('porting request assignment routes', () => {
         },
       ],
     })
+    mockListAssignablePortingRequestUsers.mockResolvedValue({
+      users: [
+        { id: 'user-2', email: 'anna.nowak@np-manager.local', firstName: 'Anna', lastName: 'Nowak', role: 'BOK_CONSULTANT' },
+      ],
+    })
   })
 
   it('PATCH /api/porting-requests/:id/assignment requires auth', async () => {
@@ -270,6 +279,60 @@ describe('porting request assignment routes', () => {
 
       expect(response.statusCode).toBe(200)
       expect(mockGetPortingRequestAssignmentHistory).toHaveBeenCalledWith('request-1')
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('GET /api/porting-requests/assignment-users requires auth', async () => {
+    const app = await buildApp()
+
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/porting-requests/assignment-users',
+      })
+
+      expect(response.statusCode).toBe(401)
+      expect(mockListAssignablePortingRequestUsers).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('GET /api/porting-requests/assignment-users returns 403 for roles without assignment permissions', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'backoffice-1', role: 'BACK_OFFICE' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/porting-requests/assignment-users',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(mockListAssignablePortingRequestUsers).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('GET /api/porting-requests/assignment-users is accessible for BOK_CONSULTANT', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'bok-1', role: 'BOK_CONSULTANT' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/porting-requests/assignment-users',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(mockListAssignablePortingRequestUsers).toHaveBeenCalledOnce()
+      const body = response.json<{ success: true; data: { users: unknown[] } }>()
+      expect(body.data.users).toHaveLength(1)
     } finally {
       await app.close()
     }

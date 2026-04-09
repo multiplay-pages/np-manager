@@ -118,6 +118,7 @@ describe('portingOwnership helpers', () => {
     expect(canManagePortingOwnership('BOK_CONSULTANT')).toBe(true)
     expect(canManagePortingOwnership('MANAGER')).toBe(false)
     expect(canSelectAnyAssignee('ADMIN')).toBe(true)
-    expect(canSelectAnyAssignee('BOK_CONSULTANT')).toBe(false)
+    expect(canSelectAnyAssignee('BOK_CONSULTANT')).toBe(true)
+    expect(canSelectAnyAssignee('MANAGER')).toBe(false)
   })
 })

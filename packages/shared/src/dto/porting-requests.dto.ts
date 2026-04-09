@@ -223,3 +223,19 @@ export interface PortingRequestAssignmentHistoryItemDto {
 export interface PortingRequestAssignmentHistoryResultDto {
   items: PortingRequestAssignmentHistoryItemDto[]
 }
+
+// ============================================================
+// ASSIGNMENT USERS (lightweight list for reassignment UI)
+// ============================================================
+
+export interface PortingRequestAssignmentUserOptionDto {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: UserRole
+}
+
+export interface PortingRequestAssignmentUsersResultDto {
+  users: PortingRequestAssignmentUserOptionDto[]
+}

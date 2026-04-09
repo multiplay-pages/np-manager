@@ -20,6 +20,7 @@ import {
   getPortingRequestIntegrationEvents,
   getPortingRequestProcessSnapshot,
   getPortingRequestTechnicalPayload,
+  getPortingRequestAssignmentUsers,
   getPortingRequestXmlPreview,
   markPortingCommunicationAsSent,
   previewPortingCommunicationDraft,
@@ -31,9 +32,7 @@ import {
   updatePortingRequestAssignment,
   updatePortingRequestStatus,
 } from '@/services/portingRequests.api'
-import { getAdminUsers } from '@/services/adminUsers.api'
 import {
-  type AdminUserListItemDto,
   CONTACT_CHANNEL_LABELS,
   NUMBER_TYPE_LABELS,
   PLI_CBD_EXPORT_STATUS_LABELS,
@@ -54,6 +53,7 @@ import {
   type PortingCommunicationDto,
   type PortingCommunicationPreviewDto,
   type PortingCommunicationSummaryDto,
+  type PortingRequestAssignmentUserOptionDto,
   type PortingRequestCaseHistoryItemDto,
   type PortingRequestCommunicationActionType,
   type PortingRequestDetailDto,
@@ -327,7 +327,7 @@ export function RequestDetailPage() {
   const [assignmentFeedbackError, setAssignmentFeedbackError] = useState<string | null>(null)
   const [assignmentFeedbackSuccess, setAssignmentFeedbackSuccess] = useState<string | null>(null)
   const [assigneeDraft, setAssigneeDraft] = useState('')
-  const [assignableUsers, setAssignableUsers] = useState<AdminUserListItemDto[]>([])
+  const [assignableUsers, setAssignableUsers] = useState<PortingRequestAssignmentUserOptionDto[]>([])
   const [isAssignableUsersLoading, setIsAssignableUsersLoading] = useState(false)
   const [isAssigningToMe, setIsAssigningToMe] = useState(false)
   const [isUpdatingAssignment, setIsUpdatingAssignment] = useState(false)
@@ -565,8 +565,8 @@ export function RequestDetailPage() {
     setIsAssignableUsersLoading(true)
 
     try {
-      const result = await getAdminUsers({ isActive: true })
-      setAssignableUsers(result.users.filter((candidate) => candidate.isActive))
+      const result = await getPortingRequestAssignmentUsers()
+      setAssignableUsers(result.users)
     } catch {
       setAssignableUsers([])
     } finally {

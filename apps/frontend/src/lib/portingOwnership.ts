@@ -48,7 +48,7 @@ export function canManagePortingOwnership(role: UserRole | null | undefined): bo
 }
 
 export function canSelectAnyAssignee(role: UserRole | null | undefined): boolean {
-  return role === 'ADMIN'
+  return role === 'ADMIN' || role === 'BOK_CONSULTANT'
 }
 
 export function formatAssignmentHistoryHeadline(

@@ -17,6 +17,7 @@ vi.mock('./api.client', () => ({
 import {
   assignPortingRequestToMe,
   getPortingRequestAssignmentHistory,
+  getPortingRequestAssignmentUsers,
   getPortingRequests,
   updatePortingRequestAssignment,
 } from './portingRequests.api'
@@ -67,5 +68,23 @@ describe('portingRequests.api assignment flow', () => {
     await getPortingRequestAssignmentHistory('request-1')
 
     expect(getMock).toHaveBeenCalledWith('/porting-requests/request-1/assignment-history')
+  })
+
+  it('calls assignment-users endpoint and returns user list', async () => {
+    getMock.mockResolvedValueOnce({
+      data: {
+        data: {
+          users: [
+            { id: 'user-1', email: 'user@np-manager.local', firstName: 'Jan', lastName: 'Kowalski', role: 'BOK_CONSULTANT' },
+          ],
+        },
+      },
+    })
+
+    const result = await getPortingRequestAssignmentUsers()
+
+    expect(getMock).toHaveBeenCalledWith('/porting-requests/assignment-users')
+    expect(result.users).toHaveLength(1)
+    expect(result.users[0]?.id).toBe('user-1')
   })
 })

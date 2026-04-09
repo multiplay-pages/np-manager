@@ -19,6 +19,7 @@ import {
   getPortingRequestAssignmentHistory,
   getPortingRequestIntegrationEvents,
   getPortingRequest,
+  listAssignablePortingRequestUsers,
   listPortingRequests,
   syncPortingRequestFromPliCbd,
   updatePortingRequestAssignment,
@@ -73,6 +74,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     const result = await listPortingRequests(query)
     return reply.status(200).send({ success: true, data: result })
   })
+
+  app.get(
+    '/assignment-users',
+    { preHandler: [authenticate, authorize(assignmentWriteRoles)] },
+    async (_request, reply) => {
+      const result = await listAssignablePortingRequestUsers()
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
 
   app.get<{ Params: { id: string } }>(
     '/:id/case-history',
