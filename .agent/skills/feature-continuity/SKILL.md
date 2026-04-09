@@ -6,7 +6,11 @@ description: Use this when continuing an existing feature, PR, module, or previo
 # Feature Continuity
 
 ## Goal
-Reconstruct the current state of work before proposing or making changes.
+Reconstruct the current state of work from the repository before proposing or making changes.
+
+## Primary rule
+Repository state is the primary source of truth.
+Git history, reflog, commit messages, and branch names are only secondary hints and must never override the current codebase state.
 
 ## Instructions
 1. Read:
@@ -14,18 +18,26 @@ Reconstruct the current state of work before proposing or making changes.
    - docs/ai/DOMAIN_RULES.md
    - docs/ai/QA_CHECKLIST.md
 2. Inspect the current codebase and identify the module related to the request.
-3. Determine:
-   - current implementation state,
-   - related files,
-   - likely dependencies,
-   - likely regression areas.
-4. Summarize what appears already implemented and what still remains.
-5. Do not assume an older plan is still accurate if the repository state differs.
-6. Prefer repository truth over assumptions.
+3. Determine from the actual repository state:
+   - what is already implemented,
+   - what appears incomplete,
+   - which files are involved,
+   - which dependencies and regressions are likely.
+4. Use commit history only if the repository state alone does not explain recent work.
+5. Prefer a useful best-effort conclusion over asking immediate follow-up questions.
+6. If uncertainty remains, state it explicitly, but still provide the most likely current state and recommended next step.
+7. Do not end with “waiting for instructions” if a sensible next step can already be proposed.
 
 ## Output
 Always start with:
 - current state,
-- likely next step,
+- what seems implemented,
+- what likely remains,
 - files likely involved,
-- risks if changed incorrectly.
+- risks if changed incorrectly,
+- recommended next step.
+
+## Anti-patterns to avoid
+- Over-relying on reflog or commit titles
+- Asking the user what to do next before giving a concrete recommendation
+- Presenting speculative history as confirmed current state

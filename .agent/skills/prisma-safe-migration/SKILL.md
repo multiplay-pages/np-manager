@@ -20,6 +20,10 @@ Implement database changes in a way that is safe, auditable, and consistent with
   - seed data
   - tests
 
+## Best-effort rule
+Even if the exact field is not yet specified, provide a useful migration analysis framework first.
+Do not immediately ask clarifying questions if a generic but concrete impact analysis can already be given.
+
 ## Mandatory checklist
 1. What models are changing?
 2. Is this additive or destructive?
@@ -30,8 +34,19 @@ Implement database changes in a way that is safe, auditable, and consistent with
 7. What tests must be updated?
 
 ## Output format
-- Proposed schema change
-- Risk assessment
-- Files to change
-- Test plan
-- Rollback concerns
+Always provide:
+- likely schema impact,
+- likely DTO/API impact,
+- likely seed impact,
+- likely frontend impact,
+- migration risk categories,
+- recommended implementation order.
+
+If key details are missing, add a short section:
+## Missing specifics
+and list only the missing items after giving the best-effort analysis.
+
+## Anti-patterns to avoid
+- Turning the response into a questionnaire before giving analysis
+- Refusing to assess risks without exact field names
+- Proposing unnecessary documents when a direct plan is enough
