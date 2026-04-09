@@ -1,6 +1,17 @@
 # AGENTS.md - NP-Manager
 
+Primary rule: repository state is the source of truth.
+
 Wytyczne dla agentow AI pracujacych w tym repozytorium.
+
+---
+
+## Read first
+
+Przed zmianami przeczytaj:
+1. `AGENTS.md`
+2. `CLAUDE.md`
+3. `docs/PROJECT_CONTINUITY.md`
 
 ---
 
@@ -79,7 +90,7 @@ npx tsc --noEmit                  # Sprawdz typy TypeScript
 
 ### Bezpieczenstwo
 
-- Backend nigdy nie ufa danym z frontendu dla operacji wymagajacych tozsamosci  
+- Backend nigdy nie ufa danym z frontendu dla operacji wymagajacych tozsamosci
   (np. filtr `MINE` uzywa `request.user.id` z JWT, nie query param)
 - Kazda mutacja musi logowac przez `logAuditEvent()`
 - DTO w `packages/shared` to kontrakt publiczny - nie zawiera pol wrazliwych (np. `passwordHash`)
@@ -91,6 +102,14 @@ npx tsc --noEmit                  # Sprawdz typy TypeScript
 - `AppError.notFound()` / `AppError.badRequest(msg, code)` - nigdy `throw new Error()`
 - Polskie komunikaty bledow (system obslugi portowania w Polsce)
 - Powiadomienia: non-blocking dispatch z `.catch(() => {})`
+
+### Zasady wspolpracy i zmian kierunku
+
+- Preferuj male, reviewowalne PR-y.
+- Preferuj zmiany addytywne zamiast destrukcyjnych rewrite.
+- Nie kontynuuj starego kierunku, jesli aktualny stan repo lub decyzja biznesowa sie zmienily.
+- Gdy zmienia sie kierunek produktu, aktualizuj `docs/PROJECT_CONTINUITY.md` w tym samym change secie.
+- Nie traktuj historii czatu jako jedynej pamieci projektu. Decyzje utrwalaj w repo.
 
 ---
 

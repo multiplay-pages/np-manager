@@ -12,6 +12,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 |-------|----------------------------------------------------------------------|--------|
 | PR11A | Backend foundation - uzytkownicy admin, role, JWT auth              | DONE   |
 | PR11B | Frontend - panel admina uzytkownikow                                | DONE   |
+| PR12C | Assignment-users endpoint + reassignment z detail flow              | DONE   |
 | PR12D | Ownership filter (MINE/UNASSIGNED) przeniesiony na backend          | DONE   |
 | PR13A | Commercial owner (SALES) + foundation internal event notifications  | DONE   |
 
@@ -122,3 +123,9 @@ apps/frontend/src/
 - PR13B: realny transport adapter dla fallbacku (email/Teams)
 - PR14: historia notyfikacji wewnetrznych i ustawienia systemowe w UI admina
 - PR15: raportowanie i widoki operacyjne dla modelu commercial owner
+
+---
+
+## Discipline note
+
+Gdy roadmapa lub interpretacja biznesowa sie zmienia, aktualizuj ten plik w tym samym change secie, aby kolejne sesje opieraly sie na pamieci repo, a nie tylko historii czatu.
