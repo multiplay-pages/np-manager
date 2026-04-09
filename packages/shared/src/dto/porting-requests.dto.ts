@@ -26,6 +26,16 @@ import type {
 export type OwnershipFilter = 'ALL' | 'MINE' | 'UNASSIGNED'
 export type CommercialOwnerFilter = 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE'
 export type NotificationHealthFilter = 'ALL' | 'HAS_FAILURES' | 'NO_FAILURES'
+export type NotificationHealthStatus = 'OK' | 'FAILED' | 'MISCONFIGURED' | 'MIXED'
+
+export interface NotificationHealthDiagnosticsDto {
+  status: NotificationHealthStatus
+  failureCount: number
+  failedCount: number
+  misconfiguredCount: number
+  lastFailureAt: string | null
+  lastFailureOutcome: 'FAILED' | 'MISCONFIGURED' | null
+}
 
 // ============================================================
 // OPIEKUN HANDLOWY
@@ -92,6 +102,10 @@ export interface PortingRequestListItemDto {
   assignedUserSummary: PortingRequestAssigneeSummaryDto | null
   commercialOwnerSummary: CommercialOwnerSummaryDto | null
   hasNotificationFailures: boolean
+  notificationHealthStatus: NotificationHealthStatus
+  notificationFailureCount: number
+  notificationLastFailureAt: string | null
+  notificationLastFailureOutcome: 'FAILED' | 'MISCONFIGURED' | null
   createdAt: string
 }
 
@@ -267,6 +281,7 @@ export interface PortingRequestDetailDto {
   availableExternalActions: PortingRequestExternalActionDto[]
   availableCommunicationActions: PortingRequestCommunicationActionDto[]
   communicationSummary: PortingCommunicationSummaryDto
+  notificationHealth: NotificationHealthDiagnosticsDto
 }
 
 export interface PortingRequestAssignmentHistoryItemDto {

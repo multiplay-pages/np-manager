@@ -32,6 +32,7 @@ import type {
   UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
 import { dispatchPortingNotification } from './porting-notification.service'
+import { computeNotificationHealth } from './porting-notification-health.helper'
 import { PORTING_NOTIFICATION_EVENT } from './porting-notification-events'
 import {
   PLI_CBD_TRIGGER_SELECT,
@@ -130,8 +131,7 @@ const LIST_SELECT = {
   },
   events: {
     where: NOTIFICATION_FAILURE_EVENT_WHERE,
-    select: { id: true },
-    take: 1,
+    select: { description: true, occurredAt: true },
   },
 } as const
 
@@ -190,6 +190,10 @@ const DETAIL_SELECT = {
   infrastructureOperator: { select: OPERATOR_SELECT },
   assignedUser: { select: ASSIGNEE_SELECT },
   commercialOwner: { select: ASSIGNEE_SELECT },
+  events: {
+    where: NOTIFICATION_FAILURE_EVENT_WHERE,
+    select: { description: true, occurredAt: true },
+  },
 } as const
 
 type ClientRow = Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>
@@ -658,6 +662,7 @@ async function throwBlockedPliCbdIntegrationAttempt(
 }
 
 function toListItem(row: ListRow): PortingRequestListItemDto {
+  const notifHealth = computeNotificationHealth(row.events)
   return {
     id: row.id,
     caseNumber: row.caseNumber,
@@ -671,6 +676,10 @@ function toListItem(row: ListRow): PortingRequestListItemDto {
     assignedUserSummary: toAssigneeSummary(row.assignedUser),
     commercialOwnerSummary: toCommercialOwnerSummary(row.commercialOwner),
     hasNotificationFailures: row.events.length > 0,
+    notificationHealthStatus: notifHealth.status,
+    notificationFailureCount: notifHealth.failureCount,
+    notificationLastFailureAt: notifHealth.lastFailureAt,
+    notificationLastFailureOutcome: notifHealth.lastFailureOutcome,
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -770,6 +779,7 @@ function toDetailDto(
       communicationHistory,
     ),
     communicationSummary: buildCommunicationSummary(communicationHistory),
+    notificationHealth: computeNotificationHealth(row.events),
   }
 }
 

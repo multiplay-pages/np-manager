@@ -17,6 +17,7 @@ import {
   PORTING_MODE_LABELS,
 } from '@np-manager/shared'
 import type {
+  NotificationHealthStatus,
   PortingCaseStatus,
   PortingMode,
   PortingRequestListItemDto,
@@ -68,19 +69,40 @@ function StatusBadge({ status }: { status: PortingCaseStatus }) {
   )
 }
 
-function NotificationHealthBadge({ hasFailures }: { hasFailures: boolean }) {
-  if (!hasFailures) {
+function NotificationHealthBadge({ request }: { request: PortingRequestListItemDto }) {
+  const { notificationHealthStatus, notificationFailureCount, notificationLastFailureAt } = request
+
+  const statusConfig: Record<NotificationHealthStatus, { label: string; className: string }> = {
+    OK: { label: 'OK', className: 'bg-emerald-100 text-emerald-700' },
+    FAILED: { label: 'Blad wysylki', className: 'bg-red-100 text-red-700' },
+    MISCONFIGURED: { label: 'Blad konfiguracji', className: 'bg-amber-100 text-amber-700' },
+    MIXED: { label: 'Bledy mieszane', className: 'bg-orange-100 text-orange-700' },
+  }
+
+  const config = statusConfig[notificationHealthStatus]
+
+  if (notificationHealthStatus === 'OK') {
     return (
-      <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">
+      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${config.className}`}>
         OK
       </span>
     )
   }
 
+  const lastFailureDate = notificationLastFailureAt
+    ? new Date(notificationLastFailureAt).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : null
+
   return (
-    <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700">
-      Blad
-    </span>
+    <div className="flex flex-col gap-0.5">
+      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${config.className}`}>
+        {config.label}
+      </span>
+      <span className="text-xs text-gray-400">
+        {notificationFailureCount} {notificationFailureCount === 1 ? 'blad' : 'bledow'}
+        {lastFailureDate ? `, ost. ${lastFailureDate}` : ''}
+      </span>
+    </div>
   )
 }
 
@@ -110,7 +132,7 @@ export function RequestRow({
         {formatCommercialOwnerLabel(request.commercialOwnerSummary)}
       </td>
       <td className="px-4 py-3 whitespace-nowrap">
-        <NotificationHealthBadge hasFailures={request.hasNotificationFailures} />
+        <NotificationHealthBadge request={request} />
       </td>
       <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{formatDate(request.createdAt)}</td>
     </tr>

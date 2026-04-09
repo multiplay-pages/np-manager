@@ -282,7 +282,7 @@ describe('listPortingRequests - commercial owner and notification health filters
           role: 'SALES',
           isActive: true,
         },
-        events: [{ id: 'event-1' }],
+        events: [{ description: 'Dispatch to email FAILED', occurredAt: new Date('2026-04-09T10:00:00.000Z') }],
       }),
     ])
 

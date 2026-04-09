@@ -65,6 +65,7 @@ import {
   type PortingRequestAssignmentHistoryItemDto,
   type PortingRequestStatusActionDto,
   type CommercialOwnerCandidateDto,
+  type NotificationHealthDiagnosticsDto,
 } from '@np-manager/shared'
 import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
 import { PortingCaseHistory } from '@/components/PortingCaseHistory/PortingCaseHistory'
@@ -313,6 +314,76 @@ function buildAdminTransportBanner(result: PliCbdManualExportResultDto) {
               : `Eksport nieudany: ${result.errorMessage ?? 'Nieznany blad'}`
 
   return { bannerClass, headline }
+}
+
+function NotificationHealthPanel({ health }: { health: NotificationHealthDiagnosticsDto }) {
+  const statusConfig: Record<
+    NotificationHealthDiagnosticsDto['status'],
+    { label: string; badgeClass: string; panelClass: string }
+  > = {
+    OK: {
+      label: 'OK — brak bledow notyfikacji',
+      badgeClass: 'bg-emerald-100 text-emerald-700',
+      panelClass: 'border-emerald-200 bg-emerald-50',
+    },
+    FAILED: {
+      label: 'Blad wysylki',
+      badgeClass: 'bg-red-100 text-red-700',
+      panelClass: 'border-red-200 bg-red-50',
+    },
+    MISCONFIGURED: {
+      label: 'Blad konfiguracji',
+      badgeClass: 'bg-amber-100 text-amber-700',
+      panelClass: 'border-amber-200 bg-amber-50',
+    },
+    MIXED: {
+      label: 'Bledy mieszane',
+      badgeClass: 'bg-orange-100 text-orange-700',
+      panelClass: 'border-orange-200 bg-orange-50',
+    },
+  }
+
+  const config = statusConfig[health.status]
+
+  return (
+    <div className={`rounded-lg border p-4 ${config.panelClass}`}>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-gray-700">Diagnostyka powiadomien wewnetrznych</h3>
+        <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${config.badgeClass}`}>
+          {config.label}
+        </span>
+      </div>
+      {health.status !== 'OK' && (
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
+          <div>
+            <dt className="text-gray-500">Wszystkich bledow</dt>
+            <dd className="font-medium text-gray-800">{health.failureCount}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Blad wysylki</dt>
+            <dd className="font-medium text-gray-800">{health.failedCount}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Blad konfiguracji</dt>
+            <dd className="font-medium text-gray-800">{health.misconfiguredCount}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Ostatni blad</dt>
+            <dd className="font-medium text-gray-800">
+              {health.lastFailureAt
+                ? new Date(health.lastFailureAt).toLocaleDateString('pl-PL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  })
+                : '—'}
+              {health.lastFailureOutcome ? ` (${health.lastFailureOutcome})` : ''}
+            </dd>
+          </div>
+        </dl>
+      )}
+    </div>
+  )
 }
 
 export function RequestDetailPage() {
@@ -1436,6 +1507,8 @@ export function RequestDetailPage() {
           />
 
           <PortingCaseHistory items={caseHistoryItems} isLoading={isCaseHistoryLoading} />
+
+          <NotificationHealthPanel health={request.notificationHealth} />
 
           <PortingInternalNotificationsPanel
             items={internalNotificationItems}

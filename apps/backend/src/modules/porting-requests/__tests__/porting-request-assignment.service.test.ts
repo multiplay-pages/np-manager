@@ -181,6 +181,9 @@ function makeDetailRow(overrides: Record<string, unknown> = {}) {
     recipientOperator: makeOperator({ id: 'operator-2', name: 'G-NET', shortName: 'GNET', routingNumber: '2700' }),
     infrastructureOperator: null,
     assignedUser: null,
+    commercialOwner: null,
+    commercialOwnerUserId: null,
+    events: [],
     ...overrides,
   }
 }
