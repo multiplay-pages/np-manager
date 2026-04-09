@@ -18,6 +18,7 @@ import {
   assignPortingRequestToMe,
   getPortingRequestAssignmentHistory,
   getPortingRequestAssignmentUsers,
+  getPortingRequestInternalNotifications,
   getPortingRequests,
   updatePortingRequestAssignment,
 } from './portingRequests.api'
@@ -98,6 +99,14 @@ describe('portingRequests.api assignment flow', () => {
     await getPortingRequestAssignmentHistory('request-1')
 
     expect(getMock).toHaveBeenCalledWith('/porting-requests/request-1/assignment-history')
+  })
+
+  it('calls internal notifications history endpoint', async () => {
+    getMock.mockResolvedValueOnce({ data: { data: { items: [] } } })
+
+    await getPortingRequestInternalNotifications('request-1')
+
+    expect(getMock).toHaveBeenCalledWith('/porting-requests/request-1/internal-notifications')
   })
 
   it('calls assignment-users endpoint and returns user list', async () => {

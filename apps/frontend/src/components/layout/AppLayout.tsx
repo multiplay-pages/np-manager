@@ -25,6 +25,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Uzytkownicy', path: ROUTES.ADMIN_USERS, icon: 'U' },
   { label: 'Operatorzy', path: ROUTES.ADMIN_OPERATORS, icon: 'O' },
   { label: 'Szablony komunikatow', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
+  { label: 'Powiadomienia portingu', path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS, icon: 'P' },
 ]
 
 function SidebarLink({ item, sidebarCollapsed }: { item: NavItem; sidebarCollapsed: boolean }) {

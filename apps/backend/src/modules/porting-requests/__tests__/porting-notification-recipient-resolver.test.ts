@@ -102,6 +102,25 @@ describe('resolvePortingNotificationRecipients', () => {
     ])
   })
 
+  it('does not fall back to legacy values when preferred key exists with empty value', async () => {
+    const settingsByKey = new Map<string, { value: string } | null>([
+      ['porting_status_notify_shared_emails', { value: '' }],
+      ['porting_notify_shared_emails', { value: 'legacy@np-manager.local' }],
+      ['porting_status_teams_enabled', { value: 'false' }],
+      ['porting_notify_teams_enabled', null],
+      ['porting_status_notify_shared_teams_webhook', { value: '' }],
+      ['porting_notify_teams_webhook', { value: 'https://legacy.example/hook' }],
+    ])
+
+    mockSystemSettingFindUnique.mockImplementation(async (args: { where: { key: string } }) => {
+      return settingsByKey.get(args.where.key) ?? null
+    })
+
+    const recipients = await resolvePortingNotificationRecipients(null)
+
+    expect(recipients).toEqual([])
+  })
+
   it('returns empty array when neither owner nor fallback settings are configured', async () => {
     mockSystemSettingFindUnique
       .mockResolvedValueOnce(null)

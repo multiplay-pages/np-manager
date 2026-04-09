@@ -75,7 +75,7 @@ async function readSettingValue(keys: string[]): Promise<string | null> {
       select: { value: true },
     })
 
-    if (setting?.value) {
+    if (setting) {
       return setting.value
     }
   }

@@ -42,6 +42,7 @@ import {
 } from './communication-delivery.service'
 import { getPortingRequestTimeline } from './porting-events.service'
 import { getPortingRequestCaseHistory } from './porting-request-case-history.service'
+import { getPortingRequestInternalNotifications } from './porting-internal-notification-history.service'
 import {
   buildE03DraftForPortingRequest,
   buildE12DraftForPortingRequest,
@@ -119,6 +120,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     { preHandler: [authenticate, authorize(readRoles)] },
     async (request, reply) => {
       const result = await getPortingRequestCaseHistory(request.params.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/internal-notifications',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const result = await getPortingRequestInternalNotifications(request.params.id)
       return reply.status(200).send({ success: true, data: result })
     },
   )

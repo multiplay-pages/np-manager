@@ -15,6 +15,8 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR12C | Assignment-users endpoint + reassignment z detail flow              | DONE   |
 | PR12D | Ownership filter (MINE/UNASSIGNED) przeniesiony na backend          | DONE   |
 | PR13A | Commercial owner (SALES) + foundation internal event notifications  | DONE   |
+| PR13B | Realny transport wewnetrznych powiadomien email/Teams               | DONE   |
+| PR14  | Historia wewnetrznych notyfikacji w UI + panel admin settings       | DONE   |
 
 ---
 
@@ -30,17 +32,51 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 Future note:
 - W kolejnych etapach mozna rozwazyc domyslnego commercial ownera na poziomie `Client`, ale PR13A celowo wdraza foundation na poziomie `PortingRequest`.
 
-### Notyfikacje wewnetrzne (event-driven foundation)
+### Notyfikacje wewnetrzne (PR13A foundation + PR13B transport)
 
-Architektura rozdziela trzy warstwy:
+Architektura rozdziela cztery warstwy:
 
 1. **Event domenowy** (`PortingNotificationEvent`)
 2. **Resolver odbiorcow** (owner -> USER, fallback -> TEAM_EMAIL / TEAM_WEBHOOK)
-3. **Trace**
+3. **Trace domenowy**
    - `Notification` dla odbiorcy typu USER,
-   - `PortingRequestEvent` typu NOTE dla fallbacku zespolowego bez konkretnego `userId`.
+   - `PortingRequestEvent` typu NOTE (routing intent) dla fallbacku zespolowego.
+4. **Transport realny (PR13B)**
+   - Email via nodemailer (`sendInternalEmail`) — tryb STUB/REAL/DISABLED
+   - Teams webhook via native fetch (`sendInternalTeamsWebhook`)
+   - Po kazdym dispatchie: `PortingRequestEvent NOTE [Dispatch]` z wynikiem (kanal, odbiorca, outcome, tryb, ewentualny blad)
 
 Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
+
+### PR14 - warstwa operacyjna (UI + read model + admin settings)
+
+- Backend:
+  - endpoint `GET /api/porting-requests/:id/internal-notifications` zwraca uporzadkowana historie:
+    - `USER_NOTIFICATION` z `Notification`,
+    - `TEAM_ROUTING` z `PortingRequestEvent NOTE` (routing intent),
+    - `TRANSPORT_AUDIT` z `[Dispatch] ...` NOTE.
+  - endpointy admin:
+    - `GET /api/admin/porting-notification-settings`
+    - `PUT /api/admin/porting-notification-settings`
+  - zapis preferuje klucze `porting_status_*`, odczyt wspiera fallback `porting_notify_*`.
+- Frontend:
+  - `RequestDetailPage` ma sekcje `Historia powiadomien wewnetrznych` (event, kanal, odbiorca, wynik, tryb, blad).
+  - Admin ma strone `Ustawienia powiadomien portingowych` do konfiguracji fallback email/Teams.
+  - Read-only diagnostyka env: `email adapter mode`, `SMTP configured`.
+- Zakres pozostaje wewnetrzny (operacyjny) - bez zmian w customer communication pipeline.
+
+#### Konfiguracja transportu email
+
+```env
+INTERNAL_NOTIFICATION_EMAIL_ADAPTER=STUB  # STUB (domyslnie) | REAL | DISABLED
+SMTP_HOST=smtp.example.com                # wymagane dla REAL
+SMTP_PORT=587
+SMTP_USER=user@example.com
+SMTP_PASS=secret
+SMTP_FROM=noreply@np-manager.local
+```
+
+Teams: webhook URL pochodzi z `SystemSetting.porting_status_notify_shared_teams_webhook`; wlaczenie przez `porting_status_teams_enabled=true`.
 
 ### Katalog eventow foundation
 
@@ -89,7 +125,9 @@ apps/backend/src/modules/porting-requests/
   porting-requests.schema.ts
   porting-notification-events.ts
   porting-notification-recipient-resolver.ts
-  porting-notification.service.ts
+  porting-notification.service.ts          # dispatcher (PR13A+PR13B)
+  internal-notification.adapter.ts         # email + Teams transport (PR13B)
+  internal-notification-formatter.ts       # formatter tresci wiadomosci (PR13B)
 
 apps/backend/prisma/
   schema.prisma
@@ -118,11 +156,10 @@ apps/frontend/src/
 
 ---
 
-## Kolejne kroki (poza PR13A)
+## Kolejne kroki
 
-- PR13B: realny transport adapter dla fallbacku (email/Teams)
-- PR14: historia notyfikacji wewnetrznych i ustawienia systemowe w UI admina
 - PR15: raportowanie i widoki operacyjne dla modelu commercial owner
+- Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---
 

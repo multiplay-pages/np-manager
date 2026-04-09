@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AppLayout } from './AppLayout'
+import { describe, expect, it, vi } from 'vitest'
+import { PortingNotificationSettingsPage } from './PortingNotificationSettingsPage'
 
 const { authState, mockedUseAuthStore } = vi.hoisted(() => {
   const state: {
@@ -12,8 +11,7 @@ const { authState, mockedUseAuthStore } = vi.hoisted(() => {
       lastName: string
       role: 'ADMIN' | 'BOK_CONSULTANT'
       forcePasswordChange: boolean
-    }
-    clearAuth: ReturnType<typeof vi.fn>
+    } | null
   } = {
     user: {
       id: 'admin-1',
@@ -23,7 +21,6 @@ const { authState, mockedUseAuthStore } = vi.hoisted(() => {
       role: 'ADMIN',
       forcePasswordChange: false,
     },
-    clearAuth: vi.fn(),
   }
 
   const store = Object.assign((selector?: (value: typeof state) => unknown) => {
@@ -39,8 +36,13 @@ vi.mock('@/stores/auth.store', () => ({
   useAuthStore: mockedUseAuthStore,
 }))
 
-describe('AppLayout admin navigation', () => {
-  beforeEach(() => {
+vi.mock('@/services/adminPortingNotificationSettings.api', () => ({
+  getAdminPortingNotificationSettings: vi.fn(),
+  updateAdminPortingNotificationSettings: vi.fn(),
+}))
+
+describe('PortingNotificationSettingsPage', () => {
+  it('shows admin panel shell for ADMIN user', () => {
     authState.user = {
       id: 'admin-1',
       email: 'admin@np-manager.local',
@@ -49,25 +51,14 @@ describe('AppLayout admin navigation', () => {
       role: 'ADMIN',
       forcePasswordChange: false,
     }
+
+    const html = renderToStaticMarkup(<PortingNotificationSettingsPage />)
+
+    expect(html).toContain('Ustawienia powiadomien portingowych')
+    expect(html).toContain('Ladowanie ustawien...')
   })
 
-  it('shows Users navigation link for ADMIN', () => {
-    const html = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<div>Dashboard</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-    )
-
-    expect(html).toContain('Uzytkownicy')
-    expect(html).toContain('Szablony komunikatow')
-    expect(html).toContain('Powiadomienia portingu')
-  })
-
-  it('hides Users navigation link for non-admin', () => {
+  it('blocks non-admin users from admin settings view', () => {
     authState.user = {
       id: 'bok-1',
       email: 'bok@np-manager.local',
@@ -77,17 +68,9 @@ describe('AppLayout admin navigation', () => {
       forcePasswordChange: false,
     }
 
-    const html = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<div>Dashboard</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-    )
+    const html = renderToStaticMarkup(<PortingNotificationSettingsPage />)
 
-    expect(html).not.toContain('Uzytkownicy')
-    expect(html).not.toContain('Administracja')
+    expect(html).toContain('Brak dostepu do administracji')
+    expect(html).toContain('Ta sekcja jest dostepna tylko dla administratora systemu.')
   })
 })
