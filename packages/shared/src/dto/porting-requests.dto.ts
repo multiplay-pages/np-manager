@@ -11,6 +11,7 @@ import type {
   PliCbdExportStatus,
   PliCbdExxType,
   SubscriberIdentityType,
+  UserRole,
 } from '../constants'
 import type {
   PortingCommunicationDto,
@@ -41,6 +42,7 @@ export interface PortingRequestListItemDto {
   donorOperatorName: string
   portingMode: PortingMode
   statusInternal: PortingCaseStatus
+  assignedUserSummary: PortingRequestAssigneeSummaryDto | null
   createdAt: string
 }
 
@@ -141,6 +143,13 @@ export interface PortingRequestOperatorRefDto {
   routingNumber: string
 }
 
+export interface PortingRequestAssigneeSummaryDto {
+  id: string
+  email: string
+  displayName: string
+  role: UserRole
+}
+
 export interface PortingRequestDetailDto {
   id: string
   caseNumber: string
@@ -191,10 +200,26 @@ export interface PortingRequestDetailDto {
   contactChannel: ContactChannel
   internalNotes: string | null
   createdByUserId: string
+  assignedUser: PortingRequestAssigneeSummaryDto | null
+  assignedAt: string | null
+  assignedByUserId: string | null
   createdAt: string
   updatedAt: string
   availableStatusActions: PortingRequestStatusActionDto[]
   availableExternalActions: PortingRequestExternalActionDto[]
   availableCommunicationActions: PortingRequestCommunicationActionDto[]
   communicationSummary: PortingCommunicationSummaryDto
+}
+
+export interface PortingRequestAssignmentHistoryItemDto {
+  id: string
+  portingRequestId: string
+  previousAssignedUser: PortingRequestAssigneeSummaryDto | null
+  nextAssignedUser: PortingRequestAssigneeSummaryDto | null
+  changedByUser: PortingRequestAssigneeSummaryDto
+  createdAt: string
+}
+
+export interface PortingRequestAssignmentHistoryResultDto {
+  items: PortingRequestAssignmentHistoryItemDto[]
 }

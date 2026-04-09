@@ -16,6 +16,7 @@ import type {
   PliCbdManualExportMessageType,
   PliCbdManualExportResultDto,
   PliCbdProcessSnapshotDto,
+  PortingRequestAssignmentHistoryResultDto,
   PortingRequestCaseHistoryResultDto,
   PortingRequestDetailDto,
   PortingRequestListQueryDto,
@@ -29,6 +30,9 @@ import type {
 export type GetPortingRequestsParams = PortingRequestListQueryDto
 export type CreatePortingRequestPayload = CreatePortingRequestDto
 export type UpdatePortingRequestStatusPayload = UpdatePortingRequestStatusDto
+export interface UpdatePortingRequestAssignmentPayload {
+  assignedUserId: string | null
+}
 export type PliCbdTechnicalPayloadApiMessageType = 'e03' | 'e12' | 'e18' | 'e23'
 export type PreparePortingCommunicationDraftPayload = PreparePortingCommunicationDraftDto
 export type ExecutePortingRequestExternalActionPayload = ExecutePortingRequestExternalActionDto
@@ -83,6 +87,38 @@ export async function updatePortingRequestStatus(
   }>(`/porting-requests/${id}/status`, data)
 
   return response.data.data.request
+}
+
+export async function updatePortingRequestAssignment(
+  id: string,
+  data: UpdatePortingRequestAssignmentPayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/assignment`, data)
+
+  return response.data.data.request
+}
+
+export async function assignPortingRequestToMe(id: string): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/assignment/assign-to-me`)
+
+  return response.data.data.request
+}
+
+export async function getPortingRequestAssignmentHistory(
+  id: string,
+): Promise<PortingRequestAssignmentHistoryResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingRequestAssignmentHistoryResultDto
+  }>(`/porting-requests/${id}/assignment-history`)
+
+  return response.data.data
 }
 
 export async function exportPortingRequest(id: string): Promise<PortingRequestDetailDto> {

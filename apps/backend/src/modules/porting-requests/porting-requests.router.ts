@@ -8,16 +8,20 @@ import {
   markPortingCommunicationSentSchema,
   portingRequestListQuerySchema,
   preparePortingCommunicationDraftSchema,
+  updatePortingRequestAssignmentSchema,
   updatePortingRequestStatusSchema,
 } from './porting-requests.schema'
 import {
+  assignPortingRequestToMe,
   createPortingRequest,
   executePortingRequestExternalAction,
   exportPortingRequestToPliCbd,
+  getPortingRequestAssignmentHistory,
   getPortingRequestIntegrationEvents,
   getPortingRequest,
   listPortingRequests,
   syncPortingRequestFromPliCbd,
+  updatePortingRequestAssignment,
   updatePortingRequestStatus,
 } from './porting-requests.service'
 import {
@@ -55,10 +59,12 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     'BOK_CONSULTANT',
     'BACK_OFFICE',
     'MANAGER',
+    'TECHNICAL',
     'LEGAL',
     'AUDITOR',
   ]
   const writeRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
+  const assignmentWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT']
   const externalActionRoles: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
   const pliCbdRoles: UserRole[] = ['ADMIN']
 
@@ -206,6 +212,49 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
       )
 
       return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/assignment-history',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const result = await getPortingRequestAssignmentHistory(request.params.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.patch<{ Params: { id: string } }>(
+    '/:id/assignment',
+    { preHandler: [authenticate, authorize(assignmentWriteRoles)] },
+    async (request, reply) => {
+      const body = updatePortingRequestAssignmentSchema.parse(request.body)
+      const portingRequest = await updatePortingRequestAssignment(
+        request.params.id,
+        body,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
+    },
+  )
+
+  app.post<{ Params: { id: string } }>(
+    '/:id/assignment/assign-to-me',
+    { preHandler: [authenticate, authorize(assignmentWriteRoles)] },
+    async (request, reply) => {
+      const portingRequest = await assignPortingRequestToMe(
+        request.params.id,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
     },
   )
 

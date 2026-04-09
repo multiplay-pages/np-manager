@@ -49,6 +49,9 @@ vi.mock('../modules/porting-requests/porting-requests.service', () => ({
   getPortingRequest: vi.fn(),
   listPortingRequests: vi.fn(),
   syncPortingRequestFromPliCbd: vi.fn(),
+  updatePortingRequestAssignment: vi.fn(),
+  assignPortingRequestToMe: vi.fn(),
+  getPortingRequestAssignmentHistory: vi.fn(),
   updatePortingRequestStatus: vi.fn(),
 }))
 

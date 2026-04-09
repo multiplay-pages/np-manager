@@ -42,6 +42,9 @@ vi.mock('../modules/porting-requests/porting-requests.service', () => ({
   getPortingRequest: (...args: unknown[]) => mockGetPortingRequest(...args),
   listPortingRequests: (...args: unknown[]) => mockListPortingRequests(...args),
   syncPortingRequestFromPliCbd: vi.fn(),
+  updatePortingRequestAssignment: vi.fn(),
+  assignPortingRequestToMe: vi.fn(),
+  getPortingRequestAssignmentHistory: vi.fn(),
   updatePortingRequestStatus: vi.fn(),
 }))
 

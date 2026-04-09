@@ -6,6 +6,9 @@ import { PortingEvents } from './porting-events.service'
 import type {
   CreatePortingRequestDto,
   ExecutePortingRequestExternalActionResultDto,
+  PortingRequestAssigneeSummaryDto,
+  PortingRequestAssignmentHistoryItemDto,
+  PortingRequestAssignmentHistoryResultDto,
   PortingCommunicationDto,
   PortingRequestDetailDto,
   PliCbdIntegrationEventsResultDto,
@@ -19,6 +22,7 @@ import type {
   CreatePortingRequestBody,
   ExecutePortingRequestExternalActionBody,
   PortingRequestListQuery,
+  UpdatePortingRequestAssignmentBody,
   UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
 import {
@@ -74,6 +78,15 @@ const OPERATOR_SELECT = {
   isActive: true,
 } as const
 
+const ASSIGNEE_SELECT = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  role: true,
+  isActive: true,
+} as const
+
 const LIST_SELECT = {
   id: true,
   caseNumber: true,
@@ -89,6 +102,9 @@ const LIST_SELECT = {
   donorOperatorId: true,
   donorOperator: {
     select: { id: true, name: true },
+  },
+  assignedUser: {
+    select: ASSIGNEE_SELECT,
   },
 } as const
 
@@ -136,16 +152,20 @@ const DETAIL_SELECT = {
   contactChannel: true,
   internalNotes: true,
   createdByUserId: true,
+  assignedAt: true,
+  assignedByUserId: true,
   createdAt: true,
   updatedAt: true,
   client: { select: CLIENT_SELECT },
   donorOperator: { select: OPERATOR_SELECT },
   recipientOperator: { select: OPERATOR_SELECT },
   infrastructureOperator: { select: OPERATOR_SELECT },
+  assignedUser: { select: ASSIGNEE_SELECT },
 } as const
 
 type ClientRow = Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>
 type OperatorRow = Prisma.OperatorGetPayload<{ select: typeof OPERATOR_SELECT }>
+type AssigneeRow = Prisma.UserGetPayload<{ select: typeof ASSIGNEE_SELECT }>
 type ListRow = Prisma.PortingRequestGetPayload<{ select: typeof LIST_SELECT }>
 type DetailRow = Prisma.PortingRequestGetPayload<{ select: typeof DETAIL_SELECT }>
 type StatusChangeRow = Prisma.PortingRequestGetPayload<{
@@ -166,6 +186,31 @@ type ExternalActionRow = Prisma.PortingRequestGetPayload<{
     confirmedPortDate: true
     donorAssignedPortDate: true
     rejectionReason: true
+  }
+}>
+
+type AssignmentTargetRow = Prisma.PortingRequestGetPayload<{
+  select: {
+    id: true
+    caseNumber: true
+    assignedUserId: true
+  }
+}>
+
+type AssignmentHistoryRow = Prisma.PortingRequestAssignmentHistoryGetPayload<{
+  select: {
+    id: true
+    portingRequestId: true
+    createdAt: true
+    previousAssignedUser: {
+      select: typeof ASSIGNEE_SELECT
+    }
+    nextAssignedUser: {
+      select: typeof ASSIGNEE_SELECT
+    }
+    changedByUser: {
+      select: typeof ASSIGNEE_SELECT
+    }
   }
 }>
 
@@ -195,6 +240,27 @@ function getSubscriberDisplayName(request: {
 
   const parts = [request.subscriberFirstName, request.subscriberLastName].filter(Boolean)
   return parts.length > 0 ? parts.join(' ') : 'Brak danych'
+}
+
+function getUserDisplayName(user: {
+  firstName?: string | null
+  lastName?: string | null
+}): string {
+  const parts = [user.firstName, user.lastName].filter(Boolean)
+  return parts.length > 0 ? parts.join(' ') : 'Brak danych'
+}
+
+function toAssigneeSummary(user: AssigneeRow | null | undefined): PortingRequestAssigneeSummaryDto | null {
+  if (!user) {
+    return null
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: getUserDisplayName(user),
+    role: user.role,
+  }
 }
 
 function getNumberDisplay(request: {
@@ -424,6 +490,59 @@ async function getPortingRequestForExternalActionOrThrow(
   return request
 }
 
+async function getPortingRequestForAssignmentOrThrow(
+  requestId: string,
+): Promise<AssignmentTargetRow> {
+  const request = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: {
+      id: true,
+      caseNumber: true,
+      assignedUserId: true,
+    },
+  })
+
+  if (!request) {
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
+  }
+
+  return request
+}
+
+async function getActiveAssigneeOrThrow(userId: string): Promise<AssigneeRow> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: ASSIGNEE_SELECT,
+  })
+
+  if (!user) {
+    throw AppError.notFound(
+      'Wskazany uzytkownik do przypisania nie istnieje.',
+      'ASSIGNEE_NOT_FOUND',
+    )
+  }
+
+  if (!user.isActive) {
+    throw AppError.badRequest(
+      'Nie mozna przypisac sprawy do nieaktywnego uzytkownika.',
+      'ASSIGNEE_INACTIVE',
+    )
+  }
+
+  return user
+}
+
+function toAssignmentHistoryItem(row: AssignmentHistoryRow): PortingRequestAssignmentHistoryItemDto {
+  return {
+    id: row.id,
+    portingRequestId: row.portingRequestId,
+    previousAssignedUser: toAssigneeSummary(row.previousAssignedUser),
+    nextAssignedUser: toAssigneeSummary(row.nextAssignedUser),
+    changedByUser: toAssigneeSummary(row.changedByUser)!,
+    createdAt: row.createdAt.toISOString(),
+  }
+}
+
 function buildExternalActionEvent(
   actionId: ExecutePortingRequestExternalActionBody['actionId'],
   payload: {
@@ -507,6 +626,7 @@ function toListItem(row: ListRow): PortingRequestListItemDto {
     donorOperatorName: row.donorOperator.name,
     portingMode: row.portingMode,
     statusInternal: row.statusInternal,
+    assignedUserSummary: toAssigneeSummary(row.assignedUser),
     createdAt: row.createdAt.toISOString(),
   }
 }
@@ -581,6 +701,9 @@ function toDetailDto(
     contactChannel: row.contactChannel,
     internalNotes: row.internalNotes,
     createdByUserId: row.createdByUserId,
+    assignedUser: toAssigneeSummary(row.assignedUser),
+    assignedAt: row.assignedAt?.toISOString() ?? null,
+    assignedByUserId: row.assignedByUserId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     availableStatusActions: getAvailableStatusActions(row.statusInternal, actorRole),
@@ -785,6 +908,105 @@ export async function getPortingRequest(
   }
 
   return toDetailDto(request, actorRole, communicationHistory)
+}
+
+export async function updatePortingRequestAssignment(
+  requestId: string,
+  body: UpdatePortingRequestAssignmentBody,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const nextAssignedUserId = body.assignedUserId
+
+  if (nextAssignedUserId) {
+    await getActiveAssigneeOrThrow(nextAssignedUserId)
+  }
+
+  const request = await getPortingRequestForAssignmentOrThrow(requestId)
+  const previousAssignedUserId = request.assignedUserId
+
+  if (previousAssignedUserId === nextAssignedUserId) {
+    return getPortingRequest(requestId, userRole)
+  }
+
+  const now = new Date()
+
+  await prisma.$transaction(async (tx) => {
+    await tx.portingRequest.update({
+      where: { id: requestId },
+      data: {
+        assignedUserId: nextAssignedUserId,
+        assignedAt: nextAssignedUserId ? now : null,
+        assignedByUserId: nextAssignedUserId ? userId : null,
+      },
+    })
+
+    await tx.portingRequestAssignmentHistory.create({
+      data: {
+        portingRequestId: requestId,
+        previousAssignedUserId,
+        nextAssignedUserId,
+        changedByUserId: userId,
+      },
+    })
+  })
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    fieldName: 'assignedUserId',
+    oldValue: previousAssignedUserId ?? 'UNASSIGNED',
+    newValue: nextAssignedUserId ?? 'UNASSIGNED',
+    ipAddress,
+    userAgent,
+  })
+
+  return getPortingRequest(requestId, userRole)
+}
+
+export async function assignPortingRequestToMe(
+  requestId: string,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  return updatePortingRequestAssignment(
+    requestId,
+    { assignedUserId: userId },
+    userId,
+    userRole,
+    ipAddress,
+    userAgent,
+  )
+}
+
+export async function getPortingRequestAssignmentHistory(
+  requestId: string,
+): Promise<PortingRequestAssignmentHistoryResultDto> {
+  await getPortingRequestForAssignmentOrThrow(requestId)
+
+  const rows = await prisma.portingRequestAssignmentHistory.findMany({
+    where: { portingRequestId: requestId },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      portingRequestId: true,
+      createdAt: true,
+      previousAssignedUser: { select: ASSIGNEE_SELECT },
+      nextAssignedUser: { select: ASSIGNEE_SELECT },
+      changedByUser: { select: ASSIGNEE_SELECT },
+    },
+  })
+
+  return {
+    items: rows.map(toAssignmentHistoryItem),
+  }
 }
 
 export async function getPortingRequestIntegrationEvents(

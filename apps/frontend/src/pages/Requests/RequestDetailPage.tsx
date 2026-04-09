@@ -4,10 +4,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import {
+  assignPortingRequestToMe,
   cancelPortingCommunication,
   createPortingCommunicationDraft,
   executePortingRequestExternalAction,
   exportPortingRequest,
+  getPortingRequestAssignmentHistory,
   getPortingCommunicationDeliveryAttempts,
   getPortingRequestById,
   getPortingRequestCaseHistory,
@@ -26,9 +28,12 @@ import {
   triggerManualPliCbdExport,
   type PliCbdTechnicalPayloadApiMessageType,
   syncPortingRequest,
+  updatePortingRequestAssignment,
   updatePortingRequestStatus,
 } from '@/services/portingRequests.api'
+import { getAdminUsers } from '@/services/adminUsers.api'
 import {
+  type AdminUserListItemDto,
   CONTACT_CHANNEL_LABELS,
   NUMBER_TYPE_LABELS,
   PLI_CBD_EXPORT_STATUS_LABELS,
@@ -53,8 +58,10 @@ import {
   type PortingRequestCommunicationActionType,
   type PortingRequestDetailDto,
   type PortingRequestExternalActionDto,
+  type PortingRequestAssignmentHistoryItemDto,
   type PortingRequestStatusActionDto,
 } from '@np-manager/shared'
+import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
 import { PortingCaseHistory } from '@/components/PortingCaseHistory/PortingCaseHistory'
 import { PortingCommunicationPanel } from '@/components/PortingCommunicationPanel/PortingCommunicationPanel'
 import { PortingExternalActionsPanel } from '@/components/PortingExternalActionsPanel/PortingExternalActionsPanel'
@@ -66,6 +73,10 @@ import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbd
 import { PliCbdTechnicalPayloadPreview } from '@/components/PliCbdTechnicalPayloadPreview/PliCbdTechnicalPayloadPreview'
 import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
+import {
+  canManagePortingOwnership,
+  canSelectAnyAssignee,
+} from '@/lib/portingOwnership'
 
 const TECHNICAL_PAYLOAD_MESSAGE_TYPES = ['E03', 'E12', 'E18', 'E23'] as const
 
@@ -143,6 +154,11 @@ const COMMUNICATION_ERROR_MESSAGES: Record<string, string> = {
     'Komunikacja zakonczona bledem nie moze zostac oznaczona jako wyslana.',
 }
 
+const ASSIGNMENT_ERROR_MESSAGES: Record<string, string> = {
+  ASSIGNEE_NOT_FOUND: 'Wybrany uzytkownik nie istnieje.',
+  ASSIGNEE_INACTIVE: 'Nie mozna przypisac sprawy do nieaktywnego uzytkownika.',
+}
+
 function getCommunicationActionErrorMessage(
   error: unknown,
   fallback: string,
@@ -160,6 +176,26 @@ function getCommunicationActionErrorMessage(
   }
 
   return message ?? fallback
+}
+
+function getAssignmentActionErrorMessage(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError(error)) {
+    return fallback
+  }
+
+  const apiError = error.response?.data as { error?: { code?: string; message?: string } } | undefined
+  const code = apiError?.error?.code
+  const message = apiError?.error?.message
+
+  if (code && ASSIGNMENT_ERROR_MESSAGES[code]) {
+    return message ?? ASSIGNMENT_ERROR_MESSAGES[code]
+  }
+
+  if (message) {
+    return message
+  }
+
+  return fallback
 }
 
 function SectionCard({
@@ -284,6 +320,18 @@ export function RequestDetailPage() {
 
   const [caseHistoryItems, setCaseHistoryItems] = useState<PortingRequestCaseHistoryItemDto[]>([])
   const [isCaseHistoryLoading, setIsCaseHistoryLoading] = useState(true)
+  const [assignmentHistoryItems, setAssignmentHistoryItems] = useState<
+    PortingRequestAssignmentHistoryItemDto[]
+  >([])
+  const [isAssignmentHistoryLoading, setIsAssignmentHistoryLoading] = useState(true)
+  const [assignmentFeedbackError, setAssignmentFeedbackError] = useState<string | null>(null)
+  const [assignmentFeedbackSuccess, setAssignmentFeedbackSuccess] = useState<string | null>(null)
+  const [assigneeDraft, setAssigneeDraft] = useState('')
+  const [assignableUsers, setAssignableUsers] = useState<AdminUserListItemDto[]>([])
+  const [isAssignableUsersLoading, setIsAssignableUsersLoading] = useState(false)
+  const [isAssigningToMe, setIsAssigningToMe] = useState(false)
+  const [isUpdatingAssignment, setIsUpdatingAssignment] = useState(false)
+  const [isUnassigning, setIsUnassigning] = useState(false)
 
   const [communicationItems, setCommunicationItems] = useState<PortingCommunicationDto[]>([])
   const [isCommunicationLoading, setIsCommunicationLoading] = useState(true)
@@ -358,6 +406,35 @@ export function RequestDetailPage() {
     [user?.role],
   )
   const isAdmin = useMemo(() => user?.role === 'ADMIN', [user?.role])
+  const canManageAssignment = useMemo(() => canManagePortingOwnership(user?.role), [user?.role])
+  const canSelectAssignee = useMemo(() => canSelectAnyAssignee(user?.role), [user?.role])
+  const assigneeOptions = useMemo(
+    () =>
+      assignableUsers.map((candidate) => ({
+        id: candidate.id,
+        label: `${candidate.firstName} ${candidate.lastName} (${candidate.email})`,
+      })),
+    [assignableUsers],
+  )
+  const assignedByDisplayName = useMemo(() => {
+    if (!request?.assignedByUserId) {
+      return null
+    }
+
+    if (request.assignedByUserId === user?.id) {
+      return `${user.firstName} ${user.lastName} (${user.email})`
+    }
+
+    const fromHistory = assignmentHistoryItems.find(
+      (item) => item.changedByUser.id === request.assignedByUserId,
+    )
+
+    if (!fromHistory) {
+      return null
+    }
+
+    return `${fromHistory.changedByUser.displayName} (${fromHistory.changedByUser.email})`
+  }, [assignmentHistoryItems, request?.assignedByUserId, user?.email, user?.firstName, user?.id, user?.lastName])
   const availableStatusActions = request?.availableStatusActions ?? []
   const availableExternalActions = request?.availableExternalActions ?? []
   const availableCommunicationActions = request?.availableCommunicationActions ?? []
@@ -420,6 +497,7 @@ export function RequestDetailPage() {
     try {
       const nextRequest = await getPortingRequestById(id)
       setRequest(nextRequest)
+      setAssigneeDraft(nextRequest.assignedUser?.id ?? '')
       setSelectedStatusAction((current) =>
         current
           ? nextRequest.availableStatusActions.find(
@@ -462,6 +540,39 @@ export function RequestDetailPage() {
       setIsCaseHistoryLoading(false)
     }
   }, [id])
+
+  const loadAssignmentHistory = useCallback(async () => {
+    if (!id) return
+
+    setIsAssignmentHistoryLoading(true)
+    try {
+      const result = await getPortingRequestAssignmentHistory(id)
+      setAssignmentHistoryItems(result.items)
+    } catch {
+      setAssignmentHistoryItems([])
+    } finally {
+      setIsAssignmentHistoryLoading(false)
+    }
+  }, [id])
+
+  const loadAssignableUsers = useCallback(async () => {
+    if (!canSelectAssignee) {
+      setAssignableUsers([])
+      setIsAssignableUsersLoading(false)
+      return
+    }
+
+    setIsAssignableUsersLoading(true)
+
+    try {
+      const result = await getAdminUsers({ isActive: true })
+      setAssignableUsers(result.users.filter((candidate) => candidate.isActive))
+    } catch {
+      setAssignableUsers([])
+    } finally {
+      setIsAssignableUsersLoading(false)
+    }
+  }, [canSelectAssignee])
 
   const loadCommunicationHistory = useCallback(async () => {
     if (!id) return
@@ -643,11 +754,15 @@ export function RequestDetailPage() {
   useEffect(() => {
     resetCommunicationFeedback()
     setCommunicationPreview(null)
+    setAssignmentFeedbackError(null)
+    setAssignmentFeedbackSuccess(null)
 
     if (!id) return
 
     void loadRequest()
     void loadCaseHistory()
+    void loadAssignmentHistory()
+    void loadAssignableUsers()
     void loadCommunicationHistory()
     void loadIntegrationEvents()
     void loadProcessSnapshot()
@@ -656,6 +771,8 @@ export function RequestDetailPage() {
     void loadXmlPreviews()
   }, [
     id,
+    loadAssignableUsers,
+    loadAssignmentHistory,
     loadCaseHistory,
     loadCommunicationHistory,
     loadIntegrationEvents,
@@ -672,6 +789,96 @@ export function RequestDetailPage() {
       clearCommunicationFeedbackTimer()
     }
   }, [clearCommunicationFeedbackTimer])
+
+  const clearAssignmentFeedback = useCallback(() => {
+    setAssignmentFeedbackError(null)
+    setAssignmentFeedbackSuccess(null)
+  }, [])
+
+  const applyUpdatedAssignment = useCallback(
+    (updatedRequest: PortingRequestDetailDto) => {
+      setRequest(updatedRequest)
+      setAssigneeDraft(updatedRequest.assignedUser?.id ?? '')
+      void loadAssignmentHistory()
+    },
+    [loadAssignmentHistory],
+  )
+
+  const handleAssignToMe = useCallback(async () => {
+    if (!id || !canManageAssignment || isAssigningToMe) {
+      return
+    }
+
+    clearAssignmentFeedback()
+    setIsAssigningToMe(true)
+
+    try {
+      const updatedRequest = await assignPortingRequestToMe(id)
+      applyUpdatedAssignment(updatedRequest)
+      setAssignmentFeedbackSuccess('Sprawa zostala przypisana do Ciebie.')
+    } catch (errorValue) {
+      setAssignmentFeedbackError(
+        getAssignmentActionErrorMessage(
+          errorValue,
+          'Nie udalo sie przypisac sprawy do Ciebie.',
+        ),
+      )
+    } finally {
+      setIsAssigningToMe(false)
+    }
+  }, [applyUpdatedAssignment, canManageAssignment, clearAssignmentFeedback, id, isAssigningToMe])
+
+  const handleUpdateAssignment = useCallback(async () => {
+    if (!id || !canManageAssignment || !assigneeDraft || isUpdatingAssignment) {
+      return
+    }
+
+    clearAssignmentFeedback()
+    setIsUpdatingAssignment(true)
+
+    try {
+      const updatedRequest = await updatePortingRequestAssignment(id, { assignedUserId: assigneeDraft })
+      applyUpdatedAssignment(updatedRequest)
+      setAssignmentFeedbackSuccess('Przypisanie sprawy zostalo zaktualizowane.')
+    } catch (errorValue) {
+      setAssignmentFeedbackError(
+        getAssignmentActionErrorMessage(
+          errorValue,
+          'Nie udalo sie zaktualizowac przypisania sprawy.',
+        ),
+      )
+    } finally {
+      setIsUpdatingAssignment(false)
+    }
+  }, [
+    applyUpdatedAssignment,
+    assigneeDraft,
+    canManageAssignment,
+    clearAssignmentFeedback,
+    id,
+    isUpdatingAssignment,
+  ])
+
+  const handleUnassign = useCallback(async () => {
+    if (!id || !canManageAssignment || isUnassigning) {
+      return
+    }
+
+    clearAssignmentFeedback()
+    setIsUnassigning(true)
+
+    try {
+      const updatedRequest = await updatePortingRequestAssignment(id, { assignedUserId: null })
+      applyUpdatedAssignment(updatedRequest)
+      setAssignmentFeedbackSuccess('Przypisanie sprawy zostalo usuniete.')
+    } catch (errorValue) {
+      setAssignmentFeedbackError(
+        getAssignmentActionErrorMessage(errorValue, 'Nie udalo sie zdjac przypisania sprawy.'),
+      )
+    } finally {
+      setIsUnassigning(false)
+    }
+  }, [applyUpdatedAssignment, canManageAssignment, clearAssignmentFeedback, id, isUnassigning])
 
   const handleSelectStatusAction = (action: PortingRequestStatusActionDto) => {
     setStatusActionError(null)
@@ -1309,6 +1516,29 @@ export function RequestDetailPage() {
         </div>
 
         <div className="space-y-4">
+          <PortingAssignmentPanel
+            assignedUser={request.assignedUser}
+            assignedAt={request.assignedAt}
+            assignedByDisplayName={assignedByDisplayName}
+            historyItems={assignmentHistoryItems}
+            isHistoryLoading={isAssignmentHistoryLoading}
+            canManageAssignment={canManageAssignment}
+            canSelectAssignee={canSelectAssignee}
+            isLoadingAssigneeOptions={isAssignableUsersLoading}
+            assigneeOptions={assigneeOptions}
+            selectedAssigneeId={assigneeDraft}
+            currentUserId={user?.id ?? null}
+            isAssigningToMe={isAssigningToMe}
+            isUpdatingAssignment={isUpdatingAssignment}
+            isUnassigning={isUnassigning}
+            feedbackError={assignmentFeedbackError}
+            feedbackSuccess={assignmentFeedbackSuccess}
+            onSelectedAssigneeIdChange={setAssigneeDraft}
+            onAssignToMe={() => void handleAssignToMe()}
+            onUpdateAssignment={() => void handleUpdateAssignment()}
+            onUnassign={() => void handleUnassign()}
+          />
+
           <SectionCard
             title="Akcje"
             description="Frontend tylko pokazuje dozwolone akcje. Backend pozostaje zrodlem prawdy dla workflow."

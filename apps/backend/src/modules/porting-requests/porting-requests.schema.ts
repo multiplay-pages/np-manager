@@ -354,6 +354,16 @@ export const portingRequestListQuerySchema = z.object({
 
 export type PortingRequestListQuery = z.infer<typeof portingRequestListQuerySchema>
 
+export const updatePortingRequestAssignmentSchema = z.object({
+  assignedUserId: z.preprocess(
+    (value) => (value === '' ? null : value),
+    z.string().uuid().nullable(),
+  ),
+})
+
+export type UpdatePortingRequestAssignmentBody =
+  z.infer<typeof updatePortingRequestAssignmentSchema>
+
 export const preparePortingCommunicationDraftSchema = z.object({
   actionType: z
     .enum([

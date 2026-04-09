@@ -254,27 +254,32 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  auditLogs                        AuditLog[]
-  comments                         Comment[]
-  uploadedDocuments                Document[]                  @relation("UploadedBy")
-  verifiedDocuments                Document[]                  @relation("VerifiedBy")
-  createdTasks                     Task[]                      @relation("TaskCreatedBy")
-  assignedTasks                    Task[]                      @relation("TaskAssignedTo")
-  statusHistories                  StatusHistory[]
-  notifications                    Notification[]
-  createdPortingRequests           PortingRequest[]            @relation("PortingRequestCreatedBy")
-  portingRequestEvents             PortingRequestEvent[]       @relation("PortingEventCreatedBy")
-  pliCbdIntegrationEvents          PliCbdIntegrationEvent[]    @relation("PliCbdIntegrationTriggeredBy")
-  portingRequestCaseHistoryEntries PortingRequestCaseHistory[] @relation("PortingRequestCaseHistoryActor")
-  createdPortingCommunications     PortingCommunication[]      @relation("PortingCommunicationCreatedBy")
-  createdCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateCreatedBy")
-  updatedCommunicationTemplates    CommunicationTemplate[]     @relation("CommunicationTemplateUpdatedBy")
-  createdCommunicationTemplateVersions   CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionCreatedBy")
-  updatedCommunicationTemplateVersions   CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionUpdatedBy")
-  publishedCommunicationTemplateVersions CommunicationTemplateVersion[] @relation("CommunicationTemplateVersionPublishedBy")
-  communicationDeliveryAttempts          CommunicationDeliveryAttempt[] @relation("CommunicationDeliveryAttemptBy")
-  adminActionsPerformed                  UserAdminAuditLog[]            @relation("UserAdminAuditLogActor")
-  adminActionsReceived                   UserAdminAuditLog[]            @relation("UserAdminAuditLogTarget")
+  auditLogs                               AuditLog[]
+  comments                                Comment[]
+  uploadedDocuments                       Document[]                        @relation("UploadedBy")
+  verifiedDocuments                       Document[]                        @relation("VerifiedBy")
+  createdTasks                            Task[]                            @relation("TaskCreatedBy")
+  assignedTasks                           Task[]                            @relation("TaskAssignedTo")
+  statusHistories                         StatusHistory[]
+  notifications                           Notification[]
+  createdPortingRequests                  PortingRequest[]                  @relation("PortingRequestCreatedBy")
+  assignedPortingRequests                 PortingRequest[]                  @relation("PortingRequestAssignedUser")
+  assignmentUpdatesPerformed              PortingRequest[]                  @relation("PortingRequestAssignedByUser")
+  portingRequestEvents                    PortingRequestEvent[]             @relation("PortingEventCreatedBy")
+  pliCbdIntegrationEvents                 PliCbdIntegrationEvent[]          @relation("PliCbdIntegrationTriggeredBy")
+  portingRequestCaseHistoryEntries        PortingRequestCaseHistory[]       @relation("PortingRequestCaseHistoryActor")
+  portingRequestAssignmentHistoryChanges  PortingRequestAssignmentHistory[] @relation("PortingRequestAssignmentHistoryChangedBy")
+  portingRequestAssignmentHistoryPrevious PortingRequestAssignmentHistory[] @relation("PortingRequestAssignmentHistoryPreviousAssignee")
+  portingRequestAssignmentHistoryNext     PortingRequestAssignmentHistory[] @relation("PortingRequestAssignmentHistoryNextAssignee")
+  createdPortingCommunications            PortingCommunication[]            @relation("PortingCommunicationCreatedBy")
+  createdCommunicationTemplates           CommunicationTemplate[]           @relation("CommunicationTemplateCreatedBy")
+  updatedCommunicationTemplates           CommunicationTemplate[]           @relation("CommunicationTemplateUpdatedBy")
+  createdCommunicationTemplateVersions    CommunicationTemplateVersion[]    @relation("CommunicationTemplateVersionCreatedBy")
+  updatedCommunicationTemplateVersions    CommunicationTemplateVersion[]    @relation("CommunicationTemplateVersionUpdatedBy")
+  publishedCommunicationTemplateVersions  CommunicationTemplateVersion[]    @relation("CommunicationTemplateVersionPublishedBy")
+  communicationDeliveryAttempts           CommunicationDeliveryAttempt[]    @relation("CommunicationDeliveryAttemptBy")
+  adminActionsPerformed                   UserAdminAuditLog[]               @relation("UserAdminAuditLogActor")
+  adminActionsReceived                    UserAdminAuditLog[]               @relation("UserAdminAuditLogTarget")
 
   @@map("users")
 }
@@ -437,6 +442,9 @@ model PortingRequest {
   contactChannel                        ContactChannel
   internalNotes                         String?                @db.Text
   createdByUserId                       String
+  assignedUserId                        String?
+  assignedAt                            DateTime?
+  assignedByUserId                      String?
   createdAt                             DateTime               @default(now())
   updatedAt                             DateTime               @updatedAt
 
@@ -445,17 +453,20 @@ model PortingRequest {
   recipientOperator      Operator  @relation("RecipientOperator", fields: [recipientOperatorId], references: [id])
   infrastructureOperator Operator? @relation("InfrastructureOperator", fields: [infrastructureOperatorId], references: [id])
   createdByUser          User      @relation("PortingRequestCreatedBy", fields: [createdByUserId], references: [id])
+  assignedUser           User?     @relation("PortingRequestAssignedUser", fields: [assignedUserId], references: [id])
+  assignedByUser         User?     @relation("PortingRequestAssignedByUser", fields: [assignedByUserId], references: [id])
 
-  phoneNumbers            PhoneNumber[]
-  documents               Document[]
-  comments                Comment[]
-  statusHistory           StatusHistory[]
-  tasks                   Task[]
-  auditLogs               AuditLog[]
-  events                  PortingRequestEvent[]
-  pliCbdIntegrationEvents PliCbdIntegrationEvent[]
-  caseHistoryEntries      PortingRequestCaseHistory[]
-  communications          PortingCommunication[]
+  phoneNumbers             PhoneNumber[]
+  documents                Document[]
+  comments                 Comment[]
+  statusHistory            StatusHistory[]
+  tasks                    Task[]
+  auditLogs                AuditLog[]
+  events                   PortingRequestEvent[]
+  pliCbdIntegrationEvents  PliCbdIntegrationEvent[]
+  caseHistoryEntries       PortingRequestCaseHistory[]
+  assignmentHistoryEntries PortingRequestAssignmentHistory[]
+  communications           PortingCommunication[]
 
   @@index([clientId])
   @@index([statusInternal])
@@ -464,6 +475,8 @@ model PortingRequest {
   @@index([recipientOperatorId])
   @@index([infrastructureOperatorId])
   @@index([createdByUserId])
+  @@index([assignedUserId])
+  @@index([assignedAt])
   @@index([createdAt])
   @@index([pliCbdExportStatus])
   @@map("porting_requests")
@@ -597,26 +610,45 @@ model PortingRequestCaseHistory {
   @@map("porting_request_case_history")
 }
 
+model PortingRequestAssignmentHistory {
+  id                     String   @id @default(uuid())
+  portingRequestId       String
+  previousAssignedUserId String?
+  nextAssignedUserId     String?
+  changedByUserId        String
+  createdAt              DateTime @default(now())
+
+  portingRequest       PortingRequest @relation(fields: [portingRequestId], references: [id], onDelete: Cascade)
+  previousAssignedUser User?          @relation("PortingRequestAssignmentHistoryPreviousAssignee", fields: [previousAssignedUserId], references: [id], onDelete: SetNull)
+  nextAssignedUser     User?          @relation("PortingRequestAssignmentHistoryNextAssignee", fields: [nextAssignedUserId], references: [id], onDelete: SetNull)
+  changedByUser        User           @relation("PortingRequestAssignmentHistoryChangedBy", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([portingRequestId])
+  @@index([portingRequestId, createdAt])
+  @@index([changedByUserId])
+  @@map("porting_request_assignment_history")
+}
+
 model PortingCommunication {
-  id               String                            @id @default(uuid())
+  id               String                          @id @default(uuid())
   portingRequestId String
   type             PortingCommunicationType
-  status           PortingCommunicationStatus        @default(DRAFT)
+  status           PortingCommunicationStatus      @default(DRAFT)
   triggerType      PortingCommunicationTriggerType
-  recipient        String                            @db.VarChar(200)
-  subject          String                            @db.VarChar(300)
-  body             String                            @db.Text
+  recipient        String                          @db.VarChar(200)
+  subject          String                          @db.VarChar(300)
+  body             String                          @db.Text
   templateKey      PortingCommunicationTemplateKey
   createdByUserId  String
   sentAt           DateTime?
-  errorMessage     String?                           @db.Text
+  errorMessage     String?                         @db.Text
   metadata         Json?
-  createdAt        DateTime                          @default(now())
-  updatedAt        DateTime                          @updatedAt
+  createdAt        DateTime                        @default(now())
+  updatedAt        DateTime                        @updatedAt
 
-  portingRequest    PortingRequest                   @relation(fields: [portingRequestId], references: [id], onDelete: Cascade)
-  createdBy         User                             @relation("PortingCommunicationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  deliveryAttempts  CommunicationDeliveryAttempt[]
+  portingRequest   PortingRequest                 @relation(fields: [portingRequestId], references: [id], onDelete: Cascade)
+  createdBy        User                           @relation("PortingCommunicationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  deliveryAttempts CommunicationDeliveryAttempt[]
 
   @@index([portingRequestId])
   @@index([portingRequestId, createdAt])
@@ -642,8 +674,8 @@ model CommunicationDeliveryAttempt {
   adapterName         String                       @db.VarChar(100)
   createdAt           DateTime                     @default(now())
 
-  communication  PortingCommunication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
-  attemptedBy    User                 @relation("CommunicationDeliveryAttemptBy", fields: [attemptedByUserId], references: [id], onDelete: Restrict)
+  communication PortingCommunication @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+  attemptedBy   User                 @relation("CommunicationDeliveryAttemptBy", fields: [attemptedByUserId], references: [id], onDelete: Restrict)
 
   @@index([communicationId])
   @@index([communicationId, attemptedAt])
@@ -651,18 +683,18 @@ model CommunicationDeliveryAttempt {
 }
 
 model CommunicationTemplate {
-  id               String                    @id @default(uuid())
-  code             CommunicationTemplateCode
-  name             String                    @db.VarChar(150)
-  description      String?                   @db.Text
-  channel          ContactChannel
-  createdAt        DateTime                  @default(now())
-  updatedAt        DateTime                  @updatedAt
-  createdByUserId  String
-  updatedByUserId  String
+  id              String                    @id @default(uuid())
+  code            CommunicationTemplateCode
+  name            String                    @db.VarChar(150)
+  description     String?                   @db.Text
+  channel         ContactChannel
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  createdByUserId String
+  updatedByUserId String
 
-  createdBy User @relation("CommunicationTemplateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  updatedBy User @relation("CommunicationTemplateUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  createdBy User                           @relation("CommunicationTemplateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy User                           @relation("CommunicationTemplateUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
   versions  CommunicationTemplateVersion[]
 
   @@unique([code, channel])
@@ -671,17 +703,17 @@ model CommunicationTemplate {
 }
 
 model CommunicationTemplateVersion {
-  id               String                             @id @default(uuid())
-  templateId       String
-  versionNumber    Int
-  status           CommunicationTemplateVersionStatus @default(DRAFT)
-  subjectTemplate  String                             @db.VarChar(300)
-  bodyTemplate     String                             @db.Text
-  createdAt        DateTime                           @default(now())
-  updatedAt        DateTime                           @updatedAt
-  createdByUserId  String
-  updatedByUserId  String
-  publishedAt      DateTime?
+  id                String                             @id @default(uuid())
+  templateId        String
+  versionNumber     Int
+  status            CommunicationTemplateVersionStatus @default(DRAFT)
+  subjectTemplate   String                             @db.VarChar(300)
+  bodyTemplate      String                             @db.Text
+  createdAt         DateTime                           @default(now())
+  updatedAt         DateTime                           @updatedAt
+  createdByUserId   String
+  updatedByUserId   String
+  publishedAt       DateTime?
   publishedByUserId String?
 
   template    CommunicationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)

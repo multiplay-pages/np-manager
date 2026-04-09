@@ -5,6 +5,13 @@ import { useOperators } from '@/hooks/useOperators'
 import { getPortingRequests } from '@/services/portingRequests.api'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import {
+  filterPortingRequestsByOwnership,
+  formatAssigneeLabel,
+  parseOwnershipFilter,
+  type OwnershipFilter,
+} from '@/lib/portingOwnership'
+import { useAuthStore } from '@/stores/auth.store'
+import {
   PORTING_CASE_STATUSES,
   PORTING_MODE_LABELS,
 } from '@np-manager/shared'
@@ -84,6 +91,9 @@ function RequestRow({
       <td className="px-4 py-3 whitespace-nowrap">
         <StatusBadge status={request.statusInternal} />
       </td>
+      <td className="px-4 py-3 text-gray-600 max-w-[220px] truncate">
+        {formatAssigneeLabel(request.assignedUserSummary)}
+      </td>
       <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
         {formatDate(request.createdAt)}
       </td>
@@ -98,6 +108,7 @@ function RequestRow({
 export function RequestsPage() {
   const navigate = useNavigate()
   const { operators } = useOperators()
+  const { user } = useAuthStore()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Derive filter state from URL
@@ -105,6 +116,7 @@ export function RequestsPage() {
   const statusFilter = parseStatus(searchParams.get('status'))
   const portingModeFilter = parsePortingMode(searchParams.get('portingMode'))
   const donorOperatorId = searchParams.get('donorOperatorId') ?? ''
+  const ownershipFilter = parseOwnershipFilter(searchParams.get('ownership'))
   const page = parsePage(searchParams.get('page'))
 
   // Local search input state for immediate responsiveness (debounced to URL)
@@ -142,7 +154,11 @@ export function RequestsPage() {
   )
 
   const hasActiveFilters =
-    !!searchInput || !!statusFilter || !!portingModeFilter || !!donorOperatorId
+    !!searchInput ||
+    !!statusFilter ||
+    !!portingModeFilter ||
+    !!donorOperatorId ||
+    ownershipFilter !== 'ALL'
 
   const clearFilters = () => {
     setLocalSearch('')
@@ -201,6 +217,7 @@ export function RequestsPage() {
     })
 
   const { items = [], pagination } = result ?? {}
+  const filteredItems = filterPortingRequestsByOwnership(items, ownershipFilter, user?.id)
 
   // ============================================================
   // Render
@@ -327,6 +344,34 @@ export function RequestsPage() {
             </button>
           )}
         </div>
+
+        {/* Row 4: ownership filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-gray-500 mr-1">Przypisanie:</span>
+          {(['ALL', 'MINE', 'UNASSIGNED'] as OwnershipFilter[]).map((filter) => {
+            const isActive = ownershipFilter === filter
+            const label =
+              filter === 'ALL'
+                ? 'Wszystkie'
+                : filter === 'MINE'
+                  ? 'Moje sprawy'
+                  : 'Nieprzypisane'
+
+            return (
+              <button
+                key={filter}
+                onClick={() => setParam({ ownership: filter === 'ALL' ? null : filter, page: null })}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Table / states */}
@@ -345,7 +390,7 @@ export function RequestsPage() {
               Spróbuj ponownie
             </button>
           </div>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-2">
             <span className="text-3xl">📋</span>
             <p className="text-sm font-medium text-gray-600">Brak spraw portowania</p>
@@ -378,12 +423,15 @@ export function RequestsPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Tryb</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
+                    Przypisanie
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
                     Utworzono
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {items.map((request) => (
+                {filteredItems.map((request) => (
                   <RequestRow
                     key={request.id}
                     request={request}
