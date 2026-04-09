@@ -155,6 +155,7 @@ function makeDetailRow(overrides: Record<string, unknown> = {}) {
     infrastructureOperator: null,
     assignedUser: null,
     commercialOwner: null,
+    events: [],
     ...overrides,
   }
 }

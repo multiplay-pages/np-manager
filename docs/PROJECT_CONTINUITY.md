@@ -18,6 +18,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR13B | Realny transport wewnetrznych powiadomien email/Teams               | DONE   |
 | PR14  | Historia wewnetrznych notyfikacji w UI + panel admin settings       | DONE   |
 | PR15  | Raportowanie i widoki operacyjne commercial owner                    | DONE   |
+| PR16  | Diagnostyka zdrowia notyfikacji (health helper + 4-state badge)     | DONE   |
 
 ---
 
@@ -65,6 +66,17 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - Admin ma strone `Ustawienia powiadomien portingowych` do konfiguracji fallback email/Teams.
   - Read-only diagnostyka env: `email adapter mode`, `SMTP configured`.
 - Zakres pozostaje wewnetrzny (operacyjny) - bez zmian w customer communication pipeline.
+
+### PR16 - diagnostyka zdrowia notyfikacji
+
+- Nowy helper `porting-notification-health.helper.ts` — jedyne miejsce obliczania `NotificationHealthStatus` (`OK | FAILED | MISCONFIGURED | MIXED`).
+- `NotificationHealthDiagnosticsDto` w `packages/shared` — failureCount, failedCount, misconfiguredCount, lastFailureAt, lastFailureOutcome.
+- `PortingRequestDetailDto.notificationHealth` — pelna diagnostyka w widoku szczegolu.
+- `PortingRequestListItemDto` — 4 pola health w pozycji listy.
+- Frontend `NotificationHealthBadge` (4 stany) w tabeli listy; `NotificationHealthPanel` w detail.
+- Weryfikacja: 334 testow backend + 99 testow frontend, oba projekty bez bledow TypeScript, build OK.
+- Wykryty problem runtime: backend serwuje skompilowany `dist/` — po PR15/PR16 endpoint `GET /api/porting-requests/summary` zwracal 404 (stary dist lapany przez handler `/:id`). Naprawione przez `npm run build` + restart backend.
+- Seed: 7 rekordow, wszystkie z health `OK`, failureCount = 0.
 
 ### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
 
@@ -153,6 +165,7 @@ apps/backend/src/modules/porting-requests/
   porting-notification.service.ts          # dispatcher (PR13A+PR13B)
   internal-notification.adapter.ts         # email + Teams transport (PR13B)
   internal-notification-formatter.ts       # formatter tresci wiadomosci (PR13B)
+  porting-notification-health.helper.ts    # single source of truth dla health computation (PR16)
 
 apps/backend/prisma/
   schema.prisma
@@ -185,6 +198,7 @@ apps/frontend/src/
 
 ## Kolejne kroki
 
+- **PR17**: Historia powiadomien w UI oparta o `notificationHealth` (np. lista transport audit w detail) lub panel ustawien systemowych dla admina — do ustalenia.
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---

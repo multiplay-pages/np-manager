@@ -108,6 +108,12 @@ function makeDetailRow() {
       isActive: true,
     },
     infrastructureOperator: null,
+    assignedAt: null,
+    assignedByUserId: null,
+    assignedUser: null,
+    commercialOwner: null,
+    commercialOwnerUserId: null,
+    events: [],
   }
 }
 

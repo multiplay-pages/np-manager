@@ -17,6 +17,10 @@ function makeRequest(overrides: Partial<PortingRequestListItemDto> = {}): Portin
     assignedUserSummary: null,
     commercialOwnerSummary: null,
     hasNotificationFailures: false,
+    notificationHealthStatus: 'OK',
+    notificationFailureCount: 0,
+    notificationLastFailureAt: null,
+    notificationLastFailureOutcome: null,
     createdAt: '2026-04-09T10:00:00.000Z',
     ...overrides,
   }
@@ -36,6 +40,10 @@ describe('RequestRow', () => {
                 role: 'SALES',
               },
               hasNotificationFailures: true,
+              notificationHealthStatus: 'FAILED',
+              notificationFailureCount: 3,
+              notificationLastFailureAt: '2026-04-09T10:00:00.000Z',
+              notificationLastFailureOutcome: 'FAILED',
             })}
             onClick={() => undefined}
             formatDate={() => '09.04.2026'}
@@ -45,7 +53,8 @@ describe('RequestRow', () => {
     )
 
     expect(html).toContain('Anna Handlowa (sales-1@np-manager.local)')
-    expect(html).toContain('Blad')
+    expect(html).toContain('Blad wysylki')
+    expect(html).toContain('3 bledow')
   })
 
   it('shows missing owner and healthy notification badge', () => {

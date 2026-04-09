@@ -171,6 +171,15 @@ Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez b
   - liczniki: wszystkie, z opiekunem, bez opiekuna, moje handlowe, z bledami notyfikacji.
 - Frontend `RequestsPage` pokazuje operacyjne summary cards + szybkie filtry i sygnal bledow notyfikacji w tabeli.
 
+#### Diagnostyka zdrowia notyfikacji (PR16)
+
+- `porting-notification-health.helper.ts` — jedyne miejsce obliczania statusu health: `OK | FAILED | MISCONFIGURED | MIXED`.
+- `NotificationHealthDiagnosticsDto` w `packages/shared` — pelny ksztalt danych zdrowia (failureCount, failedCount, misconfiguredCount, lastFailureAt, lastFailureOutcome).
+- `PortingRequestDetailDto.notificationHealth` — pole z pelna diagnostyka w widoku szczegolu.
+- `PortingRequestListItemDto` — 4 pola health w pozycji listy (notificationHealthStatus, notificationFailureCount, notificationLastFailureAt, notificationLastFailureOutcome).
+- Frontend: `NotificationHealthBadge` (4 stany) w tabeli listy; `NotificationHealthPanel` w detail.
+- Uwaga runtime: backend serwuje skompilowany `dist/` — po zmianie kodu wymagany `npm run build` i restart procesu backend.
+
 ---
 
 ## Ciaglosc miedzy sesjami
