@@ -10,7 +10,7 @@ Reconstruct the current state of work from the repository before proposing or ma
 
 ## Primary rule
 Repository state is the primary source of truth.
-Git history, reflog, commit messages, and branch names are only secondary hints and must never override the current codebase state.
+Git history, reflog, commit messages, branch names, and TODO comments are only secondary hints and must never override the current codebase state.
 
 ## Instructions
 1. Read:
@@ -23,10 +23,10 @@ Git history, reflog, commit messages, and branch names are only secondary hints 
    - what appears incomplete,
    - which files are involved,
    - which dependencies and regressions are likely.
-4. Use commit history only if the repository state alone does not explain recent work.
+4. Use commit history or TODO comments only if the repository state alone does not explain recent work.
 5. Prefer a useful best-effort conclusion over asking immediate follow-up questions.
 6. If uncertainty remains, state it explicitly, but still provide the most likely current state and recommended next step.
-7. Do not end with “waiting for instructions” if a sensible next step can already be proposed.
+7. End with a concrete recommended next step, not with waiting for confirmation, unless the user explicitly asked for options only.
 
 ## Output
 Always start with:
@@ -39,5 +39,7 @@ Always start with:
 
 ## Anti-patterns to avoid
 - Over-relying on reflog or commit titles
+- Treating a TODO comment as proof of business priority
 - Asking the user what to do next before giving a concrete recommendation
 - Presenting speculative history as confirmed current state
+- Ending with “waiting for instructions” when a sensible next step can already be proposed

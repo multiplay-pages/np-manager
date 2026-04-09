@@ -24,6 +24,11 @@ Implement database changes in a way that is safe, auditable, and consistent with
 Even if the exact field is not yet specified, provide a useful migration analysis framework first.
 Do not immediately ask clarifying questions if a generic but concrete impact analysis can already be given.
 
+## Default response style
+Be practical and concise by default.
+Use short sections and focus on the most likely impact.
+Only produce exhaustive model-by-model inventories if the user explicitly asks for a full migration audit.
+
 ## Mandatory checklist
 1. What models are changing?
 2. Is this additive or destructive?
@@ -49,4 +54,5 @@ and list only the missing items after giving the best-effort analysis.
 ## Anti-patterns to avoid
 - Turning the response into a questionnaire before giving analysis
 - Refusing to assess risks without exact field names
+- Producing an unnecessarily exhaustive inventory unless requested
 - Proposing unnecessary documents when a direct plan is enough
