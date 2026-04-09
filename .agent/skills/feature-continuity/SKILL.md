@@ -43,3 +43,5 @@ Always start with:
 - Asking the user what to do next before giving a concrete recommendation
 - Presenting speculative history as confirmed current state
 - Ending with “waiting for instructions” when a sensible next step can already be proposed
+- Letting the previous conversation topic define the continuity assessment when the repository state points elsewhere
+- Treating prior chat context as stronger evidence than the current project state
