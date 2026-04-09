@@ -125,7 +125,7 @@ Glowne podmioty:
 
 Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez backend - frontend tylko wyswietla dozwolone akcje.
 
-### Semantyka ownership i notyfikacji (PR13A+)
+### Semantyka ownership i notyfikacji (PR13A+, PR13B)
 
 - Biznesowo ownership operacyjny jest po stronie **zespolu BOK**, a nie personalnie pojedynczego pracownika.
 - `assignedUserId` pozostaje na razie mechanizmem technicznym (additive, bez destrukcyjnego usuwania), ale nie jest glowna osia rozwoju domeny.
@@ -135,6 +135,15 @@ Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez b
   - do odbiorcow zespolowych (e-mail/Teams fallback), gdy opiekuna brak lub jest nieaktywny.
 - Powiadomienia wewnetrzne sa oddzielone od komunikacji do klienta koncowego (to osobny strumien funkcjonalny).
 - Future note: mozna rozwazyc domyslnego opiekuna handlowego na poziomie `Client`, ale foundation PR13A jest celowo na poziomie `PortingRequest`.
+
+#### Transport wewnetrznych powiadomien (PR13B)
+
+- `internal-notification.adapter.ts` — email (nodemailer) + Teams webhook; osobny od `communication-delivery.adapter.ts`
+- `internal-notification-formatter.ts` — formatter tresci wiadomosci (plain-text, j. polski)
+- Tryb email: `INTERNAL_NOTIFICATION_EMAIL_ADAPTER=STUB|REAL|DISABLED` (domyslnie: STUB)
+- Teams: zawsze real gdy webhook URL jest skonfigurowany w SystemSettings
+- Brak crasha glownego API przy bledzie transportu — dispatch jest non-blocking
+- Kazdy dispatch zostawia `PortingRequestEvent NOTE` z trescia: kanal, odbiorca, outcome, tryb, ewentualny blad
 
 ---
 

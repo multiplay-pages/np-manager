@@ -1,11 +1,14 @@
 /**
- * Foundation internal notification dispatcher for porting requests.
+ * Internal notification dispatcher for porting requests.
  *
  * Responsibilities:
  * - resolve recipients (commercial owner or team fallback),
  * - persist Notification for named user recipients,
- * - persist timeline note for shared recipients,
- * - build event-specific notification copy.
+ * - persist timeline note for shared recipients (routing intent trace),
+ * - dispatch real email/Teams transport (PR13B),
+ * - persist transport audit trace as PortingRequestEvent NOTE.
+ *
+ * Non-blocking by design — callers use `.catch(() => {})`.
  */
 
 import { prisma } from '../../config/database'
@@ -14,6 +17,12 @@ import {
   type PortingNotificationEvent,
 } from './porting-notification-events'
 import { resolvePortingNotificationRecipients } from './porting-notification-recipient-resolver'
+import { formatInternalNotification } from './internal-notification-formatter'
+import {
+  sendInternalEmail,
+  sendInternalTeamsWebhook,
+  type InternalNotificationDispatchResult,
+} from './internal-notification.adapter'
 
 export interface DispatchPortingNotificationParams {
   requestId: string
@@ -40,9 +49,13 @@ export async function dispatchPortingNotification(
   const eventLabel = PORTING_NOTIFICATION_EVENT_LABELS[event]
   const title = `${eventLabel} - sprawa ${caseNumber}`
   const body = buildNotificationBody(event, metadata)
+  const message = formatInternalNotification(event, caseNumber, metadata)
+
+  const transportResults: InternalNotificationDispatchResult[] = []
 
   for (const recipient of recipients) {
     if (recipient.kind === 'USER') {
+      // 1. Domain trace — in-app Notification for the named user
       await prisma.notification.create({
         data: {
           userId: recipient.userId,
@@ -53,9 +66,18 @@ export async function dispatchPortingNotification(
           relatedEntityId: requestId,
         },
       })
+
+      // 2. Transport — email to the user's address
+      const emailResult = await sendInternalEmail({
+        to: [recipient.email],
+        subject: message.subject,
+        text: message.text,
+      })
+      transportResults.push(emailResult)
       continue
     }
 
+    // 3. Domain trace — timeline NOTE recording routing intent for team recipients
     await prisma.portingRequestEvent.create({
       data: {
         request: { connect: { id: requestId } },
@@ -66,8 +88,46 @@ export async function dispatchPortingNotification(
         ...(actorUserId ? { createdBy: { connect: { id: actorUserId } } } : {}),
       },
     })
+
+    if (recipient.kind === 'TEAM_EMAIL') {
+      // 4. Transport — email to the shared team address list
+      const emailResult = await sendInternalEmail({
+        to: recipient.emails,
+        subject: message.subject,
+        text: message.text,
+      })
+      transportResults.push(emailResult)
+    }
+
+    if (recipient.kind === 'TEAM_WEBHOOK') {
+      // 5. Transport — Teams webhook POST
+      const teamsResult = await sendInternalTeamsWebhook({
+        webhookUrl: recipient.webhookUrl,
+        title,
+        text: message.text,
+      })
+      transportResults.push(teamsResult)
+    }
+  }
+
+  // 6. Transport audit trace — one NOTE per dispatch summarising all outcomes
+  if (transportResults.length > 0) {
+    await prisma.portingRequestEvent.create({
+      data: {
+        request: { connect: { id: requestId } },
+        eventSource: 'INTERNAL',
+        eventType: 'NOTE',
+        title: `[Dispatch] ${eventLabel}`,
+        description: buildTransportAuditDescription(transportResults),
+        ...(actorUserId ? { createdBy: { connect: { id: actorUserId } } } : {}),
+      },
+    })
   }
 }
+
+// ============================================================
+// POMOCNICZE
+// ============================================================
 
 function buildFallbackDescription(
   recipient: { kind: 'TEAM_EMAIL'; emails: string[] } | { kind: 'TEAM_WEBHOOK'; webhookUrl: string },
@@ -80,6 +140,20 @@ function buildFallbackDescription(
 
   const metadataText = metadata ? ` Kontekst: ${safeJson(metadata)}.` : ''
   return `${destination}${metadataText}`.trim()
+}
+
+function buildTransportAuditDescription(results: InternalNotificationDispatchResult[]): string {
+  const lines = results.map((r) => {
+    const base = `${r.channel} → ${r.recipient}: ${r.outcome} (tryb: ${r.mode})`
+    if (r.errorMessage) {
+      return `${base} — blad: ${r.errorMessage}`
+    }
+    if ('messageId' in r && r.messageId) {
+      return `${base}, msgId: ${r.messageId}`
+    }
+    return base
+  })
+  return lines.join('\n')
 }
 
 function safeJson(value: unknown): string {
