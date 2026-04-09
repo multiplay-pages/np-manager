@@ -14,6 +14,7 @@ const userRoleValues = [
   'TECHNICAL',
   'LEGAL',
   'AUDITOR',
+  'SALES',
 ] as const
 
 /**

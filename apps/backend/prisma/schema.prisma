@@ -19,6 +19,7 @@ enum UserRole {
   TECHNICAL
   LEGAL
   AUDITOR
+  SALES
 }
 
 enum ClientType {
@@ -265,6 +266,7 @@ model User {
   createdPortingRequests                  PortingRequest[]                  @relation("PortingRequestCreatedBy")
   assignedPortingRequests                 PortingRequest[]                  @relation("PortingRequestAssignedUser")
   assignmentUpdatesPerformed              PortingRequest[]                  @relation("PortingRequestAssignedByUser")
+  commercialOwnerPortingRequests          PortingRequest[]                  @relation("PortingRequestCommercialOwner")
   portingRequestEvents                    PortingRequestEvent[]             @relation("PortingEventCreatedBy")
   pliCbdIntegrationEvents                 PliCbdIntegrationEvent[]          @relation("PliCbdIntegrationTriggeredBy")
   portingRequestCaseHistoryEntries        PortingRequestCaseHistory[]       @relation("PortingRequestCaseHistoryActor")
@@ -445,6 +447,7 @@ model PortingRequest {
   assignedUserId                        String?
   assignedAt                            DateTime?
   assignedByUserId                      String?
+  commercialOwnerUserId                 String?
   createdAt                             DateTime               @default(now())
   updatedAt                             DateTime               @updatedAt
 
@@ -455,6 +458,7 @@ model PortingRequest {
   createdByUser          User      @relation("PortingRequestCreatedBy", fields: [createdByUserId], references: [id])
   assignedUser           User?     @relation("PortingRequestAssignedUser", fields: [assignedUserId], references: [id])
   assignedByUser         User?     @relation("PortingRequestAssignedByUser", fields: [assignedByUserId], references: [id])
+  commercialOwner        User?     @relation("PortingRequestCommercialOwner", fields: [commercialOwnerUserId], references: [id])
 
   phoneNumbers             PhoneNumber[]
   documents                Document[]
@@ -479,6 +483,7 @@ model PortingRequest {
   @@index([assignedAt])
   @@index([createdAt])
   @@index([pliCbdExportStatus])
+  @@index([commercialOwnerUserId])
   @@map("porting_requests")
 }
 

@@ -365,6 +365,16 @@ export const updatePortingRequestAssignmentSchema = z.object({
 export type UpdatePortingRequestAssignmentBody =
   z.infer<typeof updatePortingRequestAssignmentSchema>
 
+export const updatePortingRequestCommercialOwnerSchema = z.object({
+  commercialOwnerUserId: z.preprocess(
+    (value) => (value === '' ? null : value),
+    z.string().uuid().nullable(),
+  ),
+})
+
+export type UpdatePortingRequestCommercialOwnerBody =
+  z.infer<typeof updatePortingRequestCommercialOwnerSchema>
+
 export const preparePortingCommunicationDraftSchema = z.object({
   actionType: z
     .enum([

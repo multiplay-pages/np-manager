@@ -9,6 +9,7 @@ import {
   portingRequestListQuerySchema,
   preparePortingCommunicationDraftSchema,
   updatePortingRequestAssignmentSchema,
+  updatePortingRequestCommercialOwnerSchema,
   updatePortingRequestStatusSchema,
 } from './porting-requests.schema'
 import {
@@ -20,9 +21,11 @@ import {
   getPortingRequestIntegrationEvents,
   getPortingRequest,
   listAssignablePortingRequestUsers,
+  listCommercialOwnerCandidates,
   listPortingRequests,
   syncPortingRequestFromPliCbd,
   updatePortingRequestAssignment,
+  updateCommercialOwner,
   updatePortingRequestStatus,
 } from './porting-requests.service'
 import {
@@ -66,6 +69,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
   ]
   const writeRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
   const assignmentWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT']
+  const commercialOwnerWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'MANAGER']
   const externalActionRoles: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
   const pliCbdRoles: UserRole[] = ['ADMIN']
 
@@ -81,6 +85,32 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     async (_request, reply) => {
       const result = await listAssignablePortingRequestUsers()
       return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get(
+    '/commercial-owner-candidates',
+    { preHandler: [authenticate, authorize(commercialOwnerWriteRoles)] },
+    async (_request, reply) => {
+      const result = await listCommercialOwnerCandidates()
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.patch<{ Params: { id: string } }>(
+    '/:id/commercial-owner',
+    { preHandler: [authenticate, authorize(commercialOwnerWriteRoles)] },
+    async (request, reply) => {
+      const body = updatePortingRequestCommercialOwnerSchema.parse(request.body)
+      const result = await updateCommercialOwner(
+        request.params.id,
+        body,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+      return reply.status(200).send({ success: true, data: { request: result } })
     },
   )
 

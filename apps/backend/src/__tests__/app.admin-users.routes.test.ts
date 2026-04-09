@@ -242,6 +242,28 @@ describe('POST /api/admin/users', () => {
     }
   })
 
+  it('akceptuje role SALES w payloadzie tworzenia', async () => {
+    const created = makeUserDetail({ email: 'sales@np-manager.local', role: 'SALES' })
+    mockCreateAdminUser.mockResolvedValue(created)
+
+    const app = await buildApp()
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/admin/users',
+        payload: { ...validBody, role: 'SALES', email: 'sales@np-manager.local' },
+      })
+
+      expect(response.statusCode).toBe(201)
+      expect(mockCreateAdminUser).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'SALES' }),
+        'actor-admin-id',
+      )
+    } finally {
+      await app.close()
+    }
+  })
+
   it('przekazuje actorUserId z tokenu JWT do serwisu', async () => {
     mockCreateAdminUser.mockResolvedValue(makeUserDetail())
 
@@ -322,6 +344,24 @@ describe('PATCH /api/admin/users/:id/role', () => {
       })
       expect(response.statusCode).toBe(200)
       expect(response.json().data.user.role).toBe('BACK_OFFICE')
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('akceptuje zmiane roli użytkownika na SALES', async () => {
+    const updated = makeUserDetail({ role: 'SALES' })
+    mockUpdateUserRole.mockResolvedValue(updated)
+
+    const app = await buildApp()
+    try {
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/admin/users/user-id-1/role',
+        payload: { role: 'SALES' },
+      })
+      expect(response.statusCode).toBe(200)
+      expect(mockUpdateUserRole).toHaveBeenCalledWith('user-id-1', { role: 'SALES' }, 'actor-admin-id')
     } finally {
       await app.close()
     }

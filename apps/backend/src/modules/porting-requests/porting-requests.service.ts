@@ -4,6 +4,8 @@ import { AppError } from '../../shared/errors/app-error'
 import { logAuditEvent } from '../../shared/audit/audit.service'
 import { PortingEvents } from './porting-events.service'
 import type {
+  CommercialOwnerCandidatesResultDto,
+  CommercialOwnerSummaryDto,
   CreatePortingRequestDto,
   ExecutePortingRequestExternalActionResultDto,
   PortingRequestAssigneeSummaryDto,
@@ -24,8 +26,11 @@ import type {
   ExecutePortingRequestExternalActionBody,
   PortingRequestListQuery,
   UpdatePortingRequestAssignmentBody,
+  UpdatePortingRequestCommercialOwnerBody,
   UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
+import { dispatchPortingNotification } from './porting-notification.service'
+import { PORTING_NOTIFICATION_EVENT } from './porting-notification-events'
 import {
   PLI_CBD_TRIGGER_SELECT,
   type PliCbdTriggerRow,
@@ -155,6 +160,7 @@ const DETAIL_SELECT = {
   createdByUserId: true,
   assignedAt: true,
   assignedByUserId: true,
+  commercialOwnerUserId: true,
   createdAt: true,
   updatedAt: true,
   client: { select: CLIENT_SELECT },
@@ -162,6 +168,7 @@ const DETAIL_SELECT = {
   recipientOperator: { select: OPERATOR_SELECT },
   infrastructureOperator: { select: OPERATOR_SELECT },
   assignedUser: { select: ASSIGNEE_SELECT },
+  commercialOwner: { select: ASSIGNEE_SELECT },
 } as const
 
 type ClientRow = Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>
@@ -252,6 +259,19 @@ function getUserDisplayName(user: {
 }
 
 function toAssigneeSummary(user: AssigneeRow | null | undefined): PortingRequestAssigneeSummaryDto | null {
+  if (!user) {
+    return null
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: getUserDisplayName(user),
+    role: user.role,
+  }
+}
+
+function toCommercialOwnerSummary(user: AssigneeRow | null | undefined): CommercialOwnerSummaryDto | null {
   if (!user) {
     return null
   }
@@ -705,6 +725,7 @@ function toDetailDto(
     assignedUser: toAssigneeSummary(row.assignedUser),
     assignedAt: row.assignedAt?.toISOString() ?? null,
     assignedByUserId: row.assignedByUserId,
+    commercialOwner: toCommercialOwnerSummary(row.commercialOwner),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     availableStatusActions: getAvailableStatusActions(row.statusInternal, actorRole),
@@ -1123,7 +1144,126 @@ export async function updatePortingRequestStatus(
   userAgent?: string,
 ): Promise<PortingRequestDetailDto> {
   await changePortingRequestStatus(requestId, body, userId, userRole, ipAddress, userAgent)
-  return getPortingRequest(requestId, userRole)
+  const updated = await getPortingRequest(requestId, userRole)
+
+  // Powiadomienie wewnętrzne — non-blocking, nie blokuje odpowiedzi API
+  dispatchPortingNotification({
+    requestId,
+    caseNumber: updated.caseNumber,
+    event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+    commercialOwnerUserId: updated.commercialOwner?.id ?? null,
+    actorUserId: userId,
+    metadata: { newStatus: updated.statusInternal },
+  }).catch(() => {})
+
+  return updated
+}
+
+export async function updateCommercialOwner(
+  requestId: string,
+  body: UpdatePortingRequestCommercialOwnerBody,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const nextOwnerId = body.commercialOwnerUserId
+
+  const current = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: { id: true, caseNumber: true, commercialOwnerUserId: true },
+  })
+
+  if (!current) {
+    throw AppError.notFound('Sprawa portowania nie została znaleziona.')
+  }
+
+  if (current.commercialOwnerUserId === nextOwnerId) {
+    return getPortingRequest(requestId, userRole)
+  }
+
+  if (nextOwnerId) {
+    const candidate = await prisma.user.findUnique({
+      where: { id: nextOwnerId },
+      select: { id: true, role: true, isActive: true, firstName: true, lastName: true },
+    })
+
+    if (!candidate) {
+      throw AppError.notFound('Wskazany opiekun handlowy nie został znaleziony.')
+    }
+
+    if (!candidate.isActive) {
+      throw AppError.badRequest(
+        'Wskazany użytkownik jest nieaktywny i nie może pełnić roli opiekuna handlowego.',
+        'COMMERCIAL_OWNER_INACTIVE',
+      )
+    }
+
+    if (candidate.role !== 'SALES') {
+      throw AppError.badRequest(
+        'Opiekunem handlowym może zostać wyłącznie użytkownik z rolą Opiekun Handlowy (SALES).',
+        'COMMERCIAL_OWNER_INVALID_ROLE',
+      )
+    }
+  }
+
+  await prisma.portingRequest.update({
+    where: { id: requestId },
+    data: { commercialOwnerUserId: nextOwnerId },
+  })
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    fieldName: 'commercialOwnerUserId',
+    oldValue: current.commercialOwnerUserId ?? 'BRAK',
+    newValue: nextOwnerId ?? 'BRAK',
+    ipAddress,
+    userAgent,
+  })
+
+  const updated = await getPortingRequest(requestId, userRole)
+
+  // Powiadomienie wewnętrzne — non-blocking
+  dispatchPortingNotification({
+    requestId,
+    caseNumber: updated.caseNumber,
+    event: PORTING_NOTIFICATION_EVENT.COMMERCIAL_OWNER_CHANGED,
+    commercialOwnerUserId: nextOwnerId,
+    actorUserId: userId,
+    metadata: {
+      newOwnerName: updated.commercialOwner?.displayName ?? null,
+    },
+  }).catch(() => {})
+
+  return updated
+}
+
+export async function listCommercialOwnerCandidates(): Promise<CommercialOwnerCandidatesResultDto> {
+  const rows = await prisma.user.findMany({
+    where: { isActive: true, role: 'SALES' },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+  })
+
+  return {
+    users: rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      role: row.role as UserRole,
+    })),
+  }
 }
 
 export async function executePortingRequestExternalAction(

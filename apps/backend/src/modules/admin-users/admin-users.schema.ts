@@ -10,6 +10,7 @@ const userRoleValues = [
   'BOK_CONSULTANT',
   'BACK_OFFICE',
   'MANAGER',
+  'SALES',
   'TECHNICAL',
   'LEGAL',
   'AUDITOR',

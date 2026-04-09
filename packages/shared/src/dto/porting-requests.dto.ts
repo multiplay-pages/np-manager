@@ -25,6 +25,36 @@ import type {
 
 export type OwnershipFilter = 'ALL' | 'MINE' | 'UNASSIGNED'
 
+// ============================================================
+// OPIEKUN HANDLOWY
+// ============================================================
+
+/** Skrócony profil opiekuna handlowego (rola SALES) zwracany w detail DTO. */
+export interface CommercialOwnerSummaryDto {
+  id: string
+  email: string
+  displayName: string
+  role: UserRole
+}
+
+/** Opcja opiekuna handlowego na liście kandydatów (dropdown). */
+export interface CommercialOwnerCandidateDto {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: UserRole
+}
+
+export interface CommercialOwnerCandidatesResultDto {
+  users: CommercialOwnerCandidateDto[]
+}
+
+/** Body żądania zmiany opiekuna handlowego. */
+export interface UpdatePortingRequestCommercialOwnerDto {
+  commercialOwnerUserId: string | null
+}
+
 export interface PortingRequestListQueryDto {
   search?: string
   status?: PortingCaseStatus
@@ -206,6 +236,7 @@ export interface PortingRequestDetailDto {
   assignedUser: PortingRequestAssigneeSummaryDto | null
   assignedAt: string | null
   assignedByUserId: string | null
+  commercialOwner: CommercialOwnerSummaryDto | null
   createdAt: string
   updatedAt: string
   availableStatusActions: PortingRequestStatusActionDto[]

@@ -1,5 +1,7 @@
 import { apiClient } from './api.client'
 import type {
+  CommercialOwnerCandidatesResultDto,
+  UpdatePortingRequestCommercialOwnerDto,
   CommunicationDeliveryAttemptsResultDto,
   CreatePortingRequestDto,
   ExecutePortingRequestExternalActionDto,
@@ -37,6 +39,7 @@ export interface UpdatePortingRequestAssignmentPayload {
 export type PliCbdTechnicalPayloadApiMessageType = 'e03' | 'e12' | 'e18' | 'e23'
 export type PreparePortingCommunicationDraftPayload = PreparePortingCommunicationDraftDto
 export type ExecutePortingRequestExternalActionPayload = ExecutePortingRequestExternalActionDto
+export type UpdatePortingRequestCommercialOwnerPayload = UpdatePortingRequestCommercialOwnerDto
 
 export async function getPortingRequests(
   params: GetPortingRequestsParams = {},
@@ -360,4 +363,25 @@ export async function triggerManualPliCbdExport(
   }>(`/porting-requests/${id}/pli-cbd-exports/${messageType.toLowerCase()}/manual`)
 
   return response.data.data.exportResult
+}
+
+export async function listCommercialOwnerCandidates(): Promise<CommercialOwnerCandidatesResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: CommercialOwnerCandidatesResultDto
+  }>('/porting-requests/commercial-owner-candidates')
+
+  return response.data.data
+}
+
+export async function updatePortingRequestCommercialOwner(
+  id: string,
+  data: UpdatePortingRequestCommercialOwnerPayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/commercial-owner`, data)
+
+  return response.data.data.request
 }
