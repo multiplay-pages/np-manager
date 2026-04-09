@@ -9,6 +9,7 @@ import type {
   PortingRequestAssigneeSummaryDto,
   PortingRequestAssignmentHistoryItemDto,
   PortingRequestAssignmentHistoryResultDto,
+  PortingRequestAssignmentUsersResultDto,
   PortingCommunicationDto,
   PortingRequestDetailDto,
   PliCbdIntegrationEventsResultDto,
@@ -1006,6 +1007,30 @@ export async function getPortingRequestAssignmentHistory(
 
   return {
     items: rows.map(toAssignmentHistoryItem),
+  }
+}
+
+export async function listAssignablePortingRequestUsers(): Promise<PortingRequestAssignmentUsersResultDto> {
+  const rows = await prisma.user.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { email: 'asc' }],
+  })
+
+  return {
+    users: rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      role: row.role as UserRole,
+    })),
   }
 }
 

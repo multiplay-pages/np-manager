@@ -17,6 +17,7 @@ import type {
   PliCbdManualExportResultDto,
   PliCbdProcessSnapshotDto,
   PortingRequestAssignmentHistoryResultDto,
+  PortingRequestAssignmentUsersResultDto,
   PortingRequestCaseHistoryResultDto,
   PortingRequestDetailDto,
   PortingRequestListQueryDto,
@@ -117,6 +118,15 @@ export async function getPortingRequestAssignmentHistory(
     success: true
     data: PortingRequestAssignmentHistoryResultDto
   }>(`/porting-requests/${id}/assignment-history`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestAssignmentUsers(): Promise<PortingRequestAssignmentUsersResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingRequestAssignmentUsersResultDto
+  }>('/porting-requests/assignment-users')
 
   return response.data.data
 }
