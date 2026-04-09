@@ -447,7 +447,7 @@ describe('porting-request assignment service foundation', () => {
       }),
     ])
 
-    const result = await listPortingRequests({ page: 1, pageSize: 20 })
+    const result = await listPortingRequests({ page: 1, pageSize: 20, ownership: 'ALL' }, 'current-user-1')
 
     expect(result.items[0]?.assignedUserSummary?.id).toBe('user-2')
     expect(result.items[0]?.assignedUserSummary?.displayName).toBe('Anna Nowak')

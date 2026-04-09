@@ -10,6 +10,7 @@ export const USER_ROLES = {
   TECHNICAL: 'TECHNICAL',
   LEGAL: 'LEGAL',
   AUDITOR: 'AUDITOR',
+  SALES: 'SALES',
 } as const
 
 export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES]
@@ -22,6 +23,7 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   TECHNICAL: 'Dzial Techniczny',
   LEGAL: 'Dzial Prawny',
   AUDITOR: 'Audytor',
+  SALES: 'Opiekun Handlowy',
 }
 
 // ============================================================
@@ -625,6 +627,10 @@ export const SYSTEM_SETTING_KEYS = {
   DONOR_RESPONSE_DAYS: 'donor_response_days',
   MAX_FILE_SIZE_MB: 'max_file_size_mb',
   MAX_RETRY_COUNT: 'max_retry_count',
+  // Powiadomienia wewnętrzne — routing zdarzeń portowania
+  PORTING_NOTIFY_SHARED_EMAILS: 'porting_notify_shared_emails',
+  PORTING_NOTIFY_TEAMS_ENABLED: 'porting_notify_teams_enabled',
+  PORTING_NOTIFY_TEAMS_WEBHOOK: 'porting_notify_teams_webhook',
 } as const
 
 export type SystemSettingKey = (typeof SYSTEM_SETTING_KEYS)[keyof typeof SYSTEM_SETTING_KEYS]

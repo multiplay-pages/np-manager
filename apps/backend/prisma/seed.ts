@@ -1635,6 +1635,25 @@ export async function seedMain() {
       type: 'json',
       label: 'Dozwolone typy plików (MIME)',
     },
+    // PR13A — powiadomienia wewnętrzne (routing zdarzeń portowania)
+    {
+      key: 'porting_notify_shared_emails',
+      value: 'bok@multiplay.pl,sud@multiplay.pl',
+      type: 'string',
+      label: 'Domyślni odbiorcy powiadomień portowania (e-mail, rozdzielone przecinkami)',
+    },
+    {
+      key: 'porting_notify_teams_enabled',
+      value: 'false',
+      type: 'boolean',
+      label: 'Włącz powiadomienia Teams dla zdarzeń portowania',
+    },
+    {
+      key: 'porting_notify_teams_webhook',
+      value: '',
+      type: 'string',
+      label: 'URL webhooka Teams dla powiadomień portowania',
+    },
   ]
 
   for (const setting of settings) {

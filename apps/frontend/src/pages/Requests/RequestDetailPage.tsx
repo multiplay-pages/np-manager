@@ -30,7 +30,9 @@ import {
   type PliCbdTechnicalPayloadApiMessageType,
   syncPortingRequest,
   updatePortingRequestAssignment,
+  updatePortingRequestCommercialOwner,
   updatePortingRequestStatus,
+  listCommercialOwnerCandidates,
 } from '@/services/portingRequests.api'
 import {
   CONTACT_CHANNEL_LABELS,
@@ -60,6 +62,7 @@ import {
   type PortingRequestExternalActionDto,
   type PortingRequestAssignmentHistoryItemDto,
   type PortingRequestStatusActionDto,
+  type CommercialOwnerCandidateDto,
 } from '@np-manager/shared'
 import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
 import { PortingCaseHistory } from '@/components/PortingCaseHistory/PortingCaseHistory'
@@ -333,6 +336,13 @@ export function RequestDetailPage() {
   const [isUpdatingAssignment, setIsUpdatingAssignment] = useState(false)
   const [isUnassigning, setIsUnassigning] = useState(false)
 
+  const [commercialOwnerCandidates, setCommercialOwnerCandidates] = useState<CommercialOwnerCandidateDto[]>([])
+  const [isCommercialOwnerCandidatesLoading, setIsCommercialOwnerCandidatesLoading] = useState(false)
+  const [commercialOwnerDraft, setCommercialOwnerDraft] = useState<string>('')
+  const [isUpdatingCommercialOwner, setIsUpdatingCommercialOwner] = useState(false)
+  const [commercialOwnerFeedbackError, setCommercialOwnerFeedbackError] = useState<string | null>(null)
+  const [commercialOwnerFeedbackSuccess, setCommercialOwnerFeedbackSuccess] = useState<string | null>(null)
+
   const [communicationItems, setCommunicationItems] = useState<PortingCommunicationDto[]>([])
   const [isCommunicationLoading, setIsCommunicationLoading] = useState(true)
   const [communicationPreview, setCommunicationPreview] = useState<PortingCommunicationPreviewDto | null>(null)
@@ -408,6 +418,10 @@ export function RequestDetailPage() {
   const isAdmin = useMemo(() => user?.role === 'ADMIN', [user?.role])
   const canManageAssignment = useMemo(() => canManagePortingOwnership(user?.role), [user?.role])
   const canSelectAssignee = useMemo(() => canSelectAnyAssignee(user?.role), [user?.role])
+  const canManageCommercialOwner = useMemo(
+    () => ['ADMIN', 'BOK_CONSULTANT', 'MANAGER'].includes(user?.role ?? ''),
+    [user?.role],
+  )
   const assigneeOptions = useMemo(
     () =>
       assignableUsers.map((candidate) => ({
@@ -498,6 +512,7 @@ export function RequestDetailPage() {
       const nextRequest = await getPortingRequestById(id)
       setRequest(nextRequest)
       setAssigneeDraft(nextRequest.assignedUser?.id ?? '')
+      setCommercialOwnerDraft(nextRequest.commercialOwner?.id ?? '')
       setSelectedStatusAction((current) =>
         current
           ? nextRequest.availableStatusActions.find(
@@ -573,6 +588,24 @@ export function RequestDetailPage() {
       setIsAssignableUsersLoading(false)
     }
   }, [canSelectAssignee])
+
+  const loadCommercialOwnerCandidates = useCallback(async () => {
+    if (!canManageCommercialOwner) {
+      setCommercialOwnerCandidates([])
+      setIsCommercialOwnerCandidatesLoading(false)
+      return
+    }
+
+    setIsCommercialOwnerCandidatesLoading(true)
+    try {
+      const result = await listCommercialOwnerCandidates()
+      setCommercialOwnerCandidates(result.users)
+    } catch {
+      setCommercialOwnerCandidates([])
+    } finally {
+      setIsCommercialOwnerCandidatesLoading(false)
+    }
+  }, [canManageCommercialOwner])
 
   const loadCommunicationHistory = useCallback(async () => {
     if (!id) return
@@ -763,6 +796,7 @@ export function RequestDetailPage() {
     void loadCaseHistory()
     void loadAssignmentHistory()
     void loadAssignableUsers()
+    void loadCommercialOwnerCandidates()
     void loadCommunicationHistory()
     void loadIntegrationEvents()
     void loadProcessSnapshot()
@@ -774,6 +808,7 @@ export function RequestDetailPage() {
     loadAssignableUsers,
     loadAssignmentHistory,
     loadCaseHistory,
+    loadCommercialOwnerCandidates,
     loadCommunicationHistory,
     loadIntegrationEvents,
     loadProcessSnapshot,
@@ -794,6 +829,40 @@ export function RequestDetailPage() {
     setAssignmentFeedbackError(null)
     setAssignmentFeedbackSuccess(null)
   }, [])
+
+  const clearCommercialOwnerFeedback = useCallback(() => {
+    setCommercialOwnerFeedbackError(null)
+    setCommercialOwnerFeedbackSuccess(null)
+  }, [])
+
+  const handleUpdateCommercialOwner = useCallback(
+    async (newOwnerId: string | null) => {
+      if (!id || !canManageCommercialOwner || isUpdatingCommercialOwner) return
+
+      clearCommercialOwnerFeedback()
+      setIsUpdatingCommercialOwner(true)
+
+      try {
+        const updatedRequest = await updatePortingRequestCommercialOwner(id, {
+          commercialOwnerUserId: newOwnerId,
+        })
+        setRequest(updatedRequest)
+        setCommercialOwnerDraft(updatedRequest.commercialOwner?.id ?? '')
+        setCommercialOwnerFeedbackSuccess(
+          newOwnerId ? 'Opiekun handlowy zostal przypisany.' : 'Opiekun handlowy zostal usunieto.',
+        )
+      } catch (errorValue) {
+        const message =
+          axios.isAxiosError(errorValue) && errorValue.response?.data?.error?.message
+            ? String(errorValue.response.data.error.message)
+            : 'Nie udalo sie zaktualizowac opiekuna handlowego.'
+        setCommercialOwnerFeedbackError(message)
+      } finally {
+        setIsUpdatingCommercialOwner(false)
+      }
+    },
+    [canManageCommercialOwner, clearCommercialOwnerFeedback, id, isUpdatingCommercialOwner],
+  )
 
   const applyUpdatedAssignment = useCallback(
     (updatedRequest: PortingRequestDetailDto) => {
@@ -1538,6 +1607,80 @@ export function RequestDetailPage() {
             onUpdateAssignment={() => void handleUpdateAssignment()}
             onUnassign={() => void handleUnassign()}
           />
+
+          <SectionCard
+            title="Opiekun handlowy"
+            description="Opcjonalny opiekun handlowy odpowiedzialny za relacje z klientem."
+          >
+            <div className="space-y-3">
+              <div>
+                <span className="block text-xs font-medium text-gray-500">Aktualny opiekun</span>
+                {request.commercialOwner ? (
+                  <span className="mt-0.5 block text-sm font-medium text-gray-900">
+                    {request.commercialOwner.displayName}{' '}
+                    <span className="font-normal text-gray-500">({request.commercialOwner.email})</span>
+                  </span>
+                ) : (
+                  <span className="mt-0.5 block text-sm text-gray-400">Brak przypisanego opiekuna</span>
+                )}
+              </div>
+
+              {canManageCommercialOwner && (
+                <div className="space-y-2">
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-gray-600">
+                      Zmien opiekuna handlowego
+                    </span>
+                    <select
+                      value={commercialOwnerDraft}
+                      onChange={(e) => setCommercialOwnerDraft(e.target.value)}
+                      disabled={isUpdatingCommercialOwner || isCommercialOwnerCandidatesLoading}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option value="">— brak —</option>
+                      {commercialOwnerCandidates.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.firstName} {candidate.lastName} ({candidate.email})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleUpdateCommercialOwner(commercialOwnerDraft || null)}
+                      disabled={isUpdatingCommercialOwner || isCommercialOwnerCandidatesLoading}
+                      className="btn-primary"
+                    >
+                      {isUpdatingCommercialOwner ? 'Zapisywanie...' : 'Zapisz'}
+                    </button>
+                    {request.commercialOwner && (
+                      <button
+                        type="button"
+                        onClick={() => void handleUpdateCommercialOwner(null)}
+                        disabled={isUpdatingCommercialOwner}
+                        className="btn-secondary"
+                      >
+                        Usun opiekuna
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {commercialOwnerFeedbackSuccess && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {commercialOwnerFeedbackSuccess}
+                </div>
+              )}
+              {commercialOwnerFeedbackError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {commercialOwnerFeedbackError}
+                </div>
+              )}
+            </div>
+          </SectionCard>
 
           <SectionCard
             title="Akcje"
