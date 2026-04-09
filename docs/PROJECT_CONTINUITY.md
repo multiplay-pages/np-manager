@@ -16,6 +16,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR12D | Ownership filter (MINE/UNASSIGNED) przeniesiony na backend          | DONE   |
 | PR13A | Commercial owner (SALES) + foundation internal event notifications  | DONE   |
 | PR13B | Realny transport wewnetrznych powiadomien email/Teams               | DONE   |
+| PR14  | Historia wewnetrznych notyfikacji w UI + panel admin settings       | DONE   |
 
 ---
 
@@ -46,6 +47,23 @@ Architektura rozdziela cztery warstwy:
    - Po kazdym dispatchie: `PortingRequestEvent NOTE [Dispatch]` z wynikiem (kanal, odbiorca, outcome, tryb, ewentualny blad)
 
 Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
+
+### PR14 - warstwa operacyjna (UI + read model + admin settings)
+
+- Backend:
+  - endpoint `GET /api/porting-requests/:id/internal-notifications` zwraca uporzadkowana historie:
+    - `USER_NOTIFICATION` z `Notification`,
+    - `TEAM_ROUTING` z `PortingRequestEvent NOTE` (routing intent),
+    - `TRANSPORT_AUDIT` z `[Dispatch] ...` NOTE.
+  - endpointy admin:
+    - `GET /api/admin/porting-notification-settings`
+    - `PUT /api/admin/porting-notification-settings`
+  - zapis preferuje klucze `porting_status_*`, odczyt wspiera fallback `porting_notify_*`.
+- Frontend:
+  - `RequestDetailPage` ma sekcje `Historia powiadomien wewnetrznych` (event, kanal, odbiorca, wynik, tryb, blad).
+  - Admin ma strone `Ustawienia powiadomien portingowych` do konfiguracji fallback email/Teams.
+  - Read-only diagnostyka env: `email adapter mode`, `SMTP configured`.
+- Zakres pozostaje wewnetrzny (operacyjny) - bez zmian w customer communication pipeline.
 
 #### Konfiguracja transportu email
 
@@ -140,7 +158,6 @@ apps/frontend/src/
 
 ## Kolejne kroki
 
-- PR14: historia powiadomien wewnetrznych w UI + panel ustawien systemowych dla admina
 - PR15: raportowanie i widoki operacyjne dla modelu commercial owner
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 

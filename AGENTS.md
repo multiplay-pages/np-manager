@@ -125,7 +125,7 @@ Glowne podmioty:
 
 Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez backend - frontend tylko wyswietla dozwolone akcje.
 
-### Semantyka ownership i notyfikacji (PR13A+, PR13B)
+### Semantyka ownership i notyfikacji (PR13A+, PR13B, PR14)
 
 - Biznesowo ownership operacyjny jest po stronie **zespolu BOK**, a nie personalnie pojedynczego pracownika.
 - `assignedUserId` pozostaje na razie mechanizmem technicznym (additive, bez destrukcyjnego usuwania), ale nie jest glowna osia rozwoju domeny.
@@ -144,6 +144,19 @@ Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez b
 - Teams: zawsze real gdy webhook URL jest skonfigurowany w SystemSettings
 - Brak crasha glownego API przy bledzie transportu — dispatch jest non-blocking
 - Kazdy dispatch zostawia `PortingRequestEvent NOTE` z trescia: kanal, odbiorca, outcome, tryb, ewentualny blad
+
+#### Operacyjna warstwa UI i settings (PR14)
+
+- Detail sprawy pokazuje sekcje `Historia powiadomien wewnetrznych` oparta o lekki read model:
+  - `Notification` (odbiorcy USER),
+  - `PortingRequestEvent NOTE` (TEAM routing intent + `[Dispatch]` transport audit).
+- Admin ma panel `Ustawienia powiadomien portingowych` do zarzadzania fallbackiem:
+  - `porting_status_notify_shared_emails`,
+  - `porting_status_teams_enabled`,
+  - `porting_status_notify_shared_teams_webhook`.
+- Legacy klucze `porting_notify_*` sa utrzymane tylko dla kompatybilnosci odczytu.
+- Diagnostyka env (`email adapter mode`, `SMTP configured`) jest read-only.
+- Nadal nie mieszamy notyfikacji wewnetrznych z komunikacja do klienta koncowego.
 
 ---
 

@@ -1,0 +1,36 @@
+export const PORTING_INTERNAL_NOTIFICATION_ENTRY_TYPES = {
+  USER_NOTIFICATION: 'USER_NOTIFICATION',
+  TEAM_ROUTING: 'TEAM_ROUTING',
+  TRANSPORT_AUDIT: 'TRANSPORT_AUDIT',
+} as const
+
+export type PortingInternalNotificationEntryType =
+  (typeof PORTING_INTERNAL_NOTIFICATION_ENTRY_TYPES)[keyof typeof PORTING_INTERNAL_NOTIFICATION_ENTRY_TYPES]
+
+export const PORTING_INTERNAL_NOTIFICATION_CHANNELS = {
+  IN_APP: 'IN_APP',
+  EMAIL: 'EMAIL',
+  TEAMS: 'TEAMS',
+  UNKNOWN: 'UNKNOWN',
+} as const
+
+export type PortingInternalNotificationChannel =
+  (typeof PORTING_INTERNAL_NOTIFICATION_CHANNELS)[keyof typeof PORTING_INTERNAL_NOTIFICATION_CHANNELS]
+
+export interface PortingInternalNotificationHistoryItemDto {
+  id: string
+  entryType: PortingInternalNotificationEntryType
+  eventCode: string | null
+  eventLabel: string
+  channel: PortingInternalNotificationChannel
+  recipient: string | null
+  outcome: string | null
+  mode: string | null
+  message: string
+  errorMessage: string | null
+  createdAt: string
+}
+
+export interface PortingInternalNotificationHistoryResultDto {
+  items: PortingInternalNotificationHistoryItemDto[]
+}

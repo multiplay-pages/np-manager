@@ -14,6 +14,7 @@ import { RequestNewPage } from '@/pages/Requests/RequestNewPage'
 import { RequestDetailPage } from '@/pages/Requests/RequestDetailPage'
 import { CommunicationTemplatesAdminPage } from '@/pages/Admin/CommunicationTemplatesAdminPage'
 import { AdminUsersPage } from '@/pages/Admin/AdminUsersPage'
+import { PortingNotificationSettingsPage } from '@/pages/Admin/PortingNotificationSettingsPage'
 import {
   getDefaultAuthenticatedRoute,
   getForcePasswordChangeRouteRedirect,
@@ -206,6 +207,14 @@ export const router = createBrowserRouter([
         element: (
           <AdminOnlyRoute>
             <CommunicationTemplatesAdminPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS,
+        element: (
+          <AdminOnlyRoute>
+            <PortingNotificationSettingsPage />
           </AdminOnlyRoute>
         ),
       },

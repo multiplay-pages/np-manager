@@ -22,6 +22,7 @@ import type {
   PortingRequestAssignmentUsersResultDto,
   PortingRequestCaseHistoryResultDto,
   PortingRequestDetailDto,
+  PortingInternalNotificationHistoryResultDto,
   PortingRequestListQueryDto,
   PortingRequestListResultDto,
   PreparePortingCommunicationDraftDto,
@@ -169,6 +170,17 @@ export async function getPortingRequestCaseHistory(
     success: true
     data: PortingRequestCaseHistoryResultDto
   }>(`/porting-requests/${id}/case-history`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestInternalNotifications(
+  id: string,
+): Promise<PortingInternalNotificationHistoryResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingInternalNotificationHistoryResultDto
+  }>(`/porting-requests/${id}/internal-notifications`)
 
   return response.data.data
 }
