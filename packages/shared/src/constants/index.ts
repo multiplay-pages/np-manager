@@ -635,6 +635,12 @@ export const SYSTEM_SETTING_KEYS = {
   PORTING_NOTIFY_SHARED_EMAILS: 'porting_notify_shared_emails',
   PORTING_NOTIFY_TEAMS_ENABLED: 'porting_notify_teams_enabled',
   PORTING_NOTIFY_TEAMS_WEBHOOK: 'porting_notify_teams_webhook',
+  // Fallback notyfikacji wewnetrznych
+  NOTIFICATION_FALLBACK_ENABLED: 'notification_fallback_enabled',
+  NOTIFICATION_FALLBACK_RECIPIENT_EMAIL: 'notification_fallback_recipient_email',
+  NOTIFICATION_FALLBACK_RECIPIENT_NAME: 'notification_fallback_recipient_name',
+  NOTIFICATION_FALLBACK_APPLY_TO_FAILED: 'notification_fallback_apply_to_failed',
+  NOTIFICATION_FALLBACK_APPLY_TO_MISCONFIGURED: 'notification_fallback_apply_to_misconfigured',
 } as const
 
 export type SystemSettingKey = (typeof SYSTEM_SETTING_KEYS)[keyof typeof SYSTEM_SETTING_KEYS]
