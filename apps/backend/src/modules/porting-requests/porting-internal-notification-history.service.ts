@@ -11,6 +11,7 @@ import {
 
 const TEAM_ROUTING_TITLE_PREFIX = 'Powiadomienie zespolowe:'
 const DISPATCH_TITLE_PREFIX = '[Dispatch] '
+const ERROR_FALLBACK_TITLE_PREFIX = '[ErrorFallback] '
 
 const INTERNAL_NOTIFICATION_ENTRY_TYPES = {
   USER_NOTIFICATION: 'USER_NOTIFICATION',
@@ -83,6 +84,7 @@ export async function getPortingRequestInternalNotifications(
         OR: [
           { title: { startsWith: TEAM_ROUTING_TITLE_PREFIX } },
           { title: { startsWith: DISPATCH_TITLE_PREFIX } },
+          { title: { startsWith: ERROR_FALLBACK_TITLE_PREFIX } },
         ],
       },
       orderBy: { occurredAt: 'desc' },
@@ -149,7 +151,12 @@ function mapNoteEvents(
     }
 
     if (note.title.startsWith(DISPATCH_TITLE_PREFIX)) {
-      items.push(...mapDispatchNote(note))
+      items.push(...mapTransportAuditNote(note, DISPATCH_TITLE_PREFIX))
+      continue
+    }
+
+    if (note.title.startsWith(ERROR_FALLBACK_TITLE_PREFIX)) {
+      items.push(...mapTransportAuditNote(note, ERROR_FALLBACK_TITLE_PREFIX))
     }
   }
 
@@ -197,13 +204,16 @@ function mapTeamRoutingNote(note: {
   }
 }
 
-function mapDispatchNote(note: {
-  id: string
-  title: string
-  description: string | null
-  occurredAt: Date
-}): PortingInternalNotificationHistoryItemDto[] {
-  const eventLabel = note.title.slice(DISPATCH_TITLE_PREFIX.length).trim() || 'Powiadomienie wewnetrzne'
+function mapTransportAuditNote(
+  note: {
+    id: string
+    title: string
+    description: string | null
+    occurredAt: Date
+  },
+  titlePrefix: string,
+): PortingInternalNotificationHistoryItemDto[] {
+  const eventLabel = note.title.slice(titlePrefix.length).trim() || 'Powiadomienie wewnetrzne'
   const eventCode = EVENT_LABEL_TO_CODE[eventLabel] ?? null
   const lines = (note.description ?? '')
     .split(/\r?\n/)
@@ -249,8 +259,9 @@ function mapDispatchNote(note: {
 
 function parseDispatchLine(line: string): DispatchLineMapping {
   const baseMatch =
-    /^([A-Z]+)\s*(?:->|â†’)\s*(.+?):\s*([A-Z_]+)\s*\(tryb:\s*([A-Z_]+)\)(.*)$/i.exec(line) ??
-    /^([A-Z]+)\s+(.+?):\s*([A-Z_]+)\s*\(tryb:\s*([A-Z_]+)\)(.*)$/i.exec(line)
+    /^([A-Z]+)\s*(?:->|[^\w\s]{1,4})\s*(.+?):\s*([A-Z_]+)\s*\(tryb:\s*([A-Z_]+)\)(.*)$/i.exec(
+      line,
+    ) ?? /^([A-Z]+)\s+(.+?):\s*([A-Z_]+)\s*\(tryb:\s*([A-Z_]+)\)(.*)$/i.exec(line)
 
   if (!baseMatch) {
     return {

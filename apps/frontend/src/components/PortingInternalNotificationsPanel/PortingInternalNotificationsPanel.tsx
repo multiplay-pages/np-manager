@@ -23,6 +23,12 @@ function formatChannel(channel: PortingInternalNotificationHistoryItemDto['chann
   return 'Nieznany'
 }
 
+function formatEntryType(entryType: PortingInternalNotificationHistoryItemDto['entryType']): string {
+  if (entryType === 'USER_NOTIFICATION') return 'Powiadomienie uzytkownika'
+  if (entryType === 'TEAM_ROUTING') return 'Routing zespolowy (fallback)'
+  return 'Audit transportu'
+}
+
 export function PortingInternalNotificationsPanel({
   items,
   isLoading,
@@ -35,7 +41,7 @@ export function PortingInternalNotificationsPanel({
           Historia powiadomien wewnetrznych
         </h2>
         <p className="mt-1 text-sm text-gray-500">
-          Chronologiczny podglad routingu i wynikow dispatchu dla sprawy.
+          Chronologiczny podglad routingu fallbacku zespolowego oraz wynikow dispatchu i error-fallback.
         </p>
       </div>
 
@@ -61,7 +67,7 @@ export function PortingInternalNotificationsPanel({
                   <p className="mt-0.5 text-xs text-gray-500">{formatDateTime(item.createdAt)}</p>
                 </div>
                 <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-700">
-                  {item.entryType}
+                  {formatEntryType(item.entryType)}
                 </span>
               </div>
 

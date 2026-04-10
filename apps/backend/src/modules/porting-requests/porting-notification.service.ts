@@ -2,13 +2,14 @@
  * Internal notification dispatcher for porting requests.
  *
  * Responsibilities:
- * - resolve recipients (commercial owner or team fallback),
+ * - resolve recipients (commercial owner or team routing fallback),
  * - persist Notification for named user recipients,
  * - persist timeline note for shared recipients (routing intent trace),
- * - dispatch real email/Teams transport (PR13B),
- * - persist transport audit trace as PortingRequestEvent NOTE.
+ * - dispatch email/Teams transport,
+ * - persist transport audit trace as PortingRequestEvent NOTE,
+ * - execute optional error fallback (notification_fallback_*) after FAILED/MISCONFIGURED outcomes.
  *
- * Non-blocking by design — callers use `.catch(() => {})`.
+ * Non-blocking by design - callers use `.catch(() => {})`.
  */
 
 import { prisma } from '../../config/database'
@@ -23,6 +24,13 @@ import {
   sendInternalTeamsWebhook,
   type InternalNotificationDispatchResult,
 } from './internal-notification.adapter'
+import {
+  decideNotificationErrorFallback,
+  extractFailureOutcomesFromDispatch,
+  resolveNotificationFallbackPolicy,
+  type NotificationErrorFallbackDecision,
+  type NotificationFallbackPolicy,
+} from './porting-notification-fallback-policy.resolver'
 
 export interface DispatchPortingNotificationParams {
   requestId: string
@@ -55,7 +63,7 @@ export async function dispatchPortingNotification(
 
   for (const recipient of recipients) {
     if (recipient.kind === 'USER') {
-      // 1. Domain trace — in-app Notification for the named user
+      // 1. Domain trace - in-app Notification for the named user
       await prisma.notification.create({
         data: {
           userId: recipient.userId,
@@ -67,7 +75,7 @@ export async function dispatchPortingNotification(
         },
       })
 
-      // 2. Transport — email to the user's address
+      // 2. Transport - email to the user's address
       const emailResult = await sendInternalEmail({
         to: [recipient.email],
         subject: message.subject,
@@ -77,20 +85,20 @@ export async function dispatchPortingNotification(
       continue
     }
 
-    // 3. Domain trace — timeline NOTE recording routing intent for team recipients
+    // 3. Domain trace - timeline NOTE recording routing intent for team recipients
     await prisma.portingRequestEvent.create({
       data: {
         request: { connect: { id: requestId } },
         eventSource: 'INTERNAL',
         eventType: 'NOTE',
         title: `Powiadomienie zespolowe: ${eventLabel}`,
-        description: buildFallbackDescription(recipient, metadata),
+        description: buildTeamRoutingFallbackDescription(recipient, metadata),
         ...(actorUserId ? { createdBy: { connect: { id: actorUserId } } } : {}),
       },
     })
 
     if (recipient.kind === 'TEAM_EMAIL') {
-      // 4. Transport — email to the shared team address list
+      // 4. Transport - email to the shared team address list
       const emailResult = await sendInternalEmail({
         to: recipient.emails,
         subject: message.subject,
@@ -100,7 +108,7 @@ export async function dispatchPortingNotification(
     }
 
     if (recipient.kind === 'TEAM_WEBHOOK') {
-      // 5. Transport — Teams webhook POST
+      // 5. Transport - Teams webhook POST
       const teamsResult = await sendInternalTeamsWebhook({
         webhookUrl: recipient.webhookUrl,
         title,
@@ -110,7 +118,7 @@ export async function dispatchPortingNotification(
     }
   }
 
-  // 6. Transport audit trace — one NOTE per dispatch summarising all outcomes
+  // 6. Transport audit trace - one NOTE per dispatch summarizing primary outcomes
   if (transportResults.length > 0) {
     await prisma.portingRequestEvent.create({
       data: {
@@ -118,18 +126,26 @@ export async function dispatchPortingNotification(
         eventSource: 'INTERNAL',
         eventType: 'NOTE',
         title: `[Dispatch] ${eventLabel}`,
-        description: buildTransportAuditDescription(transportResults),
+        description: buildPrimaryDispatchAuditDescription(transportResults),
         ...(actorUserId ? { createdBy: { connect: { id: actorUserId } } } : {}),
       },
     })
   }
+
+  await handleNotificationErrorFallback({
+    requestId,
+    actorUserId,
+    eventLabel,
+    message,
+    transportResults,
+  })
 }
 
 // ============================================================
-// POMOCNICZE
+// HELPERY
 // ============================================================
 
-function buildFallbackDescription(
+function buildTeamRoutingFallbackDescription(
   recipient: { kind: 'TEAM_EMAIL'; emails: string[] } | { kind: 'TEAM_WEBHOOK'; webhookUrl: string },
   metadata?: Record<string, unknown>,
 ): string {
@@ -139,21 +155,84 @@ function buildFallbackDescription(
       : `Routing do Teams webhook: ${recipient.webhookUrl}.`
 
   const metadataText = metadata ? ` Kontekst: ${safeJson(metadata)}.` : ''
-  return `${destination}${metadataText}`.trim()
+  return `Rodzaj fallbacku: ROUTING_TEAM. ${destination}${metadataText}`.trim()
 }
 
-function buildTransportAuditDescription(results: InternalNotificationDispatchResult[]): string {
-  const lines = results.map((r) => {
-    const base = `${r.channel} → ${r.recipient}: ${r.outcome} (tryb: ${r.mode})`
-    if (r.errorMessage) {
-      return `${base} — blad: ${r.errorMessage}`
+function buildPrimaryDispatchAuditDescription(results: InternalNotificationDispatchResult[]): string {
+  const lines = results.map((result) => {
+    const base = `${result.channel} -> ${result.recipient}: ${result.outcome} (tryb: ${result.mode})`
+    if (result.errorMessage) {
+      return `${base} - blad: ${result.errorMessage}`
     }
-    if ('messageId' in r && r.messageId) {
-      return `${base}, msgId: ${r.messageId}`
+    if ('messageId' in result && result.messageId) {
+      return `${base}, msgId: ${result.messageId}`
     }
     return base
   })
   return lines.join('\n')
+}
+
+async function handleNotificationErrorFallback(params: {
+  requestId: string
+  actorUserId?: string
+  eventLabel: string
+  message: { subject: string; text: string }
+  transportResults: InternalNotificationDispatchResult[]
+}): Promise<void> {
+  const failureOutcomes = extractFailureOutcomesFromDispatch(params.transportResults)
+  if (failureOutcomes.length === 0) {
+    return
+  }
+
+  const policy = await resolveNotificationFallbackPolicy()
+  const decision = decideNotificationErrorFallback(policy, failureOutcomes)
+
+  let fallbackDispatchResult: InternalNotificationDispatchResult | null = null
+  if (decision.shouldTrigger) {
+    fallbackDispatchResult = await sendInternalEmail({
+      to: [policy.fallbackRecipientEmail],
+      subject: params.message.subject,
+      text: params.message.text,
+    })
+  }
+
+  await prisma.portingRequestEvent.create({
+    data: {
+      request: { connect: { id: params.requestId } },
+      eventSource: 'INTERNAL',
+      eventType: 'NOTE',
+      title: `[ErrorFallback] ${params.eventLabel}`,
+      description: buildErrorFallbackAuditDescription(policy, decision, fallbackDispatchResult),
+      ...(params.actorUserId ? { createdBy: { connect: { id: params.actorUserId } } } : {}),
+    },
+  })
+}
+
+function buildErrorFallbackAuditDescription(
+  policy: NotificationFallbackPolicy,
+  decision: NotificationErrorFallbackDecision,
+  fallbackDispatchResult: InternalNotificationDispatchResult | null,
+): string {
+  const outcomesLabel = decision.failureOutcomes.length > 0 ? decision.failureOutcomes.join(',') : 'BRAK'
+  const matchedLabel = decision.matchedOutcomes.length > 0 ? decision.matchedOutcomes.join(',') : 'BRAK'
+
+  if (fallbackDispatchResult) {
+    const base = `${fallbackDispatchResult.channel} -> ${fallbackDispatchResult.recipient}: ${fallbackDispatchResult.outcome} (tryb: ${fallbackDispatchResult.mode})`
+    const reasonPart = `powod: ERROR_FALLBACK_TRIGGERED; sourceOutcomes=${outcomesLabel}; matchedOutcomes=${matchedLabel}; readiness=${policy.readiness}`
+
+    if (fallbackDispatchResult.errorMessage) {
+      return `${base} - blad: ${fallbackDispatchResult.errorMessage}; ${reasonPart}`
+    }
+
+    if ('messageId' in fallbackDispatchResult && fallbackDispatchResult.messageId) {
+      return `${base}, msgId: ${fallbackDispatchResult.messageId} - ${reasonPart}`
+    }
+
+    return `${base} - ${reasonPart}`
+  }
+
+  const recipient = policy.fallbackRecipientEmail || '-'
+  return `EMAIL -> ${recipient}: SKIPPED (tryb: POLICY) - powod: ${decision.reason}; sourceOutcomes=${outcomesLabel}; matchedOutcomes=${matchedLabel}; readiness=${policy.readiness}`
 }
 
 function safeJson(value: unknown): string {
