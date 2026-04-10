@@ -4,12 +4,12 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-09)
+## Aktualny stan projektu (2026-04-10)
 
 ### Zrealizowane PR-y
 
-| PR    | Opis                                                                 | Status |
-|-------|----------------------------------------------------------------------|--------|
+| PR      | Opis                                                                 | Status |
+|---------|----------------------------------------------------------------------|--------|
 | PR11A | Backend foundation - uzytkownicy admin, role, JWT auth              | DONE   |
 | PR11B | Frontend - panel admina uzytkownikow                                | DONE   |
 | PR12C | Assignment-users endpoint + reassignment z detail flow              | DONE   |
@@ -20,6 +20,26 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR15  | Raportowanie i widoki operacyjne commercial owner                    | DONE   |
 | PR16  | Diagnostyka zdrowia notyfikacji (health helper + 4-state badge)     | DONE   |
 | PR17  | Operacyjna historia problemow notyfikacji w szczegolach sprawy      | DONE   |
+| EPIC-18 | Fallback Runtime Completion — podlaczenie fallback execution do dispatch pipeline | DONE |
+
+---
+
+### EPIC-18 — Fallback Runtime Completion
+
+- **Cel**: domkniecie luki miedzy admin fallback settings a realnym dispatch pipeline notyfikacji wewnetrznych.
+- **Zmiana**: `porting-notification.service.ts` po zebraniu wynikow transportu sprawdza, czy ktorykolwiek outcome to FAILED lub MISCONFIGURED. Jesli tak, i fallback settings maja readiness READY z odpowiednimi flagami `applyToFailed` / `applyToMisconfigured`, wysyla email na `fallbackRecipientEmail` z tagiem `[FALLBACK]` w temacie i tresci.
+- **Kanoniczny path**: jedyne zrodlo prawdy dla fallback settings to `getNotificationFallbackSettings()` z `admin-notification-fallback-settings.service.ts`. Brak konkurujacych mechanizmow.
+- **Decyzje projektowe**:
+  - Fallback wysyla tylko email (nie Teams) — DTO admina ma jeden email, nie webhook.
+  - Jeden fallback email per dispatch, niezaleznie ile transportow zawiodlo.
+  - Brak fallback-of-fallback (brak rekurencji).
+  - Lazy: `getNotificationFallbackSettings()` wywolywane TYLKO gdy jest failure outcome (zero dodatkowych queries na happy path).
+  - Recipient tagowany `[FALLBACK]` — istniejace parsery health i failure history obsluguja to bez zmian.
+- **Pliki zmienione**:
+  - `apps/backend/src/modules/porting-requests/porting-notification.service.ts` (~50 LOC nowego kodu)
+  - `apps/backend/src/modules/porting-requests/__tests__/porting-notification.service.test.ts` (+11 nowych testow)
+- **Weryfikacja**: backend 306 testow PASS, tsc --noEmit PASS, frontend 104 testy PASS.
+- **Zero nowych endpointow, zero migracji, zero nowych modeli.**
 
 ---
 
@@ -222,9 +242,17 @@ apps/frontend/src/
 
 ---
 
-## Kolejne kroki
+## Kolejne kroki (roadmapa v2, zatwierdzona 2026-04-10)
 
-- **PR18+**: Rozszerzenie diagnostyki operacyjnej (opcjonalnie: szybkie akcje naprawcze / runbook hints), bez budowy pelnego event explorera.
+- **EPIC-18**: Fallback Runtime Completion — **DONE**
+- **EPIC-19**: Notification Operations v1 — retry + first-class delivery model
+- **EPIC-20**: Communication Productionization — real transport adapter
+- **EPIC-21**: Security & Observability Baseline — rate limiting, RBAC review
+- **EPIC-22**: PLI-CBD Production Readiness — real SOAP + inbound webhook
+- **EPIC-23**: SLA & Audit Completion
+- **EPIC-24**: Reporting & Operational Visibility
+- **EPIC-25**: Customer Portal (1.1+)
+- **EPIC-26**: Final Hardening & Rollout Readiness
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---

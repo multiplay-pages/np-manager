@@ -23,6 +23,7 @@ import {
   sendInternalTeamsWebhook,
   type InternalNotificationDispatchResult,
 } from './internal-notification.adapter'
+import { getNotificationFallbackSettings } from '../admin-settings/admin-notification-fallback-settings.service'
 
 export interface DispatchPortingNotificationParams {
   requestId: string
@@ -110,7 +111,13 @@ export async function dispatchPortingNotification(
     }
   }
 
-  // 6. Transport audit trace — one NOTE per dispatch summarising all outcomes
+  // 6. Fallback dispatch — when any transport failed/misconfigured and fallback is configured
+  const fallbackResult = await attemptFallbackDispatch(transportResults, message)
+  if (fallbackResult) {
+    transportResults.push(fallbackResult)
+  }
+
+  // 7. Transport audit trace — one NOTE per dispatch summarising all outcomes
   if (transportResults.length > 0) {
     await prisma.portingRequestEvent.create({
       data: {
@@ -123,6 +130,49 @@ export async function dispatchPortingNotification(
       },
     })
   }
+}
+
+// ============================================================
+// FALLBACK DISPATCH
+// ============================================================
+
+const FALLBACK_TRIGGERING_OUTCOMES = ['FAILED', 'MISCONFIGURED'] as const
+
+async function attemptFallbackDispatch(
+  transportResults: InternalNotificationDispatchResult[],
+  message: { subject: string; text: string },
+): Promise<InternalNotificationDispatchResult | null> {
+  const hasFailed = transportResults.some((r) => r.outcome === 'FAILED')
+  const hasMisconfigured = transportResults.some((r) => r.outcome === 'MISCONFIGURED')
+
+  if (!hasFailed && !hasMisconfigured) {
+    return null
+  }
+
+  const settings = await getNotificationFallbackSettings()
+
+  if (settings.readiness !== 'READY') {
+    return null
+  }
+
+  const shouldApply =
+    (hasFailed && settings.applyToFailed) || (hasMisconfigured && settings.applyToMisconfigured)
+
+  if (!shouldApply) {
+    return null
+  }
+
+  const failedOutcomes = transportResults
+    .filter((r) => (FALLBACK_TRIGGERING_OUTCOMES as readonly string[]).includes(r.outcome))
+    .map((r) => `${r.channel}:${r.outcome}`)
+
+  const preamble = `[FALLBACK] Oryginalna wysylka zawiodla (${failedOutcomes.join(', ')}). Ponizej tresc oryginalnej wiadomosci:\n\n`
+
+  return sendInternalEmail({
+    to: [settings.fallbackRecipientEmail],
+    subject: `[FALLBACK] ${message.subject}`,
+    text: `${preamble}${message.text}`,
+  })
 }
 
 // ============================================================

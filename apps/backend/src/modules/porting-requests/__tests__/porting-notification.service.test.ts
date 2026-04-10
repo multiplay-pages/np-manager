@@ -6,12 +6,14 @@ const {
   mockResolveRecipients,
   mockSendInternalEmail,
   mockSendInternalTeamsWebhook,
+  mockGetNotificationFallbackSettings,
 } = vi.hoisted(() => ({
   mockNotificationCreate: vi.fn(),
   mockPortingRequestEventCreate: vi.fn(),
   mockResolveRecipients: vi.fn(),
   mockSendInternalEmail: vi.fn(),
   mockSendInternalTeamsWebhook: vi.fn(),
+  mockGetNotificationFallbackSettings: vi.fn(),
 }))
 
 vi.mock('../../../config/database', () => ({
@@ -32,6 +34,11 @@ vi.mock('../porting-notification-recipient-resolver', () => ({
 vi.mock('../internal-notification.adapter', () => ({
   sendInternalEmail: (...args: unknown[]) => mockSendInternalEmail(...args),
   sendInternalTeamsWebhook: (...args: unknown[]) => mockSendInternalTeamsWebhook(...args),
+}))
+
+vi.mock('../../admin-settings/admin-notification-fallback-settings.service', () => ({
+  getNotificationFallbackSettings: (...args: unknown[]) =>
+    mockGetNotificationFallbackSettings(...args),
 }))
 
 import { PORTING_NOTIFICATION_EVENT } from '../porting-notification-events'
@@ -58,6 +65,51 @@ const STUB_TEAMS_RESULT = {
   errorMessage: null,
 }
 
+const FALLBACK_SETTINGS_READY = {
+  fallbackEnabled: true,
+  fallbackRecipientEmail: 'fallback@multiplay.pl',
+  fallbackRecipientName: 'Fallback BOK',
+  applyToFailed: true,
+  applyToMisconfigured: true,
+  readiness: 'READY' as const,
+}
+
+const FALLBACK_SETTINGS_DISABLED = {
+  fallbackEnabled: false,
+  fallbackRecipientEmail: '',
+  fallbackRecipientName: '',
+  applyToFailed: true,
+  applyToMisconfigured: true,
+  readiness: 'DISABLED' as const,
+}
+
+const FALLBACK_SETTINGS_INCOMPLETE = {
+  fallbackEnabled: true,
+  fallbackRecipientEmail: '',
+  fallbackRecipientName: '',
+  applyToFailed: true,
+  applyToMisconfigured: true,
+  readiness: 'INCOMPLETE' as const,
+}
+
+const FAILED_EMAIL_RESULT = {
+  channel: 'EMAIL',
+  recipient: 'sales@np.pl',
+  outcome: 'FAILED',
+  mode: 'REAL',
+  messageId: null,
+  errorMessage: 'SMTP connection refused',
+}
+
+const MISCONFIGURED_EMAIL_RESULT = {
+  channel: 'EMAIL',
+  recipient: 'sales@np.pl',
+  outcome: 'MISCONFIGURED',
+  mode: 'REAL',
+  messageId: null,
+  errorMessage: 'Brak konfiguracji SMTP: zmienna SMTP_HOST nie jest ustawiona.',
+}
+
 // ============================================================
 // TESTS
 // ============================================================
@@ -69,6 +121,7 @@ describe('dispatchPortingNotification', () => {
     mockPortingRequestEventCreate.mockResolvedValue(undefined)
     mockSendInternalEmail.mockResolvedValue(STUB_EMAIL_RESULT)
     mockSendInternalTeamsWebhook.mockResolvedValue(STUB_TEAMS_RESULT)
+    mockGetNotificationFallbackSettings.mockResolvedValue(FALLBACK_SETTINGS_DISABLED)
   })
 
   // -------- USER recipient --------
@@ -478,5 +531,316 @@ describe('dispatchPortingNotification', () => {
     const emailCall = mockSendInternalEmail.mock.calls[0]?.[0] as { subject: string; text: string }
     expect(emailCall.subject).toContain('Zmiana opiekuna handlowego')
     expect(emailCall.text).toContain('Anna Handlowa')
+  })
+
+  // -------- FALLBACK DISPATCH --------
+
+  it('does NOT call fallback settings when all transport outcomes succeed', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail.mockResolvedValueOnce(STUB_EMAIL_RESULT)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-ok',
+      caseNumber: 'FNP-2026-FBOK',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+      metadata: { newStatus: 'CONFIRMED' },
+    })
+
+    expect(mockGetNotificationFallbackSettings).not.toHaveBeenCalled()
+  })
+
+  it('triggers fallback email on FAILED outcome when settings READY and applyToFailed=true', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail
+      .mockResolvedValueOnce(FAILED_EMAIL_RESULT)
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: '[FALLBACK] fallback@multiplay.pl',
+        outcome: 'STUBBED',
+        mode: 'STUB',
+        messageId: 'stub-fallback-1',
+        errorMessage: null,
+      })
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_READY)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-failed',
+      caseNumber: 'FNP-2026-FBFAIL',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+      metadata: { newStatus: 'REJECTED' },
+    })
+
+    expect(mockGetNotificationFallbackSettings).toHaveBeenCalledTimes(1)
+    // Original email + fallback email = 2 calls
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(2)
+    expect(mockSendInternalEmail).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        to: ['fallback@multiplay.pl'],
+      }),
+    )
+  })
+
+  it('triggers fallback email on MISCONFIGURED outcome when settings READY and applyToMisconfigured=true', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail
+      .mockResolvedValueOnce(MISCONFIGURED_EMAIL_RESULT)
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: '[FALLBACK] fallback@multiplay.pl',
+        outcome: 'STUBBED',
+        mode: 'STUB',
+        messageId: 'stub-fallback-2',
+        errorMessage: null,
+      })
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_READY)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-misc',
+      caseNumber: 'FNP-2026-FBMISC',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+      metadata: { newStatus: 'ERROR' },
+    })
+
+    expect(mockGetNotificationFallbackSettings).toHaveBeenCalledTimes(1)
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(2)
+    expect(mockSendInternalEmail).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        to: ['fallback@multiplay.pl'],
+        subject: expect.stringContaining('[FALLBACK]'),
+      }),
+    )
+  })
+
+  it('does NOT trigger fallback when readiness is DISABLED', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail.mockResolvedValueOnce(FAILED_EMAIL_RESULT)
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_DISABLED)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-dis',
+      caseNumber: 'FNP-2026-FBDIS',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+    })
+
+    // Settings fetched (because failure detected), but no fallback email sent
+    expect(mockGetNotificationFallbackSettings).toHaveBeenCalledTimes(1)
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(1) // only original
+  })
+
+  it('does NOT trigger fallback when readiness is INCOMPLETE', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail.mockResolvedValueOnce(FAILED_EMAIL_RESULT)
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_INCOMPLETE)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-inc',
+      caseNumber: 'FNP-2026-FBINC',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+    })
+
+    expect(mockGetNotificationFallbackSettings).toHaveBeenCalledTimes(1)
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('does NOT trigger fallback when applyToFailed=false and only FAILED outcomes', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail.mockResolvedValueOnce(FAILED_EMAIL_RESULT)
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce({
+      ...FALLBACK_SETTINGS_READY,
+      applyToFailed: false,
+    })
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-nofail',
+      caseNumber: 'FNP-2026-FBNF',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+    })
+
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('does NOT trigger fallback when applyToMisconfigured=false and only MISCONFIGURED outcomes', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail.mockResolvedValueOnce(MISCONFIGURED_EMAIL_RESULT)
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce({
+      ...FALLBACK_SETTINGS_READY,
+      applyToMisconfigured: false,
+    })
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-nomisc',
+      caseNumber: 'FNP-2026-FBNM',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+    })
+
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends single fallback email even when multiple transports fail', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'TEAM_EMAIL', emails: ['bok@np.pl'] },
+      { kind: 'TEAM_WEBHOOK', webhookUrl: 'https://teams.example/hook' },
+    ])
+    mockSendInternalEmail.mockResolvedValueOnce({
+      ...FAILED_EMAIL_RESULT,
+      recipient: 'bok@np.pl',
+    })
+    mockSendInternalTeamsWebhook.mockResolvedValueOnce({
+      channel: 'TEAMS',
+      recipient: 'https://teams.example/hook',
+      outcome: 'FAILED',
+      mode: 'REAL',
+      errorMessage: 'Network error',
+    })
+    mockSendInternalEmail.mockResolvedValueOnce({
+      channel: 'EMAIL',
+      recipient: '[FALLBACK] fallback@multiplay.pl',
+      outcome: 'STUBBED',
+      mode: 'STUB',
+      messageId: 'stub-fallback-multi',
+      errorMessage: null,
+    })
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_READY)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-multi',
+      caseNumber: 'FNP-2026-FBMULTI',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: null,
+    })
+
+    // TEAM_EMAIL send + fallback send = 2 email calls (Teams is separate)
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(2)
+    expect(mockSendInternalTeamsWebhook).toHaveBeenCalledTimes(1)
+    // Fallback called once despite 2 transport failures
+    expect(mockGetNotificationFallbackSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('fallback dispatch result appears in audit NOTE description with [FALLBACK] tag', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail
+      .mockResolvedValueOnce(FAILED_EMAIL_RESULT)
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: '[FALLBACK] fallback@multiplay.pl',
+        outcome: 'SENT',
+        mode: 'REAL',
+        messageId: 'msg-fallback-audit',
+        errorMessage: null,
+      })
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_READY)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-audit',
+      caseNumber: 'FNP-2026-FBAUDIT',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+      metadata: { newStatus: 'ERROR' },
+    })
+
+    const auditCall = mockPortingRequestEventCreate.mock.calls.find(
+      (call) => call[0].data.title.startsWith('[Dispatch]'),
+    )
+    expect(auditCall).toBeDefined()
+    const description: string = auditCall![0].data.description
+    // Original failure line
+    expect(description).toContain('FAILED')
+    expect(description).toContain('sales@np.pl')
+    // Fallback line
+    expect(description).toContain('[FALLBACK]')
+    expect(description).toContain('fallback@multiplay.pl')
+    expect(description).toContain('SENT')
+  })
+
+  it('resolves without error even when fallback email itself fails', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail
+      .mockResolvedValueOnce(FAILED_EMAIL_RESULT)
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: '[FALLBACK] fallback@multiplay.pl',
+        outcome: 'FAILED',
+        mode: 'REAL',
+        messageId: null,
+        errorMessage: 'Fallback SMTP also refused',
+      })
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_READY)
+
+    await expect(
+      dispatchPortingNotification({
+        requestId: 'request-fb-failfail',
+        caseNumber: 'FNP-2026-FBFF',
+        event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+        commercialOwnerUserId: 'sales-1',
+      }),
+    ).resolves.toBeUndefined()
+
+    // Both failures recorded in audit
+    const auditCall = mockPortingRequestEventCreate.mock.calls.find(
+      (call) => call[0].data.title.startsWith('[Dispatch]'),
+    )
+    expect(auditCall).toBeDefined()
+    const description: string = auditCall![0].data.description
+    expect(description).toContain('Fallback SMTP also refused')
+  })
+
+  it('fallback email text contains [FALLBACK] preamble with failure context', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'TEAM_EMAIL', emails: ['bok@np.pl'] },
+    ])
+    mockSendInternalEmail
+      .mockResolvedValueOnce(MISCONFIGURED_EMAIL_RESULT)
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: '[FALLBACK] fallback@multiplay.pl',
+        outcome: 'STUBBED',
+        mode: 'STUB',
+        messageId: 'stub-fb-preamble',
+        errorMessage: null,
+      })
+    mockGetNotificationFallbackSettings.mockResolvedValueOnce(FALLBACK_SETTINGS_READY)
+
+    await dispatchPortingNotification({
+      requestId: 'request-fb-preamble',
+      caseNumber: 'FNP-2026-FBPRE',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: null,
+      metadata: { newStatus: 'ERROR' },
+    })
+
+    const fallbackEmailCall = mockSendInternalEmail.mock.calls[1]?.[0] as {
+      to: string[]
+      subject: string
+      text: string
+    }
+    expect(fallbackEmailCall.subject).toContain('[FALLBACK]')
+    expect(fallbackEmailCall.text).toContain('[FALLBACK]')
+    expect(fallbackEmailCall.text).toContain('EMAIL:MISCONFIGURED')
+    expect(fallbackEmailCall.text).toContain('Oryginalna wysylka zawiodla')
   })
 })
