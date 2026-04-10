@@ -37,6 +37,21 @@ export interface NotificationHealthDiagnosticsDto {
   lastFailureOutcome: 'FAILED' | 'MISCONFIGURED' | null
 }
 
+export interface NotificationFailureHistoryItemDto {
+  id: string
+  occurredAt: string
+  outcome: 'FAILED' | 'MISCONFIGURED'
+  channel: 'EMAIL' | 'TEAMS' | 'UNKNOWN'
+  message: string
+  technicalDetailsPreview: string | null
+  isConfigurationIssue: boolean
+  isDeliveryIssue: boolean
+}
+
+export interface NotificationFailureHistoryResultDto {
+  items: NotificationFailureHistoryItemDto[]
+}
+
 // ============================================================
 // OPIEKUN HANDLOWY
 // ============================================================

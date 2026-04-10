@@ -19,6 +19,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR14  | Historia wewnetrznych notyfikacji w UI + panel admin settings       | DONE   |
 | PR15  | Raportowanie i widoki operacyjne commercial owner                    | DONE   |
 | PR16  | Diagnostyka zdrowia notyfikacji (health helper + 4-state badge)     | DONE   |
+| PR17  | Operacyjna historia problemow notyfikacji w szczegolach sprawy      | DONE   |
 
 ---
 
@@ -77,6 +78,29 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
 - Weryfikacja: 334 testow backend + 99 testow frontend, oba projekty bez bledow TypeScript, build OK.
 - Wykryty problem runtime: backend serwuje skompilowany `dist/` — po PR15/PR16 endpoint `GET /api/porting-requests/summary` zwracal 404 (stary dist lapany przez handler `/:id`). Naprawione przez `npm run build` + restart backend.
 - Seed: 7 rekordow, wszystkie z health `OK`, failureCount = 0.
+
+### PR17 - operacyjny drill-down historii problemow notyfikacji
+
+- Backend:
+  - nowy endpoint `GET /api/porting-requests/:id/notification-failures`,
+  - nowy lekki read model `NotificationFailureHistoryItemDto` (bez surowego payloadu eventu),
+  - mapowanie oparte o `PortingRequestEvent NOTE [Dispatch]` z outcome `FAILED | MISCONFIGURED`,
+  - domyslny limit: 20 pozycji (najnowsze -> najstarsze),
+  - klasyfikacja:
+    - `MISCONFIGURED` -> blad konfiguracji (`isConfigurationIssue=true`),
+    - `FAILED` -> blad wysylki (`isDeliveryIssue=true`),
+  - defensywny parser linii dispatch i bezpieczne `technicalDetailsPreview`.
+- Frontend:
+  - `RequestDetailPage` rozszerzony o sekcje `Ostatnie problemy notyfikacji`,
+  - sekcja jest logicznym uzupelnieniem panelu health z PR16 i renderuje konkretne incydenty,
+  - dla spraw bez bledow sekcja nie jest wyswietlana (utrzymanie kompaktowego UI).
+- Wspolny kontrakt:
+  - DTO `NotificationFailureHistoryItemDto` + `NotificationFailureHistoryResultDto` w `packages/shared`.
+- Weryfikacja PR17:
+  - backend: 340 testow PASS,
+  - frontend: 102 testy PASS,
+  - `npx tsc --noEmit` PASS w obu appkach,
+  - `npm run build` (shared + backend + frontend) PASS.
 
 ### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
 
@@ -166,6 +190,7 @@ apps/backend/src/modules/porting-requests/
   internal-notification.adapter.ts         # email + Teams transport (PR13B)
   internal-notification-formatter.ts       # formatter tresci wiadomosci (PR13B)
   porting-notification-health.helper.ts    # single source of truth dla health computation (PR16)
+  porting-notification-failure-history.service.ts  # lekki drill-down failure history (PR17)
 
 apps/backend/prisma/
   schema.prisma
@@ -177,6 +202,7 @@ packages/shared/src/
   dto/porting-requests.dto.ts
 
 apps/frontend/src/
+  components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel.tsx
   pages/Requests/RequestDetailPage.tsx
   pages/Requests/RequestsPage.tsx
   pages/Requests/requestsOperational.ts
@@ -198,7 +224,7 @@ apps/frontend/src/
 
 ## Kolejne kroki
 
-- **PR17**: Historia powiadomien w UI oparta o `notificationHealth` (np. lista transport audit w detail) lub panel ustawien systemowych dla admina — do ustalenia.
+- **PR18+**: Rozszerzenie diagnostyki operacyjnej (opcjonalnie: szybkie akcje naprawcze / runbook hints), bez budowy pelnego event explorera.
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---

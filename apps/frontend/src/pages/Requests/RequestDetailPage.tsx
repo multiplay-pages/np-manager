@@ -15,6 +15,7 @@ import {
   getPortingRequestCaseHistory,
   getPortingRequestCommunicationHistory,
   getPortingRequestInternalNotifications,
+  getPortingRequestNotificationFailures,
   getPortingRequestE03Draft,
   getPortingRequestE12Draft,
   getPortingRequestE18Draft,
@@ -65,6 +66,7 @@ import {
   type PortingRequestAssignmentHistoryItemDto,
   type PortingRequestStatusActionDto,
   type CommercialOwnerCandidateDto,
+  type NotificationFailureHistoryItemDto,
   type NotificationHealthDiagnosticsDto,
 } from '@np-manager/shared'
 import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
@@ -79,6 +81,7 @@ import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbd
 import { PliCbdTechnicalPayloadPreview } from '@/components/PliCbdTechnicalPayloadPreview/PliCbdTechnicalPayloadPreview'
 import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview'
 import { PortingInternalNotificationsPanel } from '@/components/PortingInternalNotificationsPanel/PortingInternalNotificationsPanel'
+import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import {
   canManagePortingOwnership,
@@ -402,6 +405,11 @@ export function RequestDetailPage() {
   >([])
   const [isInternalNotificationLoading, setIsInternalNotificationLoading] = useState(true)
   const [internalNotificationError, setInternalNotificationError] = useState<string | null>(null)
+  const [notificationFailureItems, setNotificationFailureItems] = useState<
+    NotificationFailureHistoryItemDto[]
+  >([])
+  const [isNotificationFailuresLoading, setIsNotificationFailuresLoading] = useState(true)
+  const [notificationFailuresError, setNotificationFailuresError] = useState<string | null>(null)
   const [assignmentHistoryItems, setAssignmentHistoryItems] = useState<
     PortingRequestAssignmentHistoryItemDto[]
   >([])
@@ -654,6 +662,23 @@ export function RequestDetailPage() {
     }
   }, [id])
 
+  const loadNotificationFailures = useCallback(async () => {
+    if (!id) return
+
+    setIsNotificationFailuresLoading(true)
+    setNotificationFailuresError(null)
+
+    try {
+      const result = await getPortingRequestNotificationFailures(id)
+      setNotificationFailureItems(result.items)
+    } catch {
+      setNotificationFailureItems([])
+      setNotificationFailuresError('Nie udalo sie zaladowac historii problemow notyfikacji.')
+    } finally {
+      setIsNotificationFailuresLoading(false)
+    }
+  }, [id])
+
   const loadAssignmentHistory = useCallback(async () => {
     if (!id) return
 
@@ -893,6 +918,7 @@ export function RequestDetailPage() {
     void loadRequest()
     void loadCaseHistory()
     void loadInternalNotificationHistory()
+    void loadNotificationFailures()
     void loadAssignmentHistory()
     void loadAssignableUsers()
     void loadCommercialOwnerCandidates()
@@ -908,6 +934,7 @@ export function RequestDetailPage() {
     loadAssignmentHistory,
     loadCaseHistory,
     loadInternalNotificationHistory,
+    loadNotificationFailures,
     loadCommercialOwnerCandidates,
     loadCommunicationHistory,
     loadIntegrationEvents,
@@ -949,6 +976,7 @@ export function RequestDetailPage() {
         setRequest(updatedRequest)
         setCommercialOwnerDraft(updatedRequest.commercialOwner?.id ?? '')
         void loadInternalNotificationHistory()
+        void loadNotificationFailures()
         setCommercialOwnerFeedbackSuccess(
           newOwnerId ? 'Opiekun handlowy zostal przypisany.' : 'Opiekun handlowy zostal usunieto.',
         )
@@ -968,6 +996,7 @@ export function RequestDetailPage() {
       id,
       isUpdatingCommercialOwner,
       loadInternalNotificationHistory,
+      loadNotificationFailures,
     ],
   )
 
@@ -1083,6 +1112,7 @@ export function RequestDetailPage() {
       resetStatusActionForm()
       void loadCaseHistory()
       void loadInternalNotificationHistory()
+      void loadNotificationFailures()
       if (isAdmin) {
         void loadProcessSnapshot()
         refreshDraftPreviews()
@@ -1509,6 +1539,16 @@ export function RequestDetailPage() {
           <PortingCaseHistory items={caseHistoryItems} isLoading={isCaseHistoryLoading} />
 
           <NotificationHealthPanel health={request.notificationHealth} />
+
+          {(request.notificationHealth.failureCount > 0 ||
+            isNotificationFailuresLoading ||
+            notificationFailuresError) && (
+            <NotificationFailureHistoryPanel
+              items={notificationFailureItems}
+              isLoading={isNotificationFailuresLoading}
+              error={notificationFailuresError}
+            />
+          )}
 
           <PortingInternalNotificationsPanel
             items={internalNotificationItems}

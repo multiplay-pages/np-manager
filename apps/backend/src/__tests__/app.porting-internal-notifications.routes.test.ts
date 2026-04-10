@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetPortingRequestInternalNotifications } = vi.hoisted(() => ({
+const { mockGetPortingRequestInternalNotifications, mockGetPortingRequestNotificationFailures } = vi.hoisted(() => ({
   mockGetPortingRequestInternalNotifications: vi.fn(),
+  mockGetPortingRequestNotificationFailures: vi.fn(),
 }))
 
 vi.mock('../modules/auth/auth.router', () => ({
@@ -53,6 +54,11 @@ vi.mock('../modules/porting-requests/porting-requests.service', () => ({
 vi.mock('../modules/porting-requests/porting-internal-notification-history.service', () => ({
   getPortingRequestInternalNotifications: (...args: unknown[]) =>
     mockGetPortingRequestInternalNotifications(...args),
+}))
+
+vi.mock('../modules/porting-requests/porting-notification-failure-history.service', () => ({
+  getPortingRequestNotificationFailures: (...args: unknown[]) =>
+    mockGetPortingRequestNotificationFailures(...args),
 }))
 
 vi.mock('../modules/porting-requests/porting-events.service', () => ({
@@ -119,6 +125,20 @@ describe('porting request internal notifications route', () => {
         },
       ],
     })
+    mockGetPortingRequestNotificationFailures.mockResolvedValue({
+      items: [
+        {
+          id: 'failure-1',
+          occurredAt: '2026-04-09T10:01:00.000Z',
+          outcome: 'FAILED',
+          channel: 'EMAIL',
+          message: 'Nie udalo sie wyslac notyfikacji przez e-mail do bok@multiplay.pl.',
+          technicalDetailsPreview: 'Tryb: REAL | HTTP 500',
+          isConfigurationIssue: false,
+          isDeliveryIssue: true,
+        },
+      ],
+    })
   })
 
   it('GET /api/porting-requests/:id/internal-notifications returns history payload', async () => {
@@ -144,6 +164,34 @@ describe('porting request internal notifications route', () => {
         },
       })
       expect(mockGetPortingRequestInternalNotifications).toHaveBeenCalledWith('request-1')
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('GET /api/porting-requests/:id/notification-failures returns failure history payload', async () => {
+    const app = await buildApp()
+
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/porting-requests/request-1/notification-failures',
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toMatchObject({
+        success: true,
+        data: {
+          items: [
+            expect.objectContaining({
+              id: 'failure-1',
+              outcome: 'FAILED',
+              isDeliveryIssue: true,
+            }),
+          ],
+        },
+      })
+      expect(mockGetPortingRequestNotificationFailures).toHaveBeenCalledWith('request-1')
     } finally {
       await app.close()
     }

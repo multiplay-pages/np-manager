@@ -32,7 +32,10 @@ import type {
   UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
 import { dispatchPortingNotification } from './porting-notification.service'
-import { computeNotificationHealth } from './porting-notification-health.helper'
+import {
+  computeNotificationHealth,
+  NOTIFICATION_FAILURE_OUTCOMES,
+} from './porting-notification-health.helper'
 import { PORTING_NOTIFICATION_EVENT } from './porting-notification-events'
 import {
   PLI_CBD_TRIGGER_SELECT,
@@ -67,7 +70,6 @@ import {
 const CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
 const PLI_CBD_MANUAL_TRIGGER_ACTION = 'MANUAL_FOUNDATION_TRIGGER'
 const DISPATCH_TITLE_PREFIX = '[Dispatch] '
-const NOTIFICATION_FAILURE_OUTCOMES = ['FAILED', 'MISCONFIGURED'] as const
 
 const NOTIFICATION_FAILURE_EVENT_WHERE: Prisma.PortingRequestEventWhereInput = {
   eventSource: 'INTERNAL',

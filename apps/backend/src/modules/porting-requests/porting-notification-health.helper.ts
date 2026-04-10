@@ -2,7 +2,8 @@
 // Single place of truth for all health computation logic.
 
 export type NotificationHealthStatus = 'OK' | 'FAILED' | 'MISCONFIGURED' | 'MIXED'
-export type NotificationFailureOutcome = 'FAILED' | 'MISCONFIGURED'
+export const NOTIFICATION_FAILURE_OUTCOMES = ['FAILED', 'MISCONFIGURED'] as const
+export type NotificationFailureOutcome = (typeof NOTIFICATION_FAILURE_OUTCOMES)[number]
 
 export interface NotificationFailureEventData {
   description: string | null
@@ -18,7 +19,9 @@ export interface NotificationHealthResult {
   lastFailureOutcome: NotificationFailureOutcome | null
 }
 
-function detectOutcome(description: string | null): NotificationFailureOutcome | null {
+export function detectNotificationFailureOutcome(
+  description: string | null,
+): NotificationFailureOutcome | null {
   if (!description) return null
   // Check MISCONFIGURED first since it does not contain 'FAILED' as substring.
   if (description.includes('MISCONFIGURED')) return 'MISCONFIGURED'
@@ -46,7 +49,7 @@ export function computeNotificationHealth(
   let lastFailureOutcome: NotificationFailureOutcome | null = null
 
   for (const event of events) {
-    const outcome = detectOutcome(event.description)
+    const outcome = detectNotificationFailureOutcome(event.description)
     if (outcome === 'FAILED') failedCount++
     else if (outcome === 'MISCONFIGURED') misconfiguredCount++
 

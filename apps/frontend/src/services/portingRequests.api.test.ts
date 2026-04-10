@@ -16,6 +16,7 @@ vi.mock('./api.client', () => ({
 
 import {
   assignPortingRequestToMe,
+  getPortingRequestNotificationFailures,
   getPortingRequestAssignmentHistory,
   getPortingRequestAssignmentUsers,
   getPortingRequestInternalNotifications,
@@ -147,6 +148,14 @@ describe('portingRequests.api assignment flow', () => {
     await getPortingRequestInternalNotifications('request-1')
 
     expect(getMock).toHaveBeenCalledWith('/porting-requests/request-1/internal-notifications')
+  })
+
+  it('calls notification failures endpoint', async () => {
+    getMock.mockResolvedValueOnce({ data: { data: { items: [] } } })
+
+    await getPortingRequestNotificationFailures('request-1')
+
+    expect(getMock).toHaveBeenCalledWith('/porting-requests/request-1/notification-failures')
   })
 
   it('calls assignment-users endpoint and returns user list', async () => {
