@@ -7,6 +7,10 @@ import {
   updateAdminNotificationFallbackSettings,
 } from '@/services/adminNotificationFallbackSettings.api'
 
+// ============================================================
+// Typy lokalne
+// ============================================================
+
 interface FallbackFormState {
   fallbackEnabled: boolean
   fallbackRecipientEmail: string
@@ -14,6 +18,41 @@ interface FallbackFormState {
   applyToFailed: boolean
   applyToMisconfigured: boolean
 }
+
+// ============================================================
+// Komponenty pomocnicze — design system (wzorzec z AdminUserDetail)
+// ============================================================
+
+type BadgeTone = 'success' | 'neutral' | 'warning'
+
+export function Badge({ tone, children }: { tone: BadgeTone; children: React.ReactNode }) {
+  const toneClasses: Record<BadgeTone, string> = {
+    success: 'border-green-200 bg-green-50 text-green-700',
+    neutral: 'border-gray-200 bg-gray-100 text-gray-700',
+    warning: 'border-amber-200 bg-amber-50 text-amber-700',
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${toneClasses[tone]}`}
+    >
+      {children}
+    </span>
+  )
+}
+
+const READINESS_BADGE_CONFIG: Record<
+  NotificationFallbackReadiness,
+  { label: string; tone: BadgeTone }
+> = {
+  READY: { label: 'Fallback aktywny', tone: 'success' },
+  DISABLED: { label: 'Fallback wyłączony', tone: 'neutral' },
+  INCOMPLETE: { label: 'Konfiguracja niekompletna', tone: 'warning' },
+}
+
+// ============================================================
+// Helpery
+// ============================================================
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) {
@@ -23,31 +62,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
   const message = (error.response?.data as { error?: { message?: string } } | undefined)?.error
     ?.message
   return message ?? fallback
-}
-
-function ReadinessBadge({ readiness }: { readiness: NotificationFallbackReadiness }) {
-  const config: Record<NotificationFallbackReadiness, { label: string; className: string }> = {
-    READY: {
-      label: 'Fallback aktywny',
-      className: 'border-green-200 bg-green-50 text-green-700',
-    },
-    DISABLED: {
-      label: 'Fallback wyłączony',
-      className: 'border-gray-200 bg-gray-50 text-gray-600',
-    },
-    INCOMPLETE: {
-      label: 'Konfiguracja niekompletna',
-      className: 'border-yellow-200 bg-yellow-50 text-yellow-700',
-    },
-  }
-
-  const { label, className } = config[readiness]
-
-  return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${className}`}>
-      {label}
-    </span>
-  )
 }
 
 function getPreviewText(form: FallbackFormState, readiness: NotificationFallbackReadiness): string {
@@ -68,11 +82,15 @@ function getPreviewText(form: FallbackFormState, readiness: NotificationFallback
   return `Fallback zostanie użyty dla ${triggerLabel}, alert trafi do: ${form.fallbackRecipientEmail}`
 }
 
-function computeReadiness(form: FallbackFormState): NotificationFallbackReadiness {
+export function computeReadiness(form: FallbackFormState): NotificationFallbackReadiness {
   if (!form.fallbackEnabled) return 'DISABLED'
   if (!form.fallbackRecipientEmail.trim()) return 'INCOMPLETE'
   return 'READY'
 }
+
+// ============================================================
+// Stałe
+// ============================================================
 
 const EMPTY_FORM: FallbackFormState = {
   fallbackEnabled: false,
@@ -82,11 +100,16 @@ const EMPTY_FORM: FallbackFormState = {
   applyToMisconfigured: true,
 }
 
+// ============================================================
+// Strona
+// ============================================================
+
 export function NotificationFallbackSettingsPage() {
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'ADMIN'
 
   const [form, setForm] = useState<FallbackFormState>(EMPTY_FORM)
+  // serverReadiness: readiness z backendu — source of truth dla badge
   const [serverReadiness, setServerReadiness] = useState<NotificationFallbackReadiness>('DISABLED')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -142,7 +165,10 @@ export function NotificationFallbackSettingsPage() {
       return
     }
 
-    if (form.fallbackRecipientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.fallbackRecipientEmail.trim())) {
+    if (
+      form.fallbackRecipientEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.fallbackRecipientEmail.trim())
+    ) {
       setError('Podaj poprawny adres e-mail.')
       setSuccess(null)
       return
@@ -190,7 +216,9 @@ export function NotificationFallbackSettingsPage() {
     )
   }
 
+  // liveReadiness: podgląd oparty na aktualnym stanie formularza (przed zapisem)
   const liveReadiness = computeReadiness(form)
+  const badgeCfg = READINESS_BADGE_CONFIG[serverReadiness]
 
   return (
     <div className="p-6">
@@ -205,7 +233,7 @@ export function NotificationFallbackSettingsPage() {
                 Konfiguracja zapasowego odbiorcy dla nieudanych notyfikacji.
               </p>
             </div>
-            {!isLoading && <ReadinessBadge readiness={liveReadiness} />}
+            {!isLoading && <Badge tone={badgeCfg.tone}>{badgeCfg.label}</Badge>}
           </div>
         </div>
 

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node -e \"const s = require\\('@np-manager/shared'\\); console.log\\(s.SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_ENABLED\\)\")",
+      "Bash(npm run:*)",
+      "Bash(node -e \"const s = require\\('@np-manager/shared'\\); console.log\\(Object.keys\\(s.SYSTEM_SETTING_KEYS\\)\\)\")",
+      "Bash(rm -rf dist)",
+      "Bash(tsc)",
+      "Bash(node -e \"const s = require\\('.'\\); console.log\\(s.SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_ENABLED\\)\")",
+      "Bash(node -e \"delete require.cache[require.resolve\\('@np-manager/shared'\\)]; const s = require\\('@np-manager/shared'\\); console.log\\(s.SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_ENABLED\\)\")",
+      "Bash(node -e \"const c = require\\('./packages/shared/dist/constants/index.js'\\); console.log\\(c.SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_ENABLED\\)\")",
+      "Bash(node -e \"console.log\\(require.resolve\\('@np-manager/shared'\\)\\)\")",
+      "Bash(ls vitest.workspace*)",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); const j=JSON.parse\\(d\\); console.log\\(JSON.stringify\\(j.scripts,null,2\\)\\)\")",
+      "Bash(node -e \"const p = require\\('path'\\).resolve\\('C:/Users/cicha/OneDrive/Desktop/Projekt/np-manager/node_modules/@np-manager/shared'\\); const pkg = require\\(p + '/package.json'\\); console.log\\(pkg.main, pkg.types\\)\")",
+      "Bash(cp \"C:\\\\Users\\\\cicha\\\\OneDrive\\\\Desktop\\\\Projekt\\\\np-manager\\\\.claude\\\\worktrees\\\\exciting-colden\\\\packages\\\\shared\\\\src\\\\constants\\\\index.ts\" \"C:\\\\Users\\\\cicha\\\\OneDrive\\\\Desktop\\\\Projekt\\\\np-manager\\\\packages\\\\shared\\\\src\\\\constants\\\\index.ts\")",
+      "Bash(cp \"C:\\\\Users\\\\cicha\\\\OneDrive\\\\Desktop\\\\Projekt\\\\np-manager\\\\.claude\\\\worktrees\\\\exciting-colden\\\\packages\\\\shared\\\\src\\\\dto\\\\admin-notification-fallback-settings.dto.ts\" \"C:\\\\Users\\\\cicha\\\\OneDrive\\\\Desktop\\\\Projekt\\\\np-manager\\\\packages\\\\shared\\\\src\\\\dto\\\\admin-notification-fallback-settings.dto.ts\")",
+      "Bash(cp \"C:\\\\Users\\\\cicha\\\\OneDrive\\\\Desktop\\\\Projekt\\\\np-manager\\\\.claude\\\\worktrees\\\\exciting-colden\\\\packages\\\\shared\\\\src\\\\index.ts\" \"C:\\\\Users\\\\cicha\\\\OneDrive\\\\Desktop\\\\Projekt\\\\np-manager\\\\packages\\\\shared\\\\src\\\\index.ts\")",
+      "Bash(node -e \"const s = require\\('C:/Users/cicha/OneDrive/Desktop/Projekt/np-manager/node_modules/@np-manager/shared'\\); console.log\\(s.SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_ENABLED\\)\")"
+    ]
+  }
+}
