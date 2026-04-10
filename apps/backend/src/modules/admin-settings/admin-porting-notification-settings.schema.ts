@@ -29,31 +29,49 @@ function isValidWebhookUrl(value: string): boolean {
   }
 }
 
-export const updatePortingNotificationSettingsBodySchema = z.object({
-  sharedEmails: z
-    .string({ required_error: 'Lista e-maili fallback jest wymagana.' })
-    .max(
-      MAX_SHARED_EMAILS_LENGTH,
-      `Lista e-maili fallback nie moze przekraczac ${MAX_SHARED_EMAILS_LENGTH} znakow.`,
-    )
-    .trim()
-    .refine(
-      (value) => isValidEmailList(value),
-      'Podaj poprawna liste adresow e-mail (rozdzielonych przecinkami).',
-    ),
-  teamsEnabled: z.boolean({
-    required_error: 'Flaga Teams jest wymagana.',
-    invalid_type_error: 'Flaga Teams musi byc wartoscia logiczna.',
-  }),
-  teamsWebhookUrl: z
-    .string({ required_error: 'URL webhooka Teams jest wymagany.' })
-    .max(
-      MAX_WEBHOOK_LENGTH,
-      `URL webhooka Teams nie moze przekraczac ${MAX_WEBHOOK_LENGTH} znakow.`,
-    )
-    .trim()
-    .refine((value) => isValidWebhookUrl(value), 'Podaj poprawny URL webhooka Teams.'),
-})
+export const updatePortingNotificationSettingsBodySchema = z
+  .object({
+    sharedEmails: z
+      .string({ required_error: 'Lista e-maili fallback jest wymagana.' })
+      .max(
+        MAX_SHARED_EMAILS_LENGTH,
+        `Lista e-maili fallback nie moze przekraczac ${MAX_SHARED_EMAILS_LENGTH} znakow.`,
+      )
+      .trim()
+      .refine(
+        (value) => isValidEmailList(value),
+        'Podaj poprawna liste adresow e-mail (rozdzielonych przecinkami).',
+      ),
+    teamsEnabled: z.boolean({
+      required_error: 'Flaga Teams jest wymagana.',
+      invalid_type_error: 'Flaga Teams musi byc wartoscia logiczna.',
+    }),
+    teamsWebhookUrl: z
+      .string({ required_error: 'URL webhooka Teams jest wymagany.' })
+      .max(
+        MAX_WEBHOOK_LENGTH,
+        `URL webhooka Teams nie moze przekraczac ${MAX_WEBHOOK_LENGTH} znakow.`,
+      )
+      .trim()
+      .refine((value) => isValidWebhookUrl(value), 'Podaj poprawny URL webhooka Teams.'),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.sharedEmails) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Podaj co najmniej jeden adres email',
+        path: ['sharedEmails'],
+      })
+    }
+
+    if (data.teamsEnabled && !data.teamsWebhookUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Podaj URL webhooka Teams gdy Teams jest wlaczony',
+        path: ['teamsWebhookUrl'],
+      })
+    }
+  })
 
 export type UpdatePortingNotificationSettingsBody = z.infer<
   typeof updatePortingNotificationSettingsBodySchema

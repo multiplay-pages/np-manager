@@ -15,15 +15,13 @@ describe('updatePortingNotificationSettingsBodySchema', () => {
   })
 
   it('accepts empty email list and empty webhook URL', () => {
-    const parsed = updatePortingNotificationSettingsBodySchema.parse({
-      sharedEmails: '',
-      teamsEnabled: false,
-      teamsWebhookUrl: '',
-    })
-
-    expect(parsed.sharedEmails).toBe('')
-    expect(parsed.teamsEnabled).toBe(false)
-    expect(parsed.teamsWebhookUrl).toBe('')
+    expect(() =>
+      updatePortingNotificationSettingsBodySchema.parse({
+        sharedEmails: '',
+        teamsEnabled: false,
+        teamsWebhookUrl: '',
+      }),
+    ).toThrowError(/Podaj co najmniej jeden adres email/)
   })
 
   it('rejects invalid shared email list', () => {
@@ -44,5 +42,78 @@ describe('updatePortingNotificationSettingsBodySchema', () => {
         teamsWebhookUrl: 'nie-url',
       }),
     ).toThrowError(/Podaj poprawny URL webhooka Teams/)
+  })
+
+  describe('walidacja wymaganych pol', () => {
+    it('rzuca blad gdy sharedEmails jest pustym stringiem', () => {
+      expect(() =>
+        updatePortingNotificationSettingsBodySchema.parse({
+          sharedEmails: '',
+          teamsEnabled: false,
+          teamsWebhookUrl: '',
+        }),
+      ).toThrowError(/Podaj co najmniej jeden adres email/)
+    })
+
+    it('rzuca blad gdy sharedEmails jest undefined', () => {
+      expect(() =>
+        updatePortingNotificationSettingsBodySchema.parse({
+          teamsEnabled: false,
+          teamsWebhookUrl: '',
+        }),
+      ).toThrowError(/Podaj co najmniej jeden adres email/)
+    })
+
+    it('rzuca blad gdy teamsEnabled=true i teamsWebhookUrl jest pustym stringiem', () => {
+      expect(() =>
+        updatePortingNotificationSettingsBodySchema.parse({
+          sharedEmails: 'bok@multiplay.pl',
+          teamsEnabled: true,
+          teamsWebhookUrl: '',
+        }),
+      ).toThrowError(/Podaj URL webhooka Teams gdy Teams jest wlaczony/)
+    })
+
+    it('rzuca blad gdy teamsEnabled=true i teamsWebhookUrl jest undefined', () => {
+      expect(() =>
+        updatePortingNotificationSettingsBodySchema.parse({
+          sharedEmails: 'bok@multiplay.pl',
+          teamsEnabled: true,
+        }),
+      ).toThrowError(/Podaj URL webhooka Teams gdy Teams jest wlaczony/)
+    })
+
+    it('przechodzi gdy teamsEnabled=false i teamsWebhookUrl jest pustym stringiem', () => {
+      expect(() =>
+        updatePortingNotificationSettingsBodySchema.parse({
+          sharedEmails: 'bok@multiplay.pl',
+          teamsEnabled: false,
+          teamsWebhookUrl: '',
+        }),
+      ).not.toThrowError(/Podaj URL webhooka Teams gdy Teams jest wlaczony/)
+    })
+
+    it('przechodzi gdy sharedEmails jest poprawnym emailem i teamsEnabled=false', () => {
+      const parsed = updatePortingNotificationSettingsBodySchema.parse({
+        sharedEmails: 'bok@multiplay.pl',
+        teamsEnabled: false,
+        teamsWebhookUrl: '',
+      })
+
+      expect(parsed.sharedEmails).toBe('bok@multiplay.pl')
+      expect(parsed.teamsEnabled).toBe(false)
+    })
+
+    it('przechodzi gdy sharedEmails jest poprawny, teamsEnabled=true i teamsWebhookUrl jest poprawnym URL', () => {
+      const parsed = updatePortingNotificationSettingsBodySchema.parse({
+        sharedEmails: 'bok@multiplay.pl',
+        teamsEnabled: true,
+        teamsWebhookUrl: 'https://teams.example/webhook',
+      })
+
+      expect(parsed.sharedEmails).toBe('bok@multiplay.pl')
+      expect(parsed.teamsEnabled).toBe(true)
+      expect(parsed.teamsWebhookUrl).toBe('https://teams.example/webhook')
+    })
   })
 })
