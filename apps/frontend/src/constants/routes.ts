@@ -38,6 +38,7 @@ export const ROUTES = {
   ADMIN_OPERATORS: '/admin/operators',
   ADMIN_COMMUNICATION_TEMPLATES: '/admin/communication-templates',
   ADMIN_PORTING_NOTIFICATION_SETTINGS: '/admin/porting-notification-settings',
+  ADMIN_NOTIFICATION_FALLBACK_SETTINGS: '/admin/notification-fallback-settings',
   ADMIN_COMMUNICATION_TEMPLATE_NEW: '/admin/communication-templates/new',
   ADMIN_COMMUNICATION_TEMPLATE_DETAIL: '/admin/communication-templates/:id',
   ADMIN_COMMUNICATION_TEMPLATE_EDIT: '/admin/communication-templates/:id/edit',

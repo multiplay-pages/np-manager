@@ -11,6 +11,7 @@ import { portingRequestsRouter } from './modules/porting-requests/porting-reques
 import { communicationTemplatesRouter } from './modules/communications/communication-templates.router'
 import { adminUsersRouter } from './modules/admin-users/admin-users.router'
 import { adminPortingNotificationSettingsRouter } from './modules/admin-settings/admin-porting-notification-settings.router'
+import { adminNotificationFallbackSettingsRouter } from './modules/admin-settings/admin-notification-fallback-settings.router'
 import { errorHandler } from './shared/errors/error-handler'
 import { buildReadinessResult } from './shared/health/readiness'
 import type { FastifyInstance } from 'fastify'
@@ -102,6 +103,7 @@ export async function buildApp() {
   await app.register(communicationTemplatesRouter, { prefix: '/api/admin' })
   await app.register(adminUsersRouter, { prefix: '/api/admin' })
   await app.register(adminPortingNotificationSettingsRouter, { prefix: '/api/admin' })
+  await app.register(adminNotificationFallbackSettingsRouter, { prefix: '/api/admin' })
 
   app.get('/health', async () => {
     return {
