@@ -56,7 +56,7 @@ export const updatePortingNotificationSettingsBodySchema = z
       .refine((value) => isValidWebhookUrl(value), 'Podaj poprawny URL webhooka Teams.'),
   })
   .superRefine((data, ctx) => {
-    if (!data.sharedEmails) {
+    if (!data.sharedEmails || data.sharedEmails.trim() === '') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Podaj co najmniej jeden adres email',
@@ -64,10 +64,10 @@ export const updatePortingNotificationSettingsBodySchema = z
       })
     }
 
-    if (data.teamsEnabled && !data.teamsWebhookUrl) {
+    if (data.teamsEnabled && (!data.teamsWebhookUrl || data.teamsWebhookUrl.trim() === '')) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Podaj URL webhooka Teams gdy Teams jest wlaczony',
+        message: 'Podaj URL webhooka Teams gdy Teams jest włączony',
         path: ['teamsWebhookUrl'],
       })
     }
