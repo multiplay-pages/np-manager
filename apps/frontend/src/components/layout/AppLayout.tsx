@@ -26,6 +26,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Operatorzy', path: ROUTES.ADMIN_OPERATORS, icon: 'O' },
   { label: 'Szablony komunikatow', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
   { label: 'Powiadomienia portingu', path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS, icon: 'P' },
+  { label: 'Fallback notyfikacji', path: ROUTES.ADMIN_NOTIFICATION_FALLBACK_SETTINGS, icon: 'F' },
 ]
 
 function SidebarLink({ item, sidebarCollapsed }: { item: NavItem; sidebarCollapsed: boolean }) {

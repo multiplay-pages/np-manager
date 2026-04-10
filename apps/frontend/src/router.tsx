@@ -15,6 +15,7 @@ import { RequestDetailPage } from '@/pages/Requests/RequestDetailPage'
 import { CommunicationTemplatesAdminPage } from '@/pages/Admin/CommunicationTemplatesAdminPage'
 import { AdminUsersPage } from '@/pages/Admin/AdminUsersPage'
 import { PortingNotificationSettingsPage } from '@/pages/Admin/PortingNotificationSettingsPage'
+import { NotificationFallbackSettingsPage } from '@/pages/Admin/NotificationFallbackSettingsPage'
 import {
   getDefaultAuthenticatedRoute,
   getForcePasswordChangeRouteRedirect,
@@ -215,6 +216,14 @@ export const router = createBrowserRouter([
         element: (
           <AdminOnlyRoute>
             <PortingNotificationSettingsPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_NOTIFICATION_FALLBACK_SETTINGS,
+        element: (
+          <AdminOnlyRoute>
+            <NotificationFallbackSettingsPage />
           </AdminOnlyRoute>
         ),
       },
