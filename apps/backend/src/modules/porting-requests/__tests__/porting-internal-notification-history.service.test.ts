@@ -65,7 +65,7 @@ describe('getPortingRequestInternalNotifications', () => {
     })
   })
 
-  it('maps team routing notes and dispatch audit notes to DTO entries', async () => {
+  it('maps team routing notes, dispatch notes and error fallback notes to DTO entries', async () => {
     mockPortingRequestFindUnique.mockResolvedValueOnce({ id: 'request-2' })
     mockNotificationFindMany.mockResolvedValueOnce([])
     mockPortingRequestEventFindMany.mockResolvedValueOnce([
@@ -73,21 +73,28 @@ describe('getPortingRequestInternalNotifications', () => {
         id: 'event-routing-1',
         title: 'Powiadomienie zespolowe: Zmiana statusu sprawy',
         description:
-          'Routing do e-mail: bok@multiplay.pl, sud@multiplay.pl. Kontekst: {"newStatus":"PORTED"}.',
+          'Rodzaj fallbacku: ROUTING_TEAM. Routing do e-mail: bok@multiplay.pl, sud@multiplay.pl. Kontekst: {"newStatus":"PORTED"}.',
         occurredAt: new Date('2026-04-09T10:00:00.000Z'),
       },
       {
         id: 'event-dispatch-1',
         title: '[Dispatch] Zmiana statusu sprawy',
         description:
-          'EMAIL â†’ bok@multiplay.pl: SENT (tryb: STUB), msgId: stub-123\nTEAMS â†’ https://teams.example/hook: FAILED (tryb: REAL) â€” blad: HTTP 500',
+          'EMAIL -> bok@multiplay.pl: SENT (tryb: STUB), msgId: stub-123\nTEAMS -> https://teams.example/hook: FAILED (tryb: REAL) - blad: HTTP 500',
         occurredAt: new Date('2026-04-09T10:01:00.000Z'),
+      },
+      {
+        id: 'event-fallback-1',
+        title: '[ErrorFallback] Zmiana statusu sprawy',
+        description:
+          'EMAIL -> fallback@np-manager.local: SKIPPED (tryb: POLICY) - powod: POLICY_DISABLED; sourceOutcomes=FAILED; matchedOutcomes=BRAK; readiness=DISABLED',
+        occurredAt: new Date('2026-04-09T10:02:00.000Z'),
       },
     ])
 
     const result = await getPortingRequestInternalNotifications('request-2')
 
-    expect(result.items).toHaveLength(3)
+    expect(result.items).toHaveLength(4)
 
     const routingEntry = result.items.find((item) => item.entryType === 'TEAM_ROUTING')
     expect(routingEntry).toMatchObject({
@@ -98,15 +105,23 @@ describe('getPortingRequestInternalNotifications', () => {
     })
 
     const dispatchEntries = result.items.filter((item) => item.entryType === 'TRANSPORT_AUDIT')
-    expect(dispatchEntries).toHaveLength(2)
+    expect(dispatchEntries).toHaveLength(3)
+
     expect(dispatchEntries[0]).toMatchObject({
+      channel: 'EMAIL',
+      recipient: 'fallback@np-manager.local',
+      outcome: 'SKIPPED',
+      mode: 'POLICY',
+      errorMessage: null,
+    })
+    expect(dispatchEntries[1]).toMatchObject({
       channel: 'EMAIL',
       recipient: 'bok@multiplay.pl',
       outcome: 'SENT',
       mode: 'STUB',
       errorMessage: null,
     })
-    expect(dispatchEntries[1]).toMatchObject({
+    expect(dispatchEntries[2]).toMatchObject({
       channel: 'TEAMS',
       recipient: 'https://teams.example/hook',
       outcome: 'FAILED',

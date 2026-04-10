@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SYSTEM_SETTING_KEYS } from '@np-manager/shared'
 
 const {
   mockNotificationCreate,
@@ -6,12 +7,14 @@ const {
   mockResolveRecipients,
   mockSendInternalEmail,
   mockSendInternalTeamsWebhook,
+  mockSystemSettingFindUnique,
 } = vi.hoisted(() => ({
   mockNotificationCreate: vi.fn(),
   mockPortingRequestEventCreate: vi.fn(),
   mockResolveRecipients: vi.fn(),
   mockSendInternalEmail: vi.fn(),
   mockSendInternalTeamsWebhook: vi.fn(),
+  mockSystemSettingFindUnique: vi.fn(),
 }))
 
 vi.mock('../../../config/database', () => ({
@@ -21,6 +24,9 @@ vi.mock('../../../config/database', () => ({
     },
     portingRequestEvent: {
       create: (...args: unknown[]) => mockPortingRequestEventCreate(...args),
+    },
+    systemSetting: {
+      findUnique: (...args: unknown[]) => mockSystemSettingFindUnique(...args),
     },
   },
 }))
@@ -58,6 +64,38 @@ const STUB_TEAMS_RESULT = {
   errorMessage: null,
 }
 
+function mockFallbackPolicySettings(values: {
+  enabled?: string
+  recipientEmail?: string
+  recipientName?: string
+  applyToFailed?: string
+  applyToMisconfigured?: string
+}) {
+  const byKey = new Map<string, { value: string }>([
+    [SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_ENABLED, { value: values.enabled ?? 'false' }],
+    [
+      SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_RECIPIENT_EMAIL,
+      { value: values.recipientEmail ?? '' },
+    ],
+    [
+      SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_RECIPIENT_NAME,
+      { value: values.recipientName ?? '' },
+    ],
+    [
+      SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_APPLY_TO_FAILED,
+      { value: values.applyToFailed ?? 'true' },
+    ],
+    [
+      SYSTEM_SETTING_KEYS.NOTIFICATION_FALLBACK_APPLY_TO_MISCONFIGURED,
+      { value: values.applyToMisconfigured ?? 'true' },
+    ],
+  ])
+
+  mockSystemSettingFindUnique.mockImplementation(async (args: { where: { key: string } }) => {
+    return byKey.get(args.where.key) ?? null
+  })
+}
+
 // ============================================================
 // TESTS
 // ============================================================
@@ -69,6 +107,7 @@ describe('dispatchPortingNotification', () => {
     mockPortingRequestEventCreate.mockResolvedValue(undefined)
     mockSendInternalEmail.mockResolvedValue(STUB_EMAIL_RESULT)
     mockSendInternalTeamsWebhook.mockResolvedValue(STUB_TEAMS_RESULT)
+    mockFallbackPolicySettings({ enabled: 'false' })
   })
 
   // -------- USER recipient --------
@@ -349,6 +388,133 @@ describe('dispatchPortingNotification', () => {
       (call) => call[0].data.title === '[Dispatch] Zmiana statusu sprawy',
     )
     expect(auditCall![0].data.description).toContain('SMTP connection refused')
+  })
+
+  // -------- Error fallback execution --------
+
+  it('triggers error fallback email when primary dispatch returns FAILED and policy allows it', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: 'sales@np.pl',
+        outcome: 'FAILED',
+        mode: 'REAL',
+        messageId: null,
+        errorMessage: 'SMTP primary failure',
+      })
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: 'fallback@np-manager.local',
+        outcome: 'SENT',
+        mode: 'REAL',
+        messageId: 'fallback-msg-1',
+        errorMessage: null,
+      })
+
+    mockFallbackPolicySettings({
+      enabled: 'true',
+      recipientEmail: 'fallback@np-manager.local',
+      recipientName: 'Fallback BOK',
+      applyToFailed: 'true',
+      applyToMisconfigured: 'false',
+    })
+
+    await dispatchPortingNotification({
+      requestId: 'request-fallback-trigger',
+      caseNumber: 'FNP-2026-FALLBACK-TRIGGER',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+    })
+
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(2)
+    expect(mockSendInternalEmail.mock.calls[1]?.[0]).toMatchObject({
+      to: ['fallback@np-manager.local'],
+    })
+
+    const fallbackAuditCall = mockPortingRequestEventCreate.mock.calls.find(
+      (call) => call[0].data.title === '[ErrorFallback] Zmiana statusu sprawy',
+    )
+    expect(fallbackAuditCall).toBeDefined()
+    expect(fallbackAuditCall?.[0]?.data?.description).toContain('ERROR_FALLBACK_TRIGGERED')
+    expect(fallbackAuditCall?.[0]?.data?.description).toContain('fallback@np-manager.local')
+  })
+
+  it('writes skipped error fallback audit note when policy is disabled', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail.mockResolvedValueOnce({
+      channel: 'EMAIL',
+      recipient: 'sales@np.pl',
+      outcome: 'FAILED',
+      mode: 'REAL',
+      messageId: null,
+      errorMessage: 'SMTP down',
+    })
+
+    mockFallbackPolicySettings({ enabled: 'false' })
+
+    await dispatchPortingNotification({
+      requestId: 'request-fallback-skip',
+      caseNumber: 'FNP-2026-FALLBACK-SKIP',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+    })
+
+    const fallbackAuditCall = mockPortingRequestEventCreate.mock.calls.find(
+      (call) => call[0].data.title === '[ErrorFallback] Zmiana statusu sprawy',
+    )
+    expect(fallbackAuditCall).toBeDefined()
+    expect(fallbackAuditCall?.[0]?.data?.description).toContain('SKIPPED')
+    expect(fallbackAuditCall?.[0]?.data?.description).toContain('POLICY_DISABLED')
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not create fallback loop when fallback email itself fails', async () => {
+    mockResolveRecipients.mockResolvedValueOnce([
+      { kind: 'USER', userId: 'sales-1', email: 'sales@np.pl', displayName: 'Jan' },
+    ])
+    mockSendInternalEmail
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: 'sales@np.pl',
+        outcome: 'FAILED',
+        mode: 'REAL',
+        messageId: null,
+        errorMessage: 'SMTP primary failure',
+      })
+      .mockResolvedValueOnce({
+        channel: 'EMAIL',
+        recipient: 'fallback@np-manager.local',
+        outcome: 'FAILED',
+        mode: 'REAL',
+        messageId: null,
+        errorMessage: 'SMTP fallback failure',
+      })
+
+    mockFallbackPolicySettings({
+      enabled: 'true',
+      recipientEmail: 'fallback@np-manager.local',
+      recipientName: 'Fallback BOK',
+      applyToFailed: 'true',
+      applyToMisconfigured: 'true',
+    })
+
+    await dispatchPortingNotification({
+      requestId: 'request-fallback-no-loop',
+      caseNumber: 'FNP-2026-FALLBACK-NO-LOOP',
+      event: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+      commercialOwnerUserId: 'sales-1',
+    })
+
+    expect(mockSendInternalEmail).toHaveBeenCalledTimes(2)
+    const fallbackAuditCall = mockPortingRequestEventCreate.mock.calls.find(
+      (call) => call[0].data.title === '[ErrorFallback] Zmiana statusu sprawy',
+    )
+    expect(fallbackAuditCall?.[0]?.data?.description).toContain('SMTP fallback failure')
   })
 
   // -------- Resilience --------

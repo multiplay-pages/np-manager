@@ -1,24 +1,35 @@
 # Architektura NP-Manager
 
-Dokument opisujący decyzje architektoniczne i strukturę systemu.
+Dokument opisujacy decyzje architektoniczne i strukture systemu.
 
 ## Stack technologiczny
 
 | Warstwa | Technologia | Uzasadnienie |
 |---|---|---|
-| Backend | Node.js 20 + Fastify 4 + TypeScript | Wydajny, wbudowana walidacja schematów, lepsza typizacja niż Express |
-| ORM | Prisma 5 | Type-safe queries, wersjonowane migracje, Prisma Studio |
-| Baza danych | PostgreSQL 16 | ACID, JSONB, enum arrays, pełnotekstowe wyszukiwanie |
-| Frontend | React 18 + Vite 5 + TypeScript | Dojrzały ekosystem, HMR, szybki build |
-| Styling | Tailwind CSS 3 | Utility-first, brak vendor lock-in |
-| State | Zustand | Prosty, bez boilerplate |
-| Walidacja | Zod (współdzielona) | Jeden schemat → frontend + backend |
-| Auth | JWT (@fastify/jwt) | Bezstanowy, skalowalny |
+| Backend | Node.js 20 + Fastify 4 + TypeScript | Wydajny runtime, dobra typizacja i modularny routing |
+| ORM | Prisma 5 | Type-safe queries, migracje i spojny model danych |
+| Baza danych | PostgreSQL 16 | ACID, dobre wsparcie dla danych procesowych i auditowych |
+| Frontend | React 18 + Vite 5 + TypeScript | Szybki build, HMR i dojrzaly ekosystem |
+| Styling | Tailwind CSS 3 | Utility-first i szybka iteracja UI |
+| State | Zustand | Lekki store dla stanu aplikacji |
+| Walidacja | Zod | Jeden kontrakt walidacyjny frontend + backend |
+| Auth | JWT (@fastify/jwt) | Bezstanowy model autoryzacji |
 
-## Dokumenty analityczne
+## Semantyka fallbacku notyfikacji wewnetrznych (EPIC-18)
 
-- Etap 1: Analiza biznesowa i procesowa
-- Etap 2: Plan techniczny i model danych
-- Etap 3: Reguły biznesowe i zgodność procesowa
+W systemie funkcjonuja dwa rozne fallbacki i nie nalezy ich mieszac:
 
-Szczegółowe dokumenty dostępne u architekta systemu.
+1. `ROUTING_TEAM` (owner fallback)
+- Uruchamiany, gdy sprawa nie ma aktywnego opiekuna handlowego.
+- Resolver odbiorcow przechodzi na odbiorcow zespolowych (`TEAM_EMAIL` / `TEAM_WEBHOOK`).
+- Konfiguracja: `porting_status_*` (+ legacy `porting_notify_*`).
+
+2. `ERROR_FALLBACK` (delivery/config fallback)
+- Uruchamiany po primary dispatch, gdy wystapi `FAILED` lub `MISCONFIGURED`.
+- Konfiguracja kanoniczna: `notification_fallback_*`.
+- V1 transport: fallback email na `notification_fallback_recipient_email`.
+- Jedna akcja fallback na jeden dispatch (bez petli fallback->fallback).
+
+Audit i diagnostyka:
+- `[Dispatch] ...` - primary transport audit (podstawa health/failure history),
+- `[ErrorFallback] ...` - decyzja i wynik error fallback (`TRIGGERED` lub `SKIPPED` z reason).

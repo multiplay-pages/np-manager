@@ -20,6 +20,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR15  | Raportowanie i widoki operacyjne commercial owner                    | DONE   |
 | PR16  | Diagnostyka zdrowia notyfikacji (health helper + 4-state badge)     | DONE   |
 | PR17  | Operacyjna historia problemow notyfikacji w szczegolach sprawy      | DONE   |
+| PR18A | Fallback runtime completion (error fallback execution + audit)       | DONE   |
 
 ---
 
@@ -101,6 +102,26 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - frontend: 102 testy PASS,
   - `npx tsc --noEmit` PASS w obu appkach,
   - `npm run build` (shared + backend + frontend) PASS.
+
+### PR18A - fallback runtime completion (error fallback execution)
+
+- Domknieto runtime gap miedzy admin fallback settings a dispatch pipeline wewnetrznych notyfikacji.
+- Dodano kanoniczny resolver polityki fallbacku oparty o `notification_fallback_*`:
+  - `notification_fallback_enabled`
+  - `notification_fallback_recipient_email`
+  - `notification_fallback_recipient_name`
+  - `notification_fallback_apply_to_failed`
+  - `notification_fallback_apply_to_misconfigured`
+- Error fallback uruchamia sie po primary dispatch tylko dla outcome `FAILED` / `MISCONFIGURED` zgodnie z policy.
+- V1 fallback transport: email (`sendInternalEmail`) na `fallbackRecipientEmail`.
+- Brak petli retry fallbacku: fallback to pojedyncza akcja na jeden dispatch.
+- Audit trail:
+  - primary dispatch pozostaje w `[Dispatch] ...`,
+  - nowy wpis `[ErrorFallback] ...` zawiera decyzje: `TRIGGERED` albo `SKIPPED` z reason.
+- Rozroznienie semantyk fallbacku:
+  - `ROUTING_TEAM` (owner missing/inactive -> team recipients) - notatki `Powiadomienie zespolowe: ...`,
+  - `ERROR_FALLBACK` (po bledzie transportu) - notatki `[ErrorFallback] ...`.
+- UI detail (`Historia powiadomien wewnetrznych`) pokazuje rowniez wpisy `[ErrorFallback]`.
 
 ### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
 
