@@ -23,6 +23,7 @@ import {
   getPortingRequestInternalNotifications,
   getPortingRequests,
   getPortingRequestsSummary,
+  retryInternalNotificationAttempt,
   updatePortingRequestAssignment,
 } from './portingRequests.api'
 
@@ -158,6 +159,17 @@ describe('portingRequests.api assignment flow', () => {
 
     expect(getMock).toHaveBeenCalledWith(
       '/porting-requests/request-1/internal-notification-attempts?limit=10',
+    )
+  })
+
+  it('calls internal notification attempt retry endpoint', async () => {
+    postMock.mockResolvedValueOnce({ data: { data: { retryAttempt: { id: 'attempt-retry-1' } } } })
+
+    await retryInternalNotificationAttempt('request-1', 'attempt-1')
+
+    expect(postMock).toHaveBeenCalledWith(
+      '/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
+      {},
     )
   })
 

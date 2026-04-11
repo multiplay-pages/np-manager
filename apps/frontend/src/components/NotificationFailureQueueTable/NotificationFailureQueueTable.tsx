@@ -6,6 +6,8 @@ interface NotificationFailureQueueTableProps {
   items: GlobalNotificationFailureQueueItemDto[]
   isLoading: boolean
   error: string | null
+  retryingAttemptIds: string[]
+  onRetryAttempt: (item: GlobalNotificationFailureQueueItemDto) => void
 }
 
 function getOutcomeClass(outcome: GlobalNotificationFailureQueueItemDto['outcome']): string {
@@ -57,6 +59,8 @@ export function NotificationFailureQueueTable({
   items,
   isLoading,
   error,
+  retryingAttemptIds,
+  onRetryAttempt,
 }: NotificationFailureQueueTableProps) {
   if (isLoading) {
     return (
@@ -94,40 +98,59 @@ export function NotificationFailureQueueTable({
             <th className="px-4 py-3">Ponowienia</th>
             <th className="px-4 py-3">Status retry</th>
             <th className="px-4 py-3">Czas</th>
+            <th className="px-4 py-3">Akcja</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {items.map((item) => (
-            <tr key={item.attemptId} className="bg-white hover:bg-gray-50">
-              <td className="px-4 py-3 font-mono text-xs">
-                <Link
-                  to={buildPath(ROUTES.REQUEST_DETAIL, item.requestId)}
-                  className="text-blue-600 hover:underline"
-                >
-                  {item.requestId.slice(0, 8)}...
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-gray-900">{item.eventLabel}</td>
-              <td className="px-4 py-3">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide ${getOutcomeClass(item.outcome)}`}
-                >
-                  {getOutcomeLabel(item.outcome)}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-gray-600">{getFailureKindLabel(item.failureKind)}</td>
-              <td className="px-4 py-3 text-gray-600">{item.retryCount} / 3</td>
-              <td className="px-4 py-3">
-                <span
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getRetryStatusClass(item)}`}
-                  title={item.retryBlockedReasonCode ?? undefined}
-                >
-                  {getRetryStatusLabel(item)}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-gray-400">{formatRelativeTime(item.createdAt)}</td>
-            </tr>
-          ))}
+          {items.map((item) => {
+            const isRetrying = retryingAttemptIds.includes(item.attemptId)
+
+            return (
+              <tr key={item.attemptId} className="bg-white hover:bg-gray-50">
+                <td className="px-4 py-3 font-mono text-xs">
+                  <Link
+                    to={buildPath(ROUTES.REQUEST_DETAIL, item.requestId)}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {item.requestId.slice(0, 8)}...
+                  </Link>
+                </td>
+                <td className="px-4 py-3 text-gray-900">{item.eventLabel}</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide ${getOutcomeClass(item.outcome)}`}
+                  >
+                    {getOutcomeLabel(item.outcome)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  {getFailureKindLabel(item.failureKind)}
+                </td>
+                <td className="px-4 py-3 text-gray-600">{item.retryCount} / 3</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getRetryStatusClass(item)}`}
+                    title={item.retryBlockedReasonCode ?? undefined}
+                  >
+                    {getRetryStatusLabel(item)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-400">{formatRelativeTime(item.createdAt)}</td>
+                <td className="px-4 py-3">
+                  {item.canRetry && (
+                    <button
+                      type="button"
+                      onClick={() => onRetryAttempt(item)}
+                      disabled={isRetrying}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isRetrying ? 'Ponawiam...' : 'Ponów'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
