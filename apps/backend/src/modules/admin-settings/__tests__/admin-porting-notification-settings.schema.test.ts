@@ -61,7 +61,7 @@ describe('updatePortingNotificationSettingsBodySchema', () => {
           teamsEnabled: false,
           teamsWebhookUrl: '',
         }),
-      ).toThrowError(/Podaj co najmniej jeden adres email/)
+      ).toThrowError(/Lista e-maili fallback jest wymagana/)
     })
 
     it('rzuca błąd gdy teamsEnabled=true i teamsWebhookUrl jest pustym stringiem', () => {
@@ -80,7 +80,7 @@ describe('updatePortingNotificationSettingsBodySchema', () => {
           sharedEmails: 'bok@multiplay.pl',
           teamsEnabled: true,
         }),
-      ).toThrowError(/Podaj URL webhooka Teams gdy Teams jest włączony/)
+      ).toThrowError(/URL webhooka Teams jest wymagany/)
     })
 
     it('nie rzuca błędu dla teamsWebhookUrl gdy teamsEnabled=false', () => {
