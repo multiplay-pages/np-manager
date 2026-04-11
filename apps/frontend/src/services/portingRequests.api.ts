@@ -31,6 +31,7 @@ import type {
   PortingRequestOperationalSummaryDto,
   PortingRequestSummaryQueryDto,
   PreparePortingCommunicationDraftDto,
+  RetryInternalNotificationAttemptResultDto,
   PortingTimelineResultDto,
   SendPortingCommunicationResultDto,
   UpdatePortingRequestStatusDto,
@@ -272,6 +273,18 @@ export async function getGlobalNotificationFailureQueue(
     success: true
     data: GlobalNotificationFailureQueueResultDto
   }>(suffix ? `/internal-notification-failures?${suffix}` : '/internal-notification-failures')
+
+  return response.data.data
+}
+
+export async function retryInternalNotificationAttempt(
+  id: string,
+  attemptId: string,
+): Promise<RetryInternalNotificationAttemptResultDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: RetryInternalNotificationAttemptResultDto
+  }>(`/porting-requests/${id}/internal-notification-attempts/${attemptId}/retry`, {})
 
   return response.data.data
 }
