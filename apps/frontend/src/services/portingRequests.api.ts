@@ -1,5 +1,6 @@
 import { apiClient } from './api.client'
 import type {
+  GlobalNotificationFailureQueueResultDto,
   CommercialOwnerCandidatesResultDto,
   UpdatePortingRequestCommercialOwnerDto,
   CommunicationDeliveryAttemptsResultDto,
@@ -240,6 +241,37 @@ export async function getPortingRequestInternalNotificationAttempts(
       ? `/porting-requests/${id}/internal-notification-attempts?${suffix}`
       : `/porting-requests/${id}/internal-notification-attempts`,
   )
+
+  return response.data.data
+}
+
+export interface GetGlobalNotificationFailureQueueParams {
+  outcomes?: ('FAILED' | 'MISCONFIGURED')[]
+  canRetry?: boolean
+  sort?: 'newest' | 'retryAvailable'
+  limit?: number
+  offset?: number
+}
+
+export async function getGlobalNotificationFailureQueue(
+  params: GetGlobalNotificationFailureQueueParams = {},
+): Promise<GlobalNotificationFailureQueueResultDto> {
+  const query = new URLSearchParams()
+  if (params.outcomes && params.outcomes.length > 0) {
+    query.set('outcome', params.outcomes.join(','))
+  }
+  if (params.canRetry !== undefined) {
+    query.set('canRetry', String(params.canRetry))
+  }
+  if (params.sort) query.set('sort', params.sort)
+  if (params.limit) query.set('limit', String(params.limit))
+  if (params.offset) query.set('offset', String(params.offset))
+
+  const suffix = query.toString()
+  const response = await apiClient.get<{
+    success: true
+    data: GlobalNotificationFailureQueueResultDto
+  }>(suffix ? `/internal-notification-failures?${suffix}` : '/internal-notification-failures')
 
   return response.data.data
 }

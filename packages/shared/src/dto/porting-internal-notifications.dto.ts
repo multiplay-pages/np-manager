@@ -85,6 +85,27 @@ export interface InternalNotificationDeliveryAttemptsResultDto {
   items: InternalNotificationDeliveryAttemptDto[]
 }
 
+export interface GlobalNotificationFailureQueueItemDto {
+  attemptId: string
+  requestId: string
+  eventCode: string
+  eventLabel: string
+  attemptOrigin: InternalNotificationAttemptOriginDto
+  channel: InternalNotificationAttemptChannelDto
+  recipient: string
+  outcome: InternalNotificationAttemptOutcomeDto
+  failureKind: InternalNotificationFailureKindDto
+  retryCount: number
+  canRetry: boolean
+  retryBlockedReasonCode: InternalNotificationRetryBlockedReasonCodeDto | null
+  createdAt: string
+}
+
+export interface GlobalNotificationFailureQueueResultDto {
+  items: GlobalNotificationFailureQueueItemDto[]
+  total: number
+}
+
 export interface RetryInternalNotificationAttemptDto {
   reason?: string
 }

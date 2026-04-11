@@ -16,6 +16,7 @@ import { CommunicationTemplatesAdminPage } from '@/pages/Admin/CommunicationTemp
 import { AdminUsersPage } from '@/pages/Admin/AdminUsersPage'
 import { PortingNotificationSettingsPage } from '@/pages/Admin/PortingNotificationSettingsPage'
 import { NotificationFallbackSettingsPage } from '@/pages/Admin/NotificationFallbackSettingsPage'
+import { NotificationFailureQueuePage } from '@/pages/Notifications/NotificationFailureQueuePage'
 import {
   getDefaultAuthenticatedRoute,
   getForcePasswordChangeRouteRedirect,
@@ -152,6 +153,10 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.REQUEST_DETAIL,
         element: <RequestDetailPage />,
+      },
+      {
+        path: ROUTES.NOTIFICATION_FAILURES,
+        element: <NotificationFailureQueuePage />,
       },
       {
         path: ROUTES.TASKS,

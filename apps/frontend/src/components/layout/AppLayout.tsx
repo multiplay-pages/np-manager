@@ -18,6 +18,12 @@ const primaryNavItems: NavItem[] = [
   { label: 'Klienci', path: ROUTES.CLIENTS, icon: 'K' },
   { label: 'Zadania', path: ROUTES.TASKS, icon: 'Z' },
   { label: 'Raporty', path: ROUTES.REPORTS, icon: 'R', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
+  {
+    label: 'Błędy notyfikacji',
+    path: ROUTES.NOTIFICATION_FAILURES,
+    icon: '!',
+    roles: ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'],
+  },
   { label: 'Operatorzy', path: ROUTES.OPERATORS, icon: 'O' },
 ]
 
