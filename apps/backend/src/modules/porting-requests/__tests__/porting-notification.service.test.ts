@@ -8,6 +8,7 @@ const {
   mockSendInternalEmail,
   mockSendInternalTeamsWebhook,
   mockSystemSettingFindUnique,
+  mockInternalNotificationDeliveryAttemptCreate,
 } = vi.hoisted(() => ({
   mockNotificationCreate: vi.fn(),
   mockPortingRequestEventCreate: vi.fn(),
@@ -15,6 +16,7 @@ const {
   mockSendInternalEmail: vi.fn(),
   mockSendInternalTeamsWebhook: vi.fn(),
   mockSystemSettingFindUnique: vi.fn(),
+  mockInternalNotificationDeliveryAttemptCreate: vi.fn(),
 }))
 
 vi.mock('../../../config/database', () => ({
@@ -27,6 +29,9 @@ vi.mock('../../../config/database', () => ({
     },
     systemSetting: {
       findUnique: (...args: unknown[]) => mockSystemSettingFindUnique(...args),
+    },
+    internalNotificationDeliveryAttempt: {
+      create: (...args: unknown[]) => mockInternalNotificationDeliveryAttemptCreate(...args),
     },
   },
 }))
@@ -108,6 +113,7 @@ describe('dispatchPortingNotification', () => {
     mockSendInternalEmail.mockResolvedValue(STUB_EMAIL_RESULT)
     mockSendInternalTeamsWebhook.mockResolvedValue(STUB_TEAMS_RESULT)
     mockFallbackPolicySettings({ enabled: 'false' })
+    mockInternalNotificationDeliveryAttemptCreate.mockResolvedValue(undefined)
   })
 
   // -------- USER recipient --------
@@ -146,6 +152,19 @@ describe('dispatchPortingNotification', () => {
     expect(mockPortingRequestEventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ title: '[Dispatch] Zmiana statusu sprawy' }),
+      }),
+    )
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          request: { connect: { id: 'request-1' } },
+          eventCode: PORTING_NOTIFICATION_EVENT.STATUS_CHANGED,
+          attemptOrigin: 'PRIMARY',
+          channel: 'EMAIL',
+          recipient: 'stub@np-manager.local',
+          mode: 'STUB',
+          outcome: 'STUBBED',
+        }),
       }),
     )
   })
@@ -328,6 +347,25 @@ describe('dispatchPortingNotification', () => {
     expect(mockSendInternalTeamsWebhook).toHaveBeenCalledTimes(1)
     // 2 routing NOTEs (one per team recipient) + 1 audit NOTE = 3 calls
     expect(mockPortingRequestEventCreate).toHaveBeenCalledTimes(3)
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenCalledTimes(2)
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          attemptOrigin: 'PRIMARY',
+          channel: 'EMAIL',
+        }),
+      }),
+    )
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          attemptOrigin: 'PRIMARY',
+          channel: 'TEAMS',
+        }),
+      }),
+    )
   })
 
   // -------- Transport audit trace --------
@@ -433,6 +471,17 @@ describe('dispatchPortingNotification', () => {
     expect(mockSendInternalEmail.mock.calls[1]?.[0]).toMatchObject({
       to: ['fallback@np-manager.local'],
     })
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenCalledTimes(2)
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          attemptOrigin: 'ERROR_FALLBACK',
+          recipient: 'fallback@np-manager.local',
+          outcome: 'SENT',
+        }),
+      }),
+    )
 
     const fallbackAuditCall = mockPortingRequestEventCreate.mock.calls.find(
       (call) => call[0].data.title === '[ErrorFallback] Zmiana statusu sprawy',
@@ -471,6 +520,14 @@ describe('dispatchPortingNotification', () => {
     expect(fallbackAuditCall?.[0]?.data?.description).toContain('SKIPPED')
     expect(fallbackAuditCall?.[0]?.data?.description).toContain('POLICY_DISABLED')
     expect(mockSendInternalEmail).toHaveBeenCalledTimes(1)
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenCalledTimes(1)
+    expect(mockInternalNotificationDeliveryAttemptCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          attemptOrigin: 'PRIMARY',
+        }),
+      }),
+    )
   })
 
   it('does not create fallback loop when fallback email itself fails', async () => {
@@ -533,6 +590,7 @@ describe('dispatchPortingNotification', () => {
     expect(mockPortingRequestEventCreate).not.toHaveBeenCalled()
     expect(mockSendInternalEmail).not.toHaveBeenCalled()
     expect(mockSendInternalTeamsWebhook).not.toHaveBeenCalled()
+    expect(mockInternalNotificationDeliveryAttemptCreate).not.toHaveBeenCalled()
   })
 
   it('resolves without error even when email transport returns FAILED', async () => {

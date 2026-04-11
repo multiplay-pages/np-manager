@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-09)
+## Aktualny stan projektu (2026-04-11)
 
 ### Zrealizowane PR-y
 
@@ -21,6 +21,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR16  | Diagnostyka zdrowia notyfikacji (health helper + 4-state badge)     | DONE   |
 | PR17  | Operacyjna historia problemow notyfikacji w szczegolach sprawy      | DONE   |
 | PR18A | Fallback runtime completion (error fallback execution + audit)       | DONE   |
+| PR19A-1 | NotificationOps foundation: first-class delivery attempts + dual-write | DONE   |
 
 ---
 
@@ -123,6 +124,25 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - `ERROR_FALLBACK` (po bledzie transportu) - notatki `[ErrorFallback] ...`.
 - UI detail (`Historia powiadomien wewnetrznych`) pokazuje rowniez wpisy `[ErrorFallback]`.
 
+### PR19A-1 - NotificationOps foundation (first-class attempts + dual-write)
+
+- Dodano nowy addytywny model danych: `InternalNotificationDeliveryAttempt`
+  - przeznaczenie: trwale zapisy attemptow runtime (PRIMARY / ERROR_FALLBACK / przyszly RETRY),
+  - model zawiera m.in. `attemptOrigin`, `channel`, `recipient`, `mode`, `outcome`, `failureKind`, `retryOfAttemptId`, `retryCount`, `isLatestForChain`, `triggeredByUserId`.
+- Runtime dispatch wykonuje dual-write:
+  - PRIMARY dispatch zapisuje attempt records dla wynikow transportu email/Teams,
+  - ERROR_FALLBACK zapisuje attempt record tylko gdy fallback wykonuje realna probe transportu.
+- Semantyka zapisu PR19A-1:
+  - persisted sa tylko wykonane proby transportu,
+  - decyzje policy typu `SKIPPED` pozostaja audit-only w `[ErrorFallback]` NOTE (bez synthetic attempt record).
+- Zachowano kompatybilnosc wsteczna:
+  - audit NOTE `[Dispatch] ...` oraz `[ErrorFallback] ...` pozostaje bez zmiany semantyki,
+  - istniejace read modele (`internal-notifications`, `notification-failures`) dalej dzialaja na NOTE parsing.
+- PR19A-1 nie obejmuje:
+  - retry endpointu i retry buttona,
+  - queue/listy operacyjnej,
+  - backfill historycznych NOTE do nowej tabeli.
+
 ### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
 
 - Backend:
@@ -208,6 +228,7 @@ apps/backend/src/modules/porting-requests/
   porting-notification-events.ts
   porting-notification-recipient-resolver.ts
   porting-notification.service.ts          # dispatcher (PR13A+PR13B)
+  # od PR19A-1: dual-write attempt records (PRIMARY + ERROR_FALLBACK)
   internal-notification.adapter.ts         # email + Teams transport (PR13B)
   internal-notification-formatter.ts       # formatter tresci wiadomosci (PR13B)
   porting-notification-health.helper.ts    # single source of truth dla health computation (PR16)
@@ -217,6 +238,7 @@ apps/backend/prisma/
   schema.prisma
   seed.ts
   migrations/
+  # od PR19A-1: tabela internal_notification_delivery_attempts
 
 packages/shared/src/
   constants/index.ts
@@ -245,7 +267,8 @@ apps/frontend/src/
 
 ## Kolejne kroki
 
-- **PR18+**: Rozszerzenie diagnostyki operacyjnej (opcjonalnie: szybkie akcje naprawcze / runbook hints), bez budowy pelnego event explorera.
+- **PR19A-2**: read path na nowym modelu attempts (bez usuwania kompatybilnosci NOTE na starcie).
+- **PR19B**: retry actions + operator-facing failure queue.
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---

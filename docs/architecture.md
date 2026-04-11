@@ -33,3 +33,23 @@ W systemie funkcjonuja dwa rozne fallbacki i nie nalezy ich mieszac:
 Audit i diagnostyka:
 - `[Dispatch] ...` - primary transport audit (podstawa health/failure history),
 - `[ErrorFallback] ...` - decyzja i wynik error fallback (`TRIGGERED` lub `SKIPPED` z reason).
+
+## Notification Operations foundation (EPIC-19 / PR19A-1)
+
+Dodano addytywny, first-class model runtime:
+
+- tabela `internal_notification_delivery_attempts`,
+- rekord tworzony dla kazdego primary transport outcome (`attemptOrigin=PRIMARY`),
+- rekord tworzony dla fallback transport outcome, gdy fallback byl realnie uruchomiony (`attemptOrigin=ERROR_FALLBACK`),
+- pola przygotowujace pod retry chain: `retryOfAttemptId`, `retryCount`, `isLatestForChain`, `triggeredByUserId`.
+
+Semantyka PR19A-1:
+
+- model zapisuje wykonane proby transportu (runtime execution attempts),
+- decyzje policy bez wykonania transportu (np. `SKIPPED/POLICY_DISABLED`) pozostaja w audit NOTE `[ErrorFallback]` i nie sa jeszcze persisted jako attempt.
+
+Istotne zasady:
+
+- model attempts nie zmienia semantyki `ROUTING_TEAM` vs `ERROR_FALLBACK`,
+- NOTE audit pozostaje aktywny i jest utrzymany rownolegle jako warstwa kompatybilnosci,
+- brak retry endpointow i queue UI w PR19A-1 (to zakres kolejnych krokow EPIC-19).
