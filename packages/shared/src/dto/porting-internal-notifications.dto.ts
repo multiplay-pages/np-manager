@@ -51,6 +51,12 @@ export type InternalNotificationAttemptOutcomeDto =
 
 export type InternalNotificationFailureKindDto = 'DELIVERY' | 'CONFIGURATION' | 'POLICY' | null
 
+export type InternalNotificationRetryBlockedReasonCodeDto =
+  | 'NOT_LATEST_IN_CHAIN'
+  | 'ORIGIN_NOT_RETRYABLE'
+  | 'OUTCOME_NOT_RETRYABLE'
+  | 'RETRY_LIMIT_REACHED'
+
 export interface InternalNotificationDeliveryAttemptDto {
   id: string
   requestId: string
@@ -69,10 +75,30 @@ export interface InternalNotificationDeliveryAttemptDto {
   isLatestForChain: boolean
   triggeredByUserId: string | null
   triggeredByDisplayName: string | null
+  canRetry: boolean
+  retryBlockedReasonCode: InternalNotificationRetryBlockedReasonCodeDto | null
   createdAt: string
 }
 
 export interface InternalNotificationDeliveryAttemptsResultDto {
   requestId: string
   items: InternalNotificationDeliveryAttemptDto[]
+}
+
+export interface RetryInternalNotificationAttemptDto {
+  reason?: string
+}
+
+export interface InternalNotificationRetryChainSummaryDto {
+  rootAttemptId: string
+  latestAttemptId: string
+  retryCount: number
+  latestOutcome: InternalNotificationAttemptOutcomeDto
+  isLatestSuccessful: boolean
+}
+
+export interface RetryInternalNotificationAttemptResultDto {
+  sourceAttempt: InternalNotificationDeliveryAttemptDto
+  retryAttempt: InternalNotificationDeliveryAttemptDto
+  chain: InternalNotificationRetryChainSummaryDto
 }

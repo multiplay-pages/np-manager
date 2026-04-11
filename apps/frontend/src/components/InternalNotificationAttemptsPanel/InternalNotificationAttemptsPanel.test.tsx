@@ -22,6 +22,8 @@ const ITEMS: InternalNotificationDeliveryAttemptDto[] = [
     isLatestForChain: true,
     triggeredByUserId: null,
     triggeredByDisplayName: null,
+    canRetry: true,
+    retryBlockedReasonCode: null,
     createdAt: '2026-04-11T10:00:00.000Z',
   },
   {
@@ -42,6 +44,8 @@ const ITEMS: InternalNotificationDeliveryAttemptDto[] = [
     isLatestForChain: true,
     triggeredByUserId: null,
     triggeredByDisplayName: null,
+    canRetry: false,
+    retryBlockedReasonCode: 'ORIGIN_NOT_RETRYABLE',
     createdAt: '2026-04-11T10:01:00.000Z',
   },
 ]
