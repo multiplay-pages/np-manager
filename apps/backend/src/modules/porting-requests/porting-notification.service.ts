@@ -23,6 +23,8 @@ import {
   sendInternalEmail,
   sendInternalTeamsWebhook,
   type InternalNotificationDispatchResult,
+  type InternalNotificationMode,
+  type InternalNotificationOutcome,
 } from './internal-notification.adapter'
 import {
   decideNotificationErrorFallback,
@@ -119,6 +121,15 @@ export async function dispatchPortingNotification(
   }
 
   // 6. Transport audit trace - one NOTE per dispatch summarizing primary outcomes
+  await persistInternalNotificationAttempts({
+    requestId,
+    actorUserId,
+    eventCode: event,
+    eventLabel,
+    attemptOrigin: 'PRIMARY',
+    transportResults,
+  })
+
   if (transportResults.length > 0) {
     await prisma.portingRequestEvent.create({
       data: {
@@ -135,6 +146,7 @@ export async function dispatchPortingNotification(
   await handleNotificationErrorFallback({
     requestId,
     actorUserId,
+    eventCode: event,
     eventLabel,
     message,
     transportResults,
@@ -175,6 +187,7 @@ function buildPrimaryDispatchAuditDescription(results: InternalNotificationDispa
 async function handleNotificationErrorFallback(params: {
   requestId: string
   actorUserId?: string
+  eventCode: PortingNotificationEvent
   eventLabel: string
   message: { subject: string; text: string }
   transportResults: InternalNotificationDispatchResult[]
@@ -194,6 +207,15 @@ async function handleNotificationErrorFallback(params: {
       subject: params.message.subject,
       text: params.message.text,
     })
+
+    await persistInternalNotificationAttempts({
+      requestId: params.requestId,
+      actorUserId: params.actorUserId,
+      eventCode: params.eventCode,
+      eventLabel: params.eventLabel,
+      attemptOrigin: 'ERROR_FALLBACK',
+      transportResults: [fallbackDispatchResult],
+    })
   }
 
   await prisma.portingRequestEvent.create({
@@ -206,6 +228,87 @@ async function handleNotificationErrorFallback(params: {
       ...(params.actorUserId ? { createdBy: { connect: { id: params.actorUserId } } } : {}),
     },
   })
+}
+
+async function persistInternalNotificationAttempts(params: {
+  requestId: string
+  actorUserId?: string
+  eventCode: PortingNotificationEvent
+  eventLabel: string
+  attemptOrigin: 'PRIMARY' | 'ERROR_FALLBACK' | 'RETRY'
+  transportResults: InternalNotificationDispatchResult[]
+}): Promise<void> {
+  if (params.transportResults.length === 0) {
+    return
+  }
+
+  const attemptDelegate = getInternalNotificationAttemptDelegate()
+
+  for (const result of params.transportResults) {
+    await attemptDelegate.create({
+      data: {
+        request: { connect: { id: params.requestId } },
+        eventCode: params.eventCode,
+        eventLabel: params.eventLabel,
+        attemptOrigin: params.attemptOrigin,
+        channel: result.channel,
+        recipient: result.recipient,
+        mode: mapAttemptMode(result.mode),
+        outcome: mapAttemptOutcome(result.outcome),
+        errorCode: mapAttemptErrorCode(result.outcome),
+        errorMessage: result.errorMessage,
+        failureKind: mapFailureKind(result.outcome),
+        retryCount: 0,
+        isLatestForChain: true,
+        ...(params.actorUserId
+          ? { triggeredByUser: { connect: { id: params.actorUserId } } }
+          : {}),
+      },
+    })
+  }
+}
+
+function getInternalNotificationAttemptDelegate():
+  { create: (args: { data: Record<string, unknown> }) => Promise<unknown> } {
+  const prismaWithAttemptDelegate = prisma as unknown as {
+    internalNotificationDeliveryAttempt: {
+      create: (args: { data: Record<string, unknown> }) => Promise<unknown>
+    }
+  }
+
+  return prismaWithAttemptDelegate.internalNotificationDeliveryAttempt
+}
+
+function mapAttemptMode(mode: InternalNotificationMode): 'REAL' | 'STUB' | 'DISABLED' | 'POLICY' {
+  if (mode === 'REAL') return 'REAL'
+  if (mode === 'STUB') return 'STUB'
+  if (mode === 'DISABLED') return 'DISABLED'
+  return 'POLICY'
+}
+
+function mapAttemptOutcome(
+  outcome: InternalNotificationOutcome,
+): 'SENT' | 'STUBBED' | 'DISABLED' | 'MISCONFIGURED' | 'FAILED' | 'SKIPPED' {
+  if (outcome === 'SENT') return 'SENT'
+  if (outcome === 'STUBBED') return 'STUBBED'
+  if (outcome === 'DISABLED') return 'DISABLED'
+  if (outcome === 'MISCONFIGURED') return 'MISCONFIGURED'
+  if (outcome === 'FAILED') return 'FAILED'
+  return 'SKIPPED'
+}
+
+function mapFailureKind(
+  outcome: InternalNotificationOutcome,
+): 'DELIVERY' | 'CONFIGURATION' | 'POLICY' | null {
+  if (outcome === 'FAILED') return 'DELIVERY'
+  if (outcome === 'MISCONFIGURED') return 'CONFIGURATION'
+  return null
+}
+
+function mapAttemptErrorCode(outcome: InternalNotificationOutcome): string | null {
+  if (outcome === 'FAILED') return 'DELIVERY_FAILED'
+  if (outcome === 'MISCONFIGURED') return 'TRANSPORT_MISCONFIGURED'
+  return null
 }
 
 function buildErrorFallbackAuditDescription(
