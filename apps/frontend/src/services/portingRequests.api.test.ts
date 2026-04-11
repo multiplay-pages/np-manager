@@ -23,6 +23,7 @@ import {
   getPortingRequestInternalNotifications,
   getPortingRequests,
   getPortingRequestsSummary,
+  retryInternalNotificationAttempt,
   updatePortingRequestAssignment,
 } from './portingRequests.api'
 
@@ -158,6 +159,44 @@ describe('portingRequests.api assignment flow', () => {
 
     expect(getMock).toHaveBeenCalledWith(
       '/porting-requests/request-1/internal-notification-attempts?limit=10',
+    )
+  })
+
+  it('calls internal notification attempt retry endpoint without reason by default', async () => {
+    postMock.mockResolvedValueOnce({
+      data: {
+        data: {
+          sourceAttempt: { id: 'attempt-1' },
+          retryAttempt: { id: 'attempt-retry-1' },
+          chain: { latestAttemptId: 'attempt-retry-1' },
+        },
+      },
+    })
+
+    await retryInternalNotificationAttempt('request-1', 'attempt-1')
+
+    expect(postMock).toHaveBeenCalledWith(
+      '/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
+      undefined,
+    )
+  })
+
+  it('calls internal notification attempt retry endpoint with optional reason', async () => {
+    postMock.mockResolvedValueOnce({
+      data: {
+        data: {
+          sourceAttempt: { id: 'attempt-1' },
+          retryAttempt: { id: 'attempt-retry-1' },
+          chain: { latestAttemptId: 'attempt-retry-1' },
+        },
+      },
+    })
+
+    await retryInternalNotificationAttempt('request-1', 'attempt-1', 'Ponowienie operacyjne')
+
+    expect(postMock).toHaveBeenCalledWith(
+      '/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
+      { reason: 'Ponowienie operacyjne' },
     )
   })
 

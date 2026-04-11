@@ -1590,9 +1590,11 @@ export function RequestDetailPage() {
           />
 
           <InternalNotificationAttemptsPanel
+            requestId={id ?? ''}
             items={internalNotificationAttemptItems}
             isLoading={isInternalNotificationAttemptsLoading}
             error={internalNotificationAttemptsError}
+            onRefreshAttempts={loadInternalNotificationAttempts}
           />
 
           {isAdmin && (
