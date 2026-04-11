@@ -198,6 +198,39 @@ enum CommunicationDeliveryOutcome {
   STUBBED
 }
 
+enum InternalNotificationAttemptOrigin {
+  PRIMARY
+  ERROR_FALLBACK
+  RETRY
+}
+
+enum InternalNotificationAttemptChannel {
+  EMAIL
+  TEAMS
+}
+
+enum InternalNotificationAttemptMode {
+  REAL
+  STUB
+  DISABLED
+  POLICY
+}
+
+enum InternalNotificationAttemptOutcome {
+  SENT
+  STUBBED
+  DISABLED
+  MISCONFIGURED
+  FAILED
+  SKIPPED
+}
+
+enum InternalNotificationFailureKind {
+  DELIVERY
+  CONFIGURATION
+  POLICY
+}
+
 enum PortingCommunicationTriggerType {
   CASE_RECEIVED
   SENT_TO_EXTERNAL_SYSTEM
@@ -280,6 +313,7 @@ model User {
   updatedCommunicationTemplateVersions    CommunicationTemplateVersion[]    @relation("CommunicationTemplateVersionUpdatedBy")
   publishedCommunicationTemplateVersions  CommunicationTemplateVersion[]    @relation("CommunicationTemplateVersionPublishedBy")
   communicationDeliveryAttempts           CommunicationDeliveryAttempt[]    @relation("CommunicationDeliveryAttemptBy")
+  internalNotificationAttemptsTriggered   InternalNotificationDeliveryAttempt[] @relation("InternalNotificationAttemptTriggeredBy")
   adminActionsPerformed                   UserAdminAuditLog[]               @relation("UserAdminAuditLogActor")
   adminActionsReceived                    UserAdminAuditLog[]               @relation("UserAdminAuditLogTarget")
 
@@ -471,6 +505,7 @@ model PortingRequest {
   caseHistoryEntries       PortingRequestCaseHistory[]
   assignmentHistoryEntries PortingRequestAssignmentHistory[]
   communications           PortingCommunication[]
+  internalNotificationDeliveryAttempts InternalNotificationDeliveryAttempt[]
 
   @@index([clientId])
   @@index([statusInternal])
@@ -685,6 +720,40 @@ model CommunicationDeliveryAttempt {
   @@index([communicationId])
   @@index([communicationId, attemptedAt])
   @@map("communication_delivery_attempts")
+}
+
+model InternalNotificationDeliveryAttempt {
+  id               String                             @id @default(uuid())
+  requestId        String
+  eventCode        String                             @db.VarChar(50)
+  eventLabel       String                             @db.VarChar(200)
+  attemptOrigin    InternalNotificationAttemptOrigin
+  channel          InternalNotificationAttemptChannel
+  recipient        String                             @db.VarChar(300)
+  mode             InternalNotificationAttemptMode
+  outcome          InternalNotificationAttemptOutcome
+  errorCode        String?                            @db.VarChar(100)
+  errorMessage     String?                            @db.Text
+  failureKind      InternalNotificationFailureKind?
+  retryOfAttemptId String?
+  retryCount       Int                                @default(0)
+  isLatestForChain Boolean                            @default(true)
+  triggeredByUserId String?
+  createdAt        DateTime                           @default(now())
+
+  request         PortingRequest                      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  retryOfAttempt  InternalNotificationDeliveryAttempt? @relation("InternalNotificationRetryChain", fields: [retryOfAttemptId], references: [id], onDelete: SetNull)
+  retryAttempts   InternalNotificationDeliveryAttempt[] @relation("InternalNotificationRetryChain")
+  triggeredByUser User?                               @relation("InternalNotificationAttemptTriggeredBy", fields: [triggeredByUserId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([requestId, createdAt])
+  @@index([outcome])
+  @@index([attemptOrigin, outcome, createdAt])
+  @@index([retryOfAttemptId])
+  @@index([isLatestForChain])
+  @@index([triggeredByUserId])
+  @@map("internal_notification_delivery_attempts")
 }
 
 model CommunicationTemplate {
