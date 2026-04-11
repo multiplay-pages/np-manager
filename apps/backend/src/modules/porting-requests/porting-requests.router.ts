@@ -10,6 +10,7 @@ import {
   portingRequestListQuerySchema,
   portingRequestSummaryQuerySchema,
   preparePortingCommunicationDraftSchema,
+  retryInternalNotificationAttemptSchema,
   updatePortingRequestAssignmentSchema,
   updatePortingRequestCommercialOwnerSchema,
   updatePortingRequestStatusSchema,
@@ -46,7 +47,11 @@ import {
 import { getPortingRequestTimeline } from './porting-events.service'
 import { getPortingRequestCaseHistory } from './porting-request-case-history.service'
 import { getPortingRequestInternalNotifications } from './porting-internal-notification-history.service'
-import { getPortingRequestInternalNotificationAttempts } from './porting-internal-notification-attempts.service'
+import {
+  getPortingRequestInternalNotificationAttempts,
+  InternalNotificationRetryConflictError,
+  retryInternalNotificationAttempt,
+} from './porting-internal-notification-attempts.service'
 import { getPortingRequestNotificationFailures } from './porting-notification-failure-history.service'
 import {
   buildE03DraftForPortingRequest,
@@ -79,6 +84,12 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
   const commercialOwnerWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'MANAGER']
   const externalActionRoles: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
   const pliCbdRoles: UserRole[] = ['ADMIN']
+  const internalNotificationRetryRoles: UserRole[] = [
+    'ADMIN',
+    'BOK_CONSULTANT',
+    'BACK_OFFICE',
+    'MANAGER',
+  ]
 
   app.get('/', { preHandler: [authenticate, authorize(readRoles)] }, async (request, reply) => {
     const query = portingRequestListQuerySchema.parse(request.query)
@@ -159,6 +170,39 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
         query.limit,
       )
       return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.post<{ Params: { id: string; attemptId: string } }>(
+    '/:id/internal-notification-attempts/:attemptId/retry',
+    { preHandler: [authenticate, authorize(internalNotificationRetryRoles)] },
+    async (request, reply) => {
+      const body = retryInternalNotificationAttemptSchema.parse(request.body ?? {})
+
+      try {
+        const result = await retryInternalNotificationAttempt(
+          request.params.id,
+          request.params.attemptId,
+          body,
+          request.user.id,
+          request.ip,
+          request.headers['user-agent'],
+        )
+        return reply.status(201).send({ success: true, data: result })
+      } catch (error) {
+        if (error instanceof InternalNotificationRetryConflictError) {
+          return reply.status(409).send({
+            success: false,
+            error: {
+              code: error.code,
+              message: error.message,
+              retryBlockedReasonCode: error.retryBlockedReasonCode,
+            },
+          })
+        }
+
+        throw error
+      }
     },
   )
 

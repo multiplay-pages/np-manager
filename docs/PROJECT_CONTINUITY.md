@@ -23,6 +23,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR18A | Fallback runtime completion (error fallback execution + audit)       | DONE   |
 | PR19A-1 | NotificationOps foundation: first-class delivery attempts + dual-write | DONE   |
 | PR19A-2 | Request-level read layer dla internal notification attempts        | DONE   |
+| PR19B-1 | Backend retry eligibility + request-scoped retry endpoint          | DONE   |
 
 ---
 
@@ -161,6 +162,36 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - NOTE parsing nie zostal usuniety,
   - brak retry endpointu, retry buttona, global queue UI i backfillu historycznych NOTE.
 
+### PR19B-1 - backend retry eligibility i request-scoped retry
+
+- Dodano kanoniczny helper eligibility retry dla `InternalNotificationDeliveryAttempt`:
+  - retryowalne sa tylko `attemptOrigin=PRIMARY | RETRY`,
+  - retryowalne sa tylko outcome `FAILED | MISCONFIGURED`,
+  - retry wymaga `isLatestForChain=true`,
+  - limit v1: `retryCount < 3`.
+- Read API `GET /api/porting-requests/:id/internal-notification-attempts` zwraca teraz dla kazdego attemptu:
+  - `canRetry`,
+  - `retryBlockedReasonCode`.
+- Dodano endpoint:
+  - `POST /api/porting-requests/:id/internal-notification-attempts/:attemptId/retry`,
+  - body: `{ reason?: string }` (`reason` max 300 znakow),
+  - role: `ADMIN`, `BOK_CONSULTANT`, `BACK_OFFICE`, `MANAGER`,
+  - `409` zwraca `retryBlockedReasonCode`.
+- Retry wykonuje transport ponownie dla tego samego `channel`, `recipient` i `eventCode`, ale z aktualna konfiguracja adapterow.
+- Nowy attempt ma:
+  - `attemptOrigin=RETRY`,
+  - `retryOfAttemptId=sourceAttempt.id`,
+  - `retryCount=source.retryCount + 1`,
+  - `triggeredByUserId=currentUser.id`,
+  - `isLatestForChain=true`.
+- Poprzedni latest attempt w chain jest przestawiany na `isLatestForChain=false`.
+- Retry ma wlasny marker NOTE: `[NotificationRetry]`.
+- Retry nie uruchamia `ERROR_FALLBACK`, nie uruchamia routing fallback i nie zmienia NOTE-based historii PR14/PR17.
+- Pragmatyczna granica transakcji PR19B-1:
+  - zewnetrzne I/O transportu nie jest trzymane w dlugiej transakcji DB,
+  - eligibility jest sprawdzane przed transportem i ponownie w krotkiej transakcji zapisu,
+  - w rzadkim wyscigu po wykonaniu transportu, ale przed zapisem, transakcja moze odrzucic retry jako juz nie-latest.
+
 ### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
 
 - Backend:
@@ -289,6 +320,7 @@ apps/frontend/src/
 ## Kolejne kroki
 
 - **PR19B**: retry actions oparte o `InternalNotificationDeliveryAttempt.id` + operator-facing failure queue.
+- **PR19B-2**: UI retry action / kolejka operacyjna moze oprzec sie na `canRetry`, `retryBlockedReasonCode` i endpoint PR19B-1; RBAC nadal musi byc respektowany backendowo.
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---

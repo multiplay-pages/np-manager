@@ -376,6 +376,14 @@ export type InternalNotificationAttemptsQuery = z.input<
   typeof internalNotificationAttemptsQuerySchema
 >
 
+export const retryInternalNotificationAttemptSchema = z.object({
+  reason: optionalTrimmedString(300),
+})
+
+export type RetryInternalNotificationAttemptBody = z.infer<
+  typeof retryInternalNotificationAttemptSchema
+>
+
 export const updatePortingRequestAssignmentSchema = z.object({
   assignedUserId: z.preprocess(
     (value) => (value === '' ? null : value),

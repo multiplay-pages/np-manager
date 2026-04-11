@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetAttempts } = vi.hoisted(() => ({
+const { mockGetAttempts, mockRetryAttempt } = vi.hoisted(() => ({
   mockGetAttempts: vi.fn(),
+  mockRetryAttempt: vi.fn(),
 }))
 
 vi.mock('../config/env', () => ({
@@ -90,6 +91,18 @@ vi.mock('../modules/porting-requests/porting-notification-failure-history.servic
 
 vi.mock('../modules/porting-requests/porting-internal-notification-attempts.service', () => ({
   getPortingRequestInternalNotificationAttempts: (...args: unknown[]) => mockGetAttempts(...args),
+  retryInternalNotificationAttempt: (...args: unknown[]) => mockRetryAttempt(...args),
+  InternalNotificationRetryConflictError: class InternalNotificationRetryConflictError extends Error {
+    statusCode = 409
+    code = 'INTERNAL_NOTIFICATION_RETRY_NOT_ELIGIBLE'
+    isOperational = true
+    retryBlockedReasonCode: string
+
+    constructor(retryBlockedReasonCode: string) {
+      super('Wybrana proba dostarczenia nie kwalifikuje sie do ponowienia.')
+      this.retryBlockedReasonCode = retryBlockedReasonCode
+    }
+  },
 }))
 
 vi.mock('../modules/pli-cbd/fnp-process.service', () => ({
@@ -114,6 +127,7 @@ vi.mock('../modules/pli-cbd/pli-cbd-export.service', () => ({
 
 import { AppError } from '../shared/errors/app-error'
 import { buildApp } from '../app'
+import { InternalNotificationRetryConflictError } from '../modules/porting-requests/porting-internal-notification-attempts.service'
 
 const ATTEMPTS_RESULT = {
   requestId: 'request-1',
@@ -136,15 +150,50 @@ const ATTEMPTS_RESULT = {
       isLatestForChain: true,
       triggeredByUserId: null,
       triggeredByDisplayName: null,
+      canRetry: true,
+      retryBlockedReasonCode: null,
       createdAt: '2026-04-11T10:00:00.000Z',
     },
   ],
+}
+
+const RETRY_RESULT = {
+  sourceAttempt: {
+    ...ATTEMPTS_RESULT.items[0],
+    isLatestForChain: false,
+    canRetry: false,
+    retryBlockedReasonCode: 'NOT_LATEST_IN_CHAIN',
+  },
+  retryAttempt: {
+    ...ATTEMPTS_RESULT.items[0],
+    id: 'attempt-retry-1',
+    attemptOrigin: 'RETRY',
+    outcome: 'SENT',
+    errorCode: null,
+    errorMessage: null,
+    failureKind: null,
+    retryOfAttemptId: 'attempt-1',
+    retryCount: 1,
+    triggeredByUserId: 'manager-1',
+    triggeredByDisplayName: 'Marta Manager (manager@np-manager.local)',
+    canRetry: false,
+    retryBlockedReasonCode: 'OUTCOME_NOT_RETRYABLE',
+    createdAt: '2026-04-11T10:05:00.000Z',
+  },
+  chain: {
+    rootAttemptId: 'attempt-1',
+    latestAttemptId: 'attempt-retry-1',
+    retryCount: 1,
+    latestOutcome: 'SENT',
+    isLatestSuccessful: true,
+  },
 }
 
 describe('GET /api/porting-requests/:id/internal-notification-attempts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetAttempts.mockResolvedValue(ATTEMPTS_RESULT)
+    mockRetryAttempt.mockResolvedValue(RETRY_RESULT)
   })
 
   it('returns 401 without JWT token', async () => {
@@ -238,6 +287,125 @@ describe('GET /api/porting-requests/:id/internal-notification-attempts', () => {
       })
 
       expect(response.statusCode).toBe(404)
+    } finally {
+      await app.close()
+    }
+  })
+})
+
+describe('POST /api/porting-requests/:id/internal-notification-attempts/:attemptId/retry', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetAttempts.mockResolvedValue(ATTEMPTS_RESULT)
+    mockRetryAttempt.mockResolvedValue(RETRY_RESULT)
+  })
+
+  it('returns 401 without JWT token', async () => {
+    const app = await buildApp()
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
+      })
+
+      expect(response.statusCode).toBe(401)
+      expect(mockRetryAttempt).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns 403 for AUDITOR role', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'auditor-1', role: 'AUDITOR' })
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { reason: 'test' },
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(mockRetryAttempt).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns 201 for allowed role with retry result contract', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'manager-1', role: 'MANAGER' })
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { reason: 'Ponawiam po poprawie SMTP' },
+      })
+
+      expect(response.statusCode).toBe(201)
+      const body = response.json<{ success: true; data: typeof RETRY_RESULT }>()
+      expect(body.success).toBe(true)
+      expect(body.data.sourceAttempt.id).toBe('attempt-1')
+      expect(body.data.retryAttempt.id).toBe('attempt-retry-1')
+      expect(body.data.chain.latestAttemptId).toBe('attempt-retry-1')
+      expect(mockRetryAttempt).toHaveBeenCalledWith(
+        'request-1',
+        'attempt-1',
+        { reason: 'Ponawiam po poprawie SMTP' },
+        'manager-1',
+        expect.any(String),
+        'lightMyRequest',
+      )
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns 404 for missing request or attempt', async () => {
+    mockRetryAttempt.mockRejectedValueOnce(
+      AppError.notFound('Sprawa portowania lub proba dostarczenia nie zostala znaleziona.'),
+    )
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/porting-requests/missing/internal-notification-attempts/missing-attempt/retry',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(404)
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns 409 with retryBlockedReasonCode for non-eligible attempt', async () => {
+    mockRetryAttempt.mockRejectedValueOnce(
+      new InternalNotificationRetryConflictError('OUTCOME_NOT_RETRYABLE'),
+    )
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/porting-requests/request-1/internal-notification-attempts/attempt-sent/retry',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(409)
+      const body = response.json<{
+        success: false
+        error: { retryBlockedReasonCode: string }
+      }>()
+      expect(body.error.retryBlockedReasonCode).toBe('OUTCOME_NOT_RETRYABLE')
     } finally {
       await app.close()
     }
