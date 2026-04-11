@@ -5,6 +5,7 @@ import { authorize } from '../../shared/middleware/authorize'
 import {
   createPortingRequestSchema,
   executePortingRequestExternalActionSchema,
+  internalNotificationAttemptsQuerySchema,
   markPortingCommunicationSentSchema,
   portingRequestListQuerySchema,
   portingRequestSummaryQuerySchema,
@@ -45,6 +46,7 @@ import {
 import { getPortingRequestTimeline } from './porting-events.service'
 import { getPortingRequestCaseHistory } from './porting-request-case-history.service'
 import { getPortingRequestInternalNotifications } from './porting-internal-notification-history.service'
+import { getPortingRequestInternalNotificationAttempts } from './porting-internal-notification-attempts.service'
 import { getPortingRequestNotificationFailures } from './porting-notification-failure-history.service'
 import {
   buildE03DraftForPortingRequest,
@@ -143,6 +145,19 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     { preHandler: [authenticate, authorize(readRoles)] },
     async (request, reply) => {
       const result = await getPortingRequestInternalNotifications(request.params.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/internal-notification-attempts',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const query = internalNotificationAttemptsQuerySchema.parse(request.query)
+      const result = await getPortingRequestInternalNotificationAttempts(
+        request.params.id,
+        query.limit,
+      )
       return reply.status(200).send({ success: true, data: result })
     },
   )

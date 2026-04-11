@@ -24,6 +24,7 @@ import type {
   PortingRequestDetailDto,
   NotificationFailureHistoryResultDto,
   PortingInternalNotificationHistoryResultDto,
+  InternalNotificationDeliveryAttemptsResultDto,
   PortingRequestListQueryDto,
   PortingRequestListResultDto,
   PortingRequestOperationalSummaryDto,
@@ -219,6 +220,26 @@ export async function getPortingRequestInternalNotifications(
     success: true
     data: PortingInternalNotificationHistoryResultDto
   }>(`/porting-requests/${id}/internal-notifications`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestInternalNotificationAttempts(
+  id: string,
+  limit?: number,
+): Promise<InternalNotificationDeliveryAttemptsResultDto> {
+  const query = new URLSearchParams()
+  if (limit) query.set('limit', String(limit))
+
+  const suffix = query.toString()
+  const response = await apiClient.get<{
+    success: true
+    data: InternalNotificationDeliveryAttemptsResultDto
+  }>(
+    suffix
+      ? `/porting-requests/${id}/internal-notification-attempts?${suffix}`
+      : `/porting-requests/${id}/internal-notification-attempts`,
+  )
 
   return response.data.data
 }

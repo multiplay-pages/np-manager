@@ -16,6 +16,7 @@ vi.mock('./api.client', () => ({
 
 import {
   assignPortingRequestToMe,
+  getPortingRequestInternalNotificationAttempts,
   getPortingRequestNotificationFailures,
   getPortingRequestAssignmentHistory,
   getPortingRequestAssignmentUsers,
@@ -148,6 +149,16 @@ describe('portingRequests.api assignment flow', () => {
     await getPortingRequestInternalNotifications('request-1')
 
     expect(getMock).toHaveBeenCalledWith('/porting-requests/request-1/internal-notifications')
+  })
+
+  it('calls internal notification attempts endpoint with optional limit', async () => {
+    getMock.mockResolvedValueOnce({ data: { data: { requestId: 'request-1', items: [] } } })
+
+    await getPortingRequestInternalNotificationAttempts('request-1', 10)
+
+    expect(getMock).toHaveBeenCalledWith(
+      '/porting-requests/request-1/internal-notification-attempts?limit=10',
+    )
   })
 
   it('calls notification failures endpoint', async () => {

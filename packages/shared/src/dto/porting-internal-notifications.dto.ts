@@ -34,3 +34,45 @@ export interface PortingInternalNotificationHistoryItemDto {
 export interface PortingInternalNotificationHistoryResultDto {
   items: PortingInternalNotificationHistoryItemDto[]
 }
+
+export type InternalNotificationAttemptOriginDto = 'PRIMARY' | 'ERROR_FALLBACK' | 'RETRY'
+
+export type InternalNotificationAttemptChannelDto = 'EMAIL' | 'TEAMS'
+
+export type InternalNotificationAttemptModeDto = 'REAL' | 'STUB' | 'DISABLED' | 'POLICY'
+
+export type InternalNotificationAttemptOutcomeDto =
+  | 'SENT'
+  | 'STUBBED'
+  | 'DISABLED'
+  | 'MISCONFIGURED'
+  | 'FAILED'
+  | 'SKIPPED'
+
+export type InternalNotificationFailureKindDto = 'DELIVERY' | 'CONFIGURATION' | 'POLICY' | null
+
+export interface InternalNotificationDeliveryAttemptDto {
+  id: string
+  requestId: string
+  eventCode: string
+  eventLabel: string
+  attemptOrigin: InternalNotificationAttemptOriginDto
+  channel: InternalNotificationAttemptChannelDto
+  recipient: string
+  mode: InternalNotificationAttemptModeDto
+  outcome: InternalNotificationAttemptOutcomeDto
+  errorCode: string | null
+  errorMessage: string | null
+  failureKind: InternalNotificationFailureKindDto
+  retryOfAttemptId: string | null
+  retryCount: number
+  isLatestForChain: boolean
+  triggeredByUserId: string | null
+  triggeredByDisplayName: string | null
+  createdAt: string
+}
+
+export interface InternalNotificationDeliveryAttemptsResultDto {
+  requestId: string
+  items: InternalNotificationDeliveryAttemptDto[]
+}

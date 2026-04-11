@@ -34,7 +34,7 @@ Audit i diagnostyka:
 - `[Dispatch] ...` - primary transport audit (podstawa health/failure history),
 - `[ErrorFallback] ...` - decyzja i wynik error fallback (`TRIGGERED` lub `SKIPPED` z reason).
 
-## Notification Operations foundation (EPIC-19 / PR19A-1)
+## Notification Operations foundation (EPIC-19 / PR19A-1 + PR19A-2)
 
 Dodano addytywny, first-class model runtime:
 
@@ -53,3 +53,16 @@ Istotne zasady:
 - model attempts nie zmienia semantyki `ROUTING_TEAM` vs `ERROR_FALLBACK`,
 - NOTE audit pozostaje aktywny i jest utrzymany rownolegle jako warstwa kompatybilnosci,
 - brak retry endpointow i queue UI w PR19A-1 (to zakres kolejnych krokow EPIC-19).
+
+Read layer PR19A-2:
+
+- request-level endpoint: `GET /api/porting-requests/:id/internal-notification-attempts`,
+- shared DTO w `porting-internal-notifications.dto.ts`,
+- UI detail pokazuje osobny panel `Proby dostarczenia notyfikacji`.
+
+Semantyka read modelu:
+
+- `Historia powiadomien wewnetrznych` nadal pokazuje szersza historie eventow, routingu i audit NOTE,
+- `Proby dostarczenia notyfikacji` pokazuje first-class ledger wykonanych prob transportu,
+- PR19A-2 nie usuwa NOTE parsing i nie backfilluje historycznych NOTE,
+- retry endpoint, retry button i global queue pozostaja zakresem PR19B.
