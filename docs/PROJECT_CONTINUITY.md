@@ -22,6 +22,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR17  | Operacyjna historia problemow notyfikacji w szczegolach sprawy      | DONE   |
 | PR18A | Fallback runtime completion (error fallback execution + audit)       | DONE   |
 | PR19A-1 | NotificationOps foundation: first-class delivery attempts + dual-write | DONE   |
+| PR19A-2 | Request-level read layer dla internal notification attempts        | DONE   |
 
 ---
 
@@ -143,6 +144,23 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - queue/listy operacyjnej,
   - backfill historycznych NOTE do nowej tabeli.
 
+### PR19A-2 - request-level read layer dla attempts
+
+- Dodano request-level endpoint:
+  - `GET /api/porting-requests/:id/internal-notification-attempts`
+  - endpoint zwraca first-class ledger wykonanych prob transportu z tabeli `InternalNotificationDeliveryAttempt`.
+- Dodano shared DTO dla internal notification attempts:
+  - origin/channel/mode/outcome/failureKind,
+  - dane request/event/recipient/error/retry-chain jako read-only kontrakt pod PR19B.
+- Frontend `RequestDetailPage` ma minimalny panel read-only `Proby dostarczenia notyfikacji`.
+- Semantyka UI:
+  - `Historia powiadomien wewnetrznych` = szersza historia eventow, routingu i audit NOTE,
+  - `Proby dostarczenia notyfikacji` = ledger wykonanych prob transportu z modelu attempts.
+- Zachowano kompatybilnosc:
+  - istniejace panele `internal-notifications` i `notification-failures` nadal dzialaja rownolegle,
+  - NOTE parsing nie zostal usuniety,
+  - brak retry endpointu, retry buttona, global queue UI i backfillu historycznych NOTE.
+
 ### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
 
 - Backend:
@@ -229,6 +247,7 @@ apps/backend/src/modules/porting-requests/
   porting-notification-recipient-resolver.ts
   porting-notification.service.ts          # dispatcher (PR13A+PR13B)
   # od PR19A-1: dual-write attempt records (PRIMARY + ERROR_FALLBACK)
+  porting-internal-notification-attempts.service.ts # od PR19A-2: read layer attempts
   internal-notification.adapter.ts         # email + Teams transport (PR13B)
   internal-notification-formatter.ts       # formatter tresci wiadomosci (PR13B)
   porting-notification-health.helper.ts    # single source of truth dla health computation (PR16)
@@ -243,8 +262,10 @@ apps/backend/prisma/
 packages/shared/src/
   constants/index.ts
   dto/porting-requests.dto.ts
+  dto/porting-internal-notifications.dto.ts # historia + DTO attempts (PR19A-2)
 
 apps/frontend/src/
+  components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel.tsx
   components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel.tsx
   pages/Requests/RequestDetailPage.tsx
   pages/Requests/RequestsPage.tsx
@@ -267,8 +288,7 @@ apps/frontend/src/
 
 ## Kolejne kroki
 
-- **PR19A-2**: read path na nowym modelu attempts (bez usuwania kompatybilnosci NOTE na starcie).
-- **PR19B**: retry actions + operator-facing failure queue.
+- **PR19B**: retry actions oparte o `InternalNotificationDeliveryAttempt.id` + operator-facing failure queue.
 - Future: podlaczenie pozostalych eventow z katalogu (E03, E06, E12, E13, NUMBER_PORTED, CASE_REJECTED)
 
 ---

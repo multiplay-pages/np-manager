@@ -368,6 +368,14 @@ export const portingRequestSummaryQuerySchema = portingRequestListQuerySchema.om
 
 export type PortingRequestSummaryQuery = z.input<typeof portingRequestSummaryQuerySchema>
 
+export const internalNotificationAttemptsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+})
+
+export type InternalNotificationAttemptsQuery = z.input<
+  typeof internalNotificationAttemptsQuerySchema
+>
+
 export const updatePortingRequestAssignmentSchema = z.object({
   assignedUserId: z.preprocess(
     (value) => (value === '' ? null : value),

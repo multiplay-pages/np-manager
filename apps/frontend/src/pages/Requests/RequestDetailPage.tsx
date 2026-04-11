@@ -14,6 +14,7 @@ import {
   getPortingRequestById,
   getPortingRequestCaseHistory,
   getPortingRequestCommunicationHistory,
+  getPortingRequestInternalNotificationAttempts,
   getPortingRequestInternalNotifications,
   getPortingRequestNotificationFailures,
   getPortingRequestE03Draft,
@@ -57,6 +58,7 @@ import {
   type PortingCommunicationDto,
   type PortingCommunicationPreviewDto,
   type PortingCommunicationSummaryDto,
+  type InternalNotificationDeliveryAttemptDto,
   type PortingInternalNotificationHistoryItemDto,
   type PortingRequestAssignmentUserOptionDto,
   type PortingRequestCaseHistoryItemDto,
@@ -81,6 +83,7 @@ import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbd
 import { PliCbdTechnicalPayloadPreview } from '@/components/PliCbdTechnicalPayloadPreview/PliCbdTechnicalPayloadPreview'
 import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview'
 import { PortingInternalNotificationsPanel } from '@/components/PortingInternalNotificationsPanel/PortingInternalNotificationsPanel'
+import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
 import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import {
@@ -405,6 +408,14 @@ export function RequestDetailPage() {
   >([])
   const [isInternalNotificationLoading, setIsInternalNotificationLoading] = useState(true)
   const [internalNotificationError, setInternalNotificationError] = useState<string | null>(null)
+  const [internalNotificationAttemptItems, setInternalNotificationAttemptItems] = useState<
+    InternalNotificationDeliveryAttemptDto[]
+  >([])
+  const [isInternalNotificationAttemptsLoading, setIsInternalNotificationAttemptsLoading] =
+    useState(true)
+  const [internalNotificationAttemptsError, setInternalNotificationAttemptsError] = useState<
+    string | null
+  >(null)
   const [notificationFailureItems, setNotificationFailureItems] = useState<
     NotificationFailureHistoryItemDto[]
   >([])
@@ -659,6 +670,23 @@ export function RequestDetailPage() {
       )
     } finally {
       setIsInternalNotificationLoading(false)
+    }
+  }, [id])
+
+  const loadInternalNotificationAttempts = useCallback(async () => {
+    if (!id) return
+
+    setIsInternalNotificationAttemptsLoading(true)
+    setInternalNotificationAttemptsError(null)
+
+    try {
+      const result = await getPortingRequestInternalNotificationAttempts(id)
+      setInternalNotificationAttemptItems(result.items)
+    } catch {
+      setInternalNotificationAttemptItems([])
+      setInternalNotificationAttemptsError('Nie udalo sie zaladowac prob dostarczenia notyfikacji.')
+    } finally {
+      setIsInternalNotificationAttemptsLoading(false)
     }
   }, [id])
 
@@ -918,6 +946,7 @@ export function RequestDetailPage() {
     void loadRequest()
     void loadCaseHistory()
     void loadInternalNotificationHistory()
+    void loadInternalNotificationAttempts()
     void loadNotificationFailures()
     void loadAssignmentHistory()
     void loadAssignableUsers()
@@ -934,6 +963,7 @@ export function RequestDetailPage() {
     loadAssignmentHistory,
     loadCaseHistory,
     loadInternalNotificationHistory,
+    loadInternalNotificationAttempts,
     loadNotificationFailures,
     loadCommercialOwnerCandidates,
     loadCommunicationHistory,
@@ -976,6 +1006,7 @@ export function RequestDetailPage() {
         setRequest(updatedRequest)
         setCommercialOwnerDraft(updatedRequest.commercialOwner?.id ?? '')
         void loadInternalNotificationHistory()
+        void loadInternalNotificationAttempts()
         void loadNotificationFailures()
         setCommercialOwnerFeedbackSuccess(
           newOwnerId ? 'Opiekun handlowy zostal przypisany.' : 'Opiekun handlowy zostal usunieto.',
@@ -996,6 +1027,7 @@ export function RequestDetailPage() {
       id,
       isUpdatingCommercialOwner,
       loadInternalNotificationHistory,
+      loadInternalNotificationAttempts,
       loadNotificationFailures,
     ],
   )
@@ -1112,6 +1144,7 @@ export function RequestDetailPage() {
       resetStatusActionForm()
       void loadCaseHistory()
       void loadInternalNotificationHistory()
+      void loadInternalNotificationAttempts()
       void loadNotificationFailures()
       if (isAdmin) {
         void loadProcessSnapshot()
@@ -1554,6 +1587,12 @@ export function RequestDetailPage() {
             items={internalNotificationItems}
             isLoading={isInternalNotificationLoading}
             error={internalNotificationError}
+          />
+
+          <InternalNotificationAttemptsPanel
+            items={internalNotificationAttemptItems}
+            isLoading={isInternalNotificationAttemptsLoading}
+            error={internalNotificationAttemptsError}
           />
 
           {isAdmin && (
