@@ -5,6 +5,10 @@ import type {
   InternalNotificationRetryBlockedReasonCodeDto,
 } from '@np-manager/shared'
 import {
+  NOTIFICATION_FAILURE_QUEUE_OPERATIONAL_STATUS_OPTIONS,
+  type NotificationFailureQueueOperationalStatusFilter,
+} from '@/lib/notificationFailureQueueOperationalStatus'
+import {
   getGlobalNotificationFailureQueue,
   retryInternalNotificationAttempt,
   type GetGlobalNotificationFailureQueueParams,
@@ -45,7 +49,8 @@ export function NotificationFailureQueuePage() {
   const [retrySuccessMessage, setRetrySuccessMessage] = useState<string | null>(null)
   const [retryErrorMessage, setRetryErrorMessage] = useState<string | null>(null)
   const [retryingAttemptIds, setRetryingAttemptIds] = useState<string[]>([])
-  const [onlyRetryAvailable, setOnlyRetryAvailable] = useState(false)
+  const [operationalStatus, setOperationalStatus] =
+    useState<NotificationFailureQueueOperationalStatusFilter>('')
   const [offset, setOffset] = useState(0)
 
   const loadQueue = useCallback(async () => {
@@ -56,8 +61,8 @@ export function NotificationFailureQueuePage() {
       limit: PAGE_SIZE,
       offset,
     }
-    if (onlyRetryAvailable) {
-      params.canRetry = true
+    if (operationalStatus) {
+      params.operationalStatus = operationalStatus
     }
 
     try {
@@ -69,11 +74,7 @@ export function NotificationFailureQueuePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [offset, onlyRetryAvailable])
-
-  useEffect(() => {
-    setOffset(0)
-  }, [onlyRetryAvailable])
+  }, [offset, operationalStatus])
 
   useEffect(() => {
     void loadQueue()
@@ -114,14 +115,22 @@ export function NotificationFailureQueuePage() {
       </div>
 
       <div className="mb-4 flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={onlyRetryAvailable}
-            onChange={(e) => setOnlyRetryAvailable(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600"
-          />
-          Tylko z dostępnym retry
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <span>Filtr operacyjny</span>
+          <select
+            value={operationalStatus}
+            onChange={(e) => {
+              setOperationalStatus(e.target.value as NotificationFailureQueueOperationalStatusFilter)
+              setOffset(0)
+            }}
+            className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700"
+          >
+            {NOTIFICATION_FAILURE_QUEUE_OPERATIONAL_STATUS_OPTIONS.map((option) => (
+              <option key={option.value || 'ALL'} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </label>
 
         {!isLoading && !error && (

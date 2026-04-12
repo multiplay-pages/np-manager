@@ -137,15 +137,75 @@ describe('NotificationFailureQueuePage', () => {
     })
   })
 
-  it('keeps retry availability filter wired to queue refresh', async () => {
+  it('sends operationalStatus to the backend when the select changes', async () => {
     renderPage()
 
-    await screen.findByRole('button', { name: 'Ponów' })
-    fireEvent.click(screen.getByLabelText('Tylko z dostępnym retry'))
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'RETRY_AVAILABLE' },
+    })
 
     await waitFor(() => {
       expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
-        expect.objectContaining({ canRetry: true, limit: 50, offset: 0 }),
+        expect.objectContaining({
+          operationalStatus: 'RETRY_AVAILABLE',
+          limit: 50,
+          offset: 0,
+        }),
+      )
+    })
+  })
+
+  it('clears operationalStatus for the Wszystkie option', async () => {
+    renderPage()
+
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'MANUAL_INTERVENTION_REQUIRED' },
+    })
+
+    await waitFor(() => {
+      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+        expect.objectContaining({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' }),
+      )
+    })
+
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: '' },
+    })
+
+    await waitFor(() => {
+      const lastCall = getGlobalNotificationFailureQueueMock.mock.calls.at(-1)?.[0]
+      expect(lastCall).toEqual(expect.objectContaining({ limit: 50, offset: 0 }))
+      expect(lastCall).not.toHaveProperty('operationalStatus')
+    })
+  })
+
+  it('resets offset to zero when the filter changes', async () => {
+    getGlobalNotificationFailureQueueMock.mockResolvedValue({
+      items: [makeItem()],
+      total: 120,
+    })
+
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Następna' }))
+
+    await waitFor(() => {
+      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 50, offset: 50 }),
+      )
+    })
+
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'RETRY_BLOCKED_OTHER' },
+    })
+
+    await waitFor(() => {
+      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operationalStatus: 'RETRY_BLOCKED_OTHER',
+          limit: 50,
+          offset: 0,
+        }),
       )
     })
   })
@@ -162,7 +222,10 @@ describe('NotificationFailureQueuePage', () => {
 
     await waitFor(() => {
       expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 50, offset: 50 }),
+        expect.objectContaining({
+          limit: 50,
+          offset: 50,
+        }),
       )
     })
   })

@@ -229,4 +229,132 @@ describe('getGlobalNotificationFailureQueue', () => {
     expect(item?.canRetry).toBe(false)
     expect(item?.retryBlockedReasonCode).toBe('ORIGIN_NOT_RETRYABLE')
   })
+
+  it('filters operationalStatus=MANUAL_INTERVENTION_REQUIRED', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({
+        id: 'manual',
+        outcome: 'MISCONFIGURED',
+        failureKind: 'CONFIGURATION',
+      }),
+      buildAttempt({
+        id: 'retryable',
+        outcome: 'FAILED',
+        failureKind: 'DELIVERY',
+      }),
+    ])
+
+    const result = await getGlobalNotificationFailureQueue({
+      operationalStatus: 'MANUAL_INTERVENTION_REQUIRED',
+    })
+
+    expect(result.total).toBe(1)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.attemptId).toBe('manual')
+    expect(result.items[0]?.canRetry).toBe(true)
+  })
+
+  it('filters operationalStatus=RETRY_AVAILABLE', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({
+        id: 'manual',
+        outcome: 'MISCONFIGURED',
+        failureKind: 'CONFIGURATION',
+      }),
+      buildAttempt({
+        id: 'retryable',
+        outcome: 'FAILED',
+        failureKind: 'DELIVERY',
+      }),
+    ])
+
+    const result = await getGlobalNotificationFailureQueue({
+      operationalStatus: 'RETRY_AVAILABLE',
+    })
+
+    expect(result.total).toBe(1)
+    expect(result.items[0]?.attemptId).toBe('retryable')
+  })
+
+  it('filters operationalStatus=RETRY_BLOCKED_EXHAUSTED', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({
+        id: 'exhausted',
+        retryCount: 3,
+      }),
+      buildAttempt({
+        id: 'other-blocked',
+        attemptOrigin: 'ERROR_FALLBACK',
+      }),
+    ])
+
+    const result = await getGlobalNotificationFailureQueue({
+      operationalStatus: 'RETRY_BLOCKED_EXHAUSTED',
+    })
+
+    expect(result.total).toBe(1)
+    expect(result.items[0]?.attemptId).toBe('exhausted')
+    expect(result.items[0]?.retryBlockedReasonCode).toBe('RETRY_LIMIT_REACHED')
+  })
+
+  it('filters operationalStatus=RETRY_BLOCKED_OTHER', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({
+        id: 'exhausted',
+        retryCount: 3,
+      }),
+      buildAttempt({
+        id: 'other-blocked',
+        attemptOrigin: 'ERROR_FALLBACK',
+      }),
+    ])
+
+    const result = await getGlobalNotificationFailureQueue({
+      operationalStatus: 'RETRY_BLOCKED_OTHER',
+    })
+
+    expect(result.total).toBe(1)
+    expect(result.items[0]?.attemptId).toBe('other-blocked')
+    expect(result.items[0]?.retryBlockedReasonCode).toBe('ORIGIN_NOT_RETRYABLE')
+  })
+
+  it('does not include manual intervention records in retry available filter', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({
+        id: 'manual',
+        outcome: 'MISCONFIGURED',
+        failureKind: 'CONFIGURATION',
+      }),
+      buildAttempt({
+        id: 'retryable',
+        outcome: 'FAILED',
+        failureKind: 'DELIVERY',
+      }),
+    ])
+
+    const result = await getGlobalNotificationFailureQueue({
+      operationalStatus: 'RETRY_AVAILABLE',
+    })
+
+    expect(result.items.map((item) => item.attemptId)).not.toContain('manual')
+  })
+
+  it('does not include RETRY_LIMIT_REACHED records in retry blocked other filter', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({
+        id: 'exhausted',
+        retryCount: 3,
+      }),
+      buildAttempt({
+        id: 'other-blocked',
+        attemptOrigin: 'ERROR_FALLBACK',
+      }),
+    ])
+
+    const result = await getGlobalNotificationFailureQueue({
+      operationalStatus: 'RETRY_BLOCKED_OTHER',
+    })
+
+    expect(result.items.map((item) => item.attemptId)).not.toContain('exhausted')
+  })
 })
