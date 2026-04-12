@@ -137,6 +137,36 @@ describe('NotificationFailureQueuePage', () => {
     })
   })
 
+  it('manual intervention filter shows only MANUAL_INTERVENTION_REQUIRED items', async () => {
+    getGlobalNotificationFailureQueueMock.mockResolvedValue({
+      items: [
+        makeItem({
+          attemptId: 'attempt-delivery',
+          outcome: 'FAILED',
+          failureKind: 'DELIVERY',
+          canRetry: true,
+        }),
+        makeItem({
+          attemptId: 'attempt-manual',
+          eventLabel: 'Zdarzenie wymagające interwencji',
+          outcome: 'MISCONFIGURED',
+          failureKind: 'CONFIGURATION',
+          canRetry: false,
+        }),
+      ],
+      total: 2,
+    })
+
+    renderPage()
+
+    await screen.findByText('Zdarzenie wymagające interwencji')
+    fireEvent.click(screen.getByLabelText('Tylko wymagające interwencji'))
+
+    expect(screen.queryByText('Zmiana statusu sprawy')).toBeNull()
+    expect(screen.getByText('Zdarzenie wymagające interwencji')).toBeTruthy()
+    expect(screen.getByText('Wyniki przefiltrowane na bieżącej stronie')).toBeTruthy()
+  })
+
   it('keeps retry availability filter wired to queue refresh', async () => {
     renderPage()
 
