@@ -7,10 +7,12 @@ const MAX_LIMIT = 100
 
 export type GlobalFailureQueueOutcomeFilter = 'FAILED' | 'MISCONFIGURED'
 export type GlobalFailureQueueSort = 'newest' | 'retryAvailable'
+export type GlobalFailureQueueOperationalStatusFilter = 'MANUAL_INTERVENTION_REQUIRED'
 
 export interface GlobalNotificationFailureQueueParams {
   outcomes?: GlobalFailureQueueOutcomeFilter[]
   canRetry?: boolean
+  operationalStatus?: GlobalFailureQueueOperationalStatusFilter
   sort?: GlobalFailureQueueSort
   limit?: number
   offset?: number
@@ -39,7 +41,7 @@ export async function getGlobalNotificationFailureQueue(
   const limit = Math.min(params.limit ?? DEFAULT_LIMIT, MAX_LIMIT)
   const offset = params.offset ?? 0
 
-  const baseWhere = buildWhereClause(outcomes, params.canRetry)
+  const baseWhere = buildWhereClause(outcomes, params.canRetry, params.operationalStatus)
   const dbSelect = {
     id: true,
     requestId: true,
@@ -97,7 +99,21 @@ export async function getGlobalNotificationFailureQueue(
 function buildWhereClause(
   outcomes: GlobalFailureQueueOutcomeFilter[],
   canRetry?: boolean,
+  operationalStatus?: GlobalFailureQueueOperationalStatusFilter,
 ) {
+  if (operationalStatus === 'MANUAL_INTERVENTION_REQUIRED') {
+    // Returns records matching the v1 operational heuristic for manual intervention:
+    // MISCONFIGURED outcome, or CONFIGURATION/POLICY failureKind.
+    // Combination with canRetry not supported in v1 (these items are non-retryable by definition).
+    return {
+      isLatestForChain: true,
+      OR: [
+        { outcome: 'MISCONFIGURED' as const },
+        { failureKind: { in: ['CONFIGURATION', 'POLICY'] as ('CONFIGURATION' | 'POLICY')[] } },
+      ],
+    }
+  }
+
   const base = {
     isLatestForChain: true,
     outcome: { in: outcomes as ('FAILED' | 'MISCONFIGURED')[] },

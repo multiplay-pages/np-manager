@@ -137,34 +137,75 @@ describe('NotificationFailureQueuePage', () => {
     })
   })
 
-  it('manual intervention filter shows only MANUAL_INTERVENTION_REQUIRED items', async () => {
-    getGlobalNotificationFailureQueueMock.mockResolvedValue({
-      items: [
-        makeItem({
-          attemptId: 'attempt-delivery',
-          outcome: 'FAILED',
-          failureKind: 'DELIVERY',
-          canRetry: true,
-        }),
-        makeItem({
-          attemptId: 'attempt-manual',
-          eventLabel: 'Zdarzenie wymagające interwencji',
-          outcome: 'MISCONFIGURED',
-          failureKind: 'CONFIGURATION',
-          canRetry: false,
-        }),
-      ],
-      total: 2,
-    })
+  it('manual intervention filter sends operationalStatus param to backend', async () => {
+    getGlobalNotificationFailureQueueMock
+      .mockResolvedValueOnce({ items: [makeItem()], total: 1 })
+      .mockResolvedValueOnce({
+        items: [
+          makeItem({
+            attemptId: 'attempt-manual',
+            eventLabel: 'Zdarzenie wymagające interwencji',
+            outcome: 'MISCONFIGURED',
+            failureKind: 'CONFIGURATION',
+            canRetry: false,
+          }),
+        ],
+        total: 1,
+      })
 
     renderPage()
 
-    await screen.findByText('Zdarzenie wymagające interwencji')
+    await screen.findByRole('button', { name: 'Ponów' })
     fireEvent.click(screen.getByLabelText('Tylko wymagające interwencji'))
 
-    expect(screen.queryByText('Zmiana statusu sprawy')).toBeNull()
+    await waitFor(() => {
+      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+        expect.objectContaining({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' }),
+      )
+    })
+  })
+
+  it('manual intervention filter renders items returned by backend', async () => {
+    getGlobalNotificationFailureQueueMock
+      .mockResolvedValueOnce({ items: [makeItem()], total: 1 })
+      .mockResolvedValueOnce({
+        items: [
+          makeItem({
+            attemptId: 'attempt-manual',
+            eventLabel: 'Zdarzenie wymagające interwencji',
+            outcome: 'MISCONFIGURED',
+            failureKind: 'CONFIGURATION',
+            canRetry: false,
+          }),
+        ],
+        total: 1,
+      })
+
+    renderPage()
+
+    await screen.findByText('Zmiana statusu sprawy')
+    fireEvent.click(screen.getByLabelText('Tylko wymagające interwencji'))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Zmiana statusu sprawy')).toBeNull()
+    })
     expect(screen.getByText('Zdarzenie wymagające interwencji')).toBeTruthy()
-    expect(screen.getByText('Wyniki przefiltrowane na bieżącej stronie')).toBeTruthy()
+  })
+
+  it('manual intervention filter does not show client-side page note', async () => {
+    getGlobalNotificationFailureQueueMock
+      .mockResolvedValueOnce({ items: [makeItem()], total: 1 })
+      .mockResolvedValueOnce({ items: [], total: 0 })
+
+    renderPage()
+
+    await screen.findByRole('button', { name: 'Ponów' })
+    fireEvent.click(screen.getByLabelText('Tylko wymagające interwencji'))
+
+    await waitFor(() => {
+      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledTimes(2)
+    })
+    expect(screen.queryByText('Wyniki przefiltrowane na bieżącej stronie')).toBeNull()
   })
 
   it('keeps retry availability filter wired to queue refresh', async () => {

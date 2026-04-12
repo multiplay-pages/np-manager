@@ -249,6 +249,7 @@ export async function getPortingRequestInternalNotificationAttempts(
 export interface GetGlobalNotificationFailureQueueParams {
   outcomes?: ('FAILED' | 'MISCONFIGURED')[]
   canRetry?: boolean
+  operationalStatus?: 'MANUAL_INTERVENTION_REQUIRED'
   sort?: 'newest' | 'retryAvailable'
   limit?: number
   offset?: number
@@ -263,6 +264,9 @@ export async function getGlobalNotificationFailureQueue(
   }
   if (params.canRetry !== undefined) {
     query.set('canRetry', String(params.canRetry))
+  }
+  if (params.operationalStatus) {
+    query.set('operationalStatus', params.operationalStatus)
   }
   if (params.sort) query.set('sort', params.sort)
   if (params.limit) query.set('limit', String(params.limit))

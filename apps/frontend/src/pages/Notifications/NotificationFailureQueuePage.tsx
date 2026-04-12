@@ -10,7 +10,6 @@ import {
   type GetGlobalNotificationFailureQueueParams,
 } from '@/services/portingRequests.api'
 import { NotificationFailureQueueTable } from '@/components/NotificationFailureQueueTable/NotificationFailureQueueTable'
-import { deriveOperationalStatus } from '@/lib/notificationFailureQueueOperationalStatus'
 
 const PAGE_SIZE = 50
 
@@ -61,6 +60,9 @@ export function NotificationFailureQueuePage() {
     if (onlyRetryAvailable) {
       params.canRetry = true
     }
+    if (onlyManualIntervention) {
+      params.operationalStatus = 'MANUAL_INTERVENTION_REQUIRED'
+    }
 
     try {
       const result = await getGlobalNotificationFailureQueue(params)
@@ -71,11 +73,15 @@ export function NotificationFailureQueuePage() {
     } finally {
       setIsLoading(false)
     }
-  }, [offset, onlyRetryAvailable])
+  }, [offset, onlyRetryAvailable, onlyManualIntervention])
 
   useEffect(() => {
     setOffset(0)
   }, [onlyRetryAvailable])
+
+  useEffect(() => {
+    setOffset(0)
+  }, [onlyManualIntervention])
 
   useEffect(() => {
     void loadQueue()
@@ -100,10 +106,6 @@ export function NotificationFailureQueuePage() {
       setRetryingAttemptIds((current) => current.filter((id) => id !== item.attemptId))
     }
   }
-
-  const displayedItems = onlyManualIntervention
-    ? items.filter((item) => deriveOperationalStatus(item) === 'MANUAL_INTERVENTION_REQUIRED')
-    : items
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
@@ -161,13 +163,8 @@ export function NotificationFailureQueuePage() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        {onlyManualIntervention && !isLoading && !error && (
-          <p className="px-4 pt-3 text-xs text-gray-400">
-            Wyniki przefiltrowane na bieżącej stronie
-          </p>
-        )}
         <NotificationFailureQueueTable
-          items={displayedItems}
+          items={items}
           isLoading={isLoading}
           error={error}
           retryingAttemptIds={retryingAttemptIds}
