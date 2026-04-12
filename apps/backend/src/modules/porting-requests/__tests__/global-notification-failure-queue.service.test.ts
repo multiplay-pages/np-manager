@@ -196,6 +196,92 @@ describe('getGlobalNotificationFailureQueue', () => {
     expect(callArg.skip).toBe(20)
   })
 
+  describe('operationalStatus=MANUAL_INTERVENTION_REQUIRED', () => {
+    it('returns only MISCONFIGURED outcome items', async () => {
+      mockAttemptFindMany.mockResolvedValue([])
+      mockAttemptCount.mockResolvedValue(0)
+
+      await getGlobalNotificationFailureQueue({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' })
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
+      expect(whereArg.OR).toContainEqual({ outcome: 'MISCONFIGURED' })
+    })
+
+    it('returns items with failureKind CONFIGURATION via OR clause', async () => {
+      mockAttemptFindMany.mockResolvedValue([])
+      mockAttemptCount.mockResolvedValue(0)
+
+      await getGlobalNotificationFailureQueue({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' })
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
+      expect(whereArg.OR).toContainEqual({ failureKind: { in: ['CONFIGURATION', 'POLICY'] } })
+    })
+
+    it('keeps isLatestForChain=true constraint', async () => {
+      mockAttemptFindMany.mockResolvedValue([])
+      mockAttemptCount.mockResolvedValue(0)
+
+      await getGlobalNotificationFailureQueue({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' })
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
+      expect(whereArg.isLatestForChain).toBe(true)
+    })
+
+    it('does not apply outcome IN filter when operationalStatus is set', async () => {
+      mockAttemptFindMany.mockResolvedValue([])
+      mockAttemptCount.mockResolvedValue(0)
+
+      await getGlobalNotificationFailureQueue({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' })
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
+      // outcome should not be a simple { in: [...] } filter — the OR clause handles it
+      expect(whereArg.outcome).toBeUndefined()
+    })
+
+    it('returns MISCONFIGURED items in the result', async () => {
+      const misconfiguredAttempt = buildAttempt({ outcome: 'MISCONFIGURED', failureKind: null })
+      mockAttemptFindMany.mockResolvedValue([misconfiguredAttempt])
+      mockAttemptCount.mockResolvedValue(1)
+
+      const result = await getGlobalNotificationFailureQueue({
+        operationalStatus: 'MANUAL_INTERVENTION_REQUIRED',
+      })
+
+      expect(result.total).toBe(1)
+      expect(result.items[0]?.outcome).toBe('MISCONFIGURED')
+    })
+
+    it('returns FAILED+CONFIGURATION items in the result', async () => {
+      const configAttempt = buildAttempt({ outcome: 'FAILED', failureKind: 'CONFIGURATION' })
+      mockAttemptFindMany.mockResolvedValue([configAttempt])
+      mockAttemptCount.mockResolvedValue(1)
+
+      const result = await getGlobalNotificationFailureQueue({
+        operationalStatus: 'MANUAL_INTERVENTION_REQUIRED',
+      })
+
+      expect(result.total).toBe(1)
+      expect(result.items[0]?.failureKind).toBe('CONFIGURATION')
+    })
+
+    it('returns FAILED+POLICY items in the result', async () => {
+      const policyAttempt = buildAttempt({ outcome: 'FAILED', failureKind: 'POLICY' })
+      mockAttemptFindMany.mockResolvedValue([policyAttempt])
+      mockAttemptCount.mockResolvedValue(1)
+
+      const result = await getGlobalNotificationFailureQueue({
+        operationalStatus: 'MANUAL_INTERVENTION_REQUIRED',
+      })
+
+      expect(result.total).toBe(1)
+      expect(result.items[0]?.failureKind).toBe('POLICY')
+    })
+  })
+
   it('caps limit at 100', async () => {
     mockAttemptFindMany.mockResolvedValue([])
     mockAttemptCount.mockResolvedValue(0)
