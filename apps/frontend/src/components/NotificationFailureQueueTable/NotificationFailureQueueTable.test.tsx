@@ -72,9 +72,9 @@ describe('NotificationFailureQueueTable', () => {
     expect(html).toContain('Konfiguracja')
   })
 
-  it('renders canRetry=true as Dostepny', () => {
+  it('renders canRetry=true as Gotowy do ponowienia', () => {
     const html = renderTable({ items: [makeItem({ canRetry: true, retryBlockedReasonCode: null })] })
-    expect(html).toContain('Dostępny')
+    expect(html).toContain('Gotowy do ponowienia')
   })
 
   it('renders retry button for canRetry=true', () => {
@@ -91,14 +91,41 @@ describe('NotificationFailureQueueTable', () => {
     expect(html).not.toContain('Ponów')
   })
 
-  it('renders RETRY_LIMIT_REACHED as Wyczerpany', () => {
+  it('renders RETRY_LIMIT_REACHED as Limit wyczerpany', () => {
     const html = renderTable({
       items: [
         makeItem({ canRetry: false, retryBlockedReasonCode: 'RETRY_LIMIT_REACHED', retryCount: 3 }),
       ],
     })
-    expect(html).toContain('Wyczerpany')
+    expect(html).toContain('Limit wyczerpany')
     expect(html).toContain('3 / 3')
+  })
+
+  it('renders MISCONFIGURED as Wymaga interwencji', () => {
+    const html = renderTable({
+      items: [makeItem({ outcome: 'MISCONFIGURED', failureKind: 'CONFIGURATION', canRetry: false })],
+    })
+    expect(html).toContain('Wymaga interwencji')
+  })
+
+  it('renders RETRY_BLOCKED_OTHER (NOT_LATEST_IN_CHAIN) as Zablokowany', () => {
+    const html = renderTable({
+      items: [
+        makeItem({
+          canRetry: false,
+          retryBlockedReasonCode: 'NOT_LATEST_IN_CHAIN',
+          failureKind: 'DELIVERY',
+        }),
+      ],
+    })
+    expect(html).toContain('Zablokowany')
+  })
+
+  it('MANUAL_INTERVENTION_REQUIRED row has orange accent class', () => {
+    const html = renderTable({
+      items: [makeItem({ outcome: 'MISCONFIGURED', failureKind: 'CONFIGURATION', canRetry: false })],
+    })
+    expect(html).toContain('border-l-orange-400')
   })
 
   it('renders link to RequestDetailPage', () => {

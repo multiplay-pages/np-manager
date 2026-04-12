@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 import type { GlobalNotificationFailureQueueItemDto } from '@np-manager/shared'
 import { buildPath, ROUTES } from '@/constants/routes'
+import {
+  deriveOperationalStatus,
+  OPERATIONAL_STATUS_CONFIG,
+} from '@/lib/notificationFailureQueueOperationalStatus'
 
 interface NotificationFailureQueueTableProps {
   items: GlobalNotificationFailureQueueItemDto[]
@@ -31,18 +35,6 @@ function getFailureKindLabel(
   return '—'
 }
 
-function getRetryStatusLabel(item: GlobalNotificationFailureQueueItemDto): string {
-  if (item.canRetry) return 'Dostępny'
-  if (item.retryBlockedReasonCode === 'RETRY_LIMIT_REACHED') return 'Wyczerpany'
-  if (item.retryBlockedReasonCode === 'ORIGIN_NOT_RETRYABLE') return 'Niedostępny (fallback)'
-  return 'Niedostępny'
-}
-
-function getRetryStatusClass(item: GlobalNotificationFailureQueueItemDto): string {
-  if (item.canRetry) return 'bg-emerald-100 text-emerald-700'
-  if (item.retryBlockedReasonCode === 'RETRY_LIMIT_REACHED') return 'bg-red-100 text-red-700'
-  return 'bg-gray-100 text-gray-600'
-}
 
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime()
@@ -96,7 +88,7 @@ export function NotificationFailureQueueTable({
             <th className="px-4 py-3">Wynik</th>
             <th className="px-4 py-3">Rodzaj błędu</th>
             <th className="px-4 py-3">Ponowienia</th>
-            <th className="px-4 py-3">Status retry</th>
+            <th className="px-4 py-3">Status operacyjny</th>
             <th className="px-4 py-3">Czas</th>
             <th className="px-4 py-3">Akcja</th>
           </tr>
@@ -104,9 +96,11 @@ export function NotificationFailureQueueTable({
         <tbody className="divide-y divide-gray-100">
           {items.map((item) => {
             const isRetrying = retryingAttemptIds.includes(item.attemptId)
+            const opStatus = deriveOperationalStatus(item)
+            const opConfig = OPERATIONAL_STATUS_CONFIG[opStatus]
 
             return (
-              <tr key={item.attemptId} className="bg-white hover:bg-gray-50">
+              <tr key={item.attemptId} className={`bg-white hover:bg-gray-50 ${opConfig.rowAccentClass}`}>
                 <td className="px-4 py-3 font-mono text-xs">
                   <Link
                     to={buildPath(ROUTES.REQUEST_DETAIL, item.requestId)}
@@ -129,10 +123,9 @@ export function NotificationFailureQueueTable({
                 <td className="px-4 py-3 text-gray-600">{item.retryCount} / 3</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getRetryStatusClass(item)}`}
-                    title={item.retryBlockedReasonCode ?? undefined}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${opConfig.badgeClass}`}
                   >
-                    {getRetryStatusLabel(item)}
+                    {opConfig.label}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-gray-400">{formatRelativeTime(item.createdAt)}</td>

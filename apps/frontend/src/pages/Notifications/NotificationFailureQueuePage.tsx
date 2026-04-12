@@ -10,6 +10,7 @@ import {
   type GetGlobalNotificationFailureQueueParams,
 } from '@/services/portingRequests.api'
 import { NotificationFailureQueueTable } from '@/components/NotificationFailureQueueTable/NotificationFailureQueueTable'
+import { deriveOperationalStatus } from '@/lib/notificationFailureQueueOperationalStatus'
 
 const PAGE_SIZE = 50
 
@@ -46,6 +47,7 @@ export function NotificationFailureQueuePage() {
   const [retryErrorMessage, setRetryErrorMessage] = useState<string | null>(null)
   const [retryingAttemptIds, setRetryingAttemptIds] = useState<string[]>([])
   const [onlyRetryAvailable, setOnlyRetryAvailable] = useState(false)
+  const [onlyManualIntervention, setOnlyManualIntervention] = useState(false)
   const [offset, setOffset] = useState(0)
 
   const loadQueue = useCallback(async () => {
@@ -99,6 +101,10 @@ export function NotificationFailureQueuePage() {
     }
   }
 
+  const displayedItems = onlyManualIntervention
+    ? items.filter((item) => deriveOperationalStatus(item) === 'MANUAL_INTERVENTION_REQUIRED')
+    : items
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
   const hasPrev = offset > 0
@@ -114,15 +120,26 @@ export function NotificationFailureQueuePage() {
       </div>
 
       <div className="mb-4 flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={onlyRetryAvailable}
-            onChange={(e) => setOnlyRetryAvailable(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600"
-          />
-          Tylko z dostępnym retry
-        </label>
+        <div className="flex items-center gap-4">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={onlyRetryAvailable}
+              onChange={(e) => setOnlyRetryAvailable(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600"
+            />
+            Tylko z dostępnym retry
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={onlyManualIntervention}
+              onChange={(e) => setOnlyManualIntervention(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-orange-600"
+            />
+            Tylko wymagające interwencji
+          </label>
+        </div>
 
         {!isLoading && !error && (
           <span className="text-xs text-gray-400">
@@ -144,8 +161,13 @@ export function NotificationFailureQueuePage() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        {onlyManualIntervention && !isLoading && !error && (
+          <p className="px-4 pt-3 text-xs text-gray-400">
+            Wyniki przefiltrowane na bieżącej stronie
+          </p>
+        )}
         <NotificationFailureQueueTable
-          items={items}
+          items={displayedItems}
           isLoading={isLoading}
           error={error}
           retryingAttemptIds={retryingAttemptIds}
