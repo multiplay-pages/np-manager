@@ -155,6 +155,38 @@ describe('NotificationFailureQueuePage', () => {
     })
   })
 
+  it('manual intervention filter renders items returned by backend', async () => {
+    getGlobalNotificationFailureQueueMock
+      .mockResolvedValueOnce({ items: [makeItem()], total: 1 })
+      .mockResolvedValueOnce({
+        items: [
+          makeItem({
+            attemptId: 'attempt-manual',
+            eventLabel: 'Zdarzenie wymagające interwencji',
+            outcome: 'MISCONFIGURED',
+            failureKind: 'CONFIGURATION',
+            canRetry: false,
+          }),
+        ],
+        total: 1,
+      })
+
+    renderPage()
+
+    await screen.findByText('Zmiana statusu sprawy')
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'MANUAL_INTERVENTION_REQUIRED' },
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText('Zmiana statusu sprawy')).toBeNull()
+    })
+    expect(screen.getByText('Zdarzenie wymagające interwencji')).toBeTruthy()
+    expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' }),
+    )
+  })
+
   it('clears operationalStatus for the Wszystkie option', async () => {
     renderPage()
 

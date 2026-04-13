@@ -74,7 +74,6 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     await getGlobalNotificationFailureQueue({ outcomes: ['FAILED'] })
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
     expect(whereArg.outcome).toEqual({ in: ['FAILED'] })
   })
@@ -85,7 +84,6 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     await getGlobalNotificationFailureQueue({ canRetry: true })
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
     expect(whereArg.attemptOrigin).toEqual({ in: ['PRIMARY', 'RETRY'] })
     expect(whereArg.retryCount).toEqual({ lt: 3 })
@@ -97,7 +95,6 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     await getGlobalNotificationFailureQueue({ canRetry: false })
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
     expect(whereArg.OR).toBeDefined()
   })
@@ -108,7 +105,6 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     await getGlobalNotificationFailureQueue()
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const orderByArg = mockAttemptFindMany.mock.calls[0]![0].orderBy
     expect(orderByArg[0]).toEqual({ createdAt: 'desc' })
   })
@@ -118,17 +114,15 @@ describe('getGlobalNotificationFailureQueue', () => {
     const newer = new Date('2026-04-11T10:00:00.000Z')
 
     mockAttemptFindMany.mockResolvedValue([
-      // canRetry=false (RETRY_LIMIT_REACHED) — newer timestamp
       buildAttempt({ id: 'a1', retryCount: 3, createdAt: newer }),
-      // canRetry=true — older timestamp
       buildAttempt({ id: 'a2', retryCount: 0, createdAt: older }),
     ])
     mockAttemptCount.mockResolvedValue(2)
 
     const result = await getGlobalNotificationFailureQueue({ sort: 'retryAvailable' })
 
-    expect(result.items[0]?.attemptId).toBe('a2') // canRetry=true first
-    expect(result.items[1]?.attemptId).toBe('a1') // canRetry=false second
+    expect(result.items[0]?.attemptId).toBe('a2')
+    expect(result.items[1]?.attemptId).toBe('a1')
   })
 
   it('sort=retryAvailable: within each group orders by createdAt DESC', async () => {
@@ -138,7 +132,6 @@ describe('getGlobalNotificationFailureQueue', () => {
     const t4 = new Date('2026-04-11T12:00:00.000Z')
 
     mockAttemptFindMany.mockResolvedValue([
-      // DB returns createdAt DESC, so newer first
       buildAttempt({ id: 'canRetry-newer', retryCount: 0, createdAt: t2 }),
       buildAttempt({ id: 'canRetry-older', retryCount: 1, createdAt: t1 }),
       buildAttempt({ id: 'blocked-newer', retryCount: 3, createdAt: t4 }),
@@ -149,16 +142,13 @@ describe('getGlobalNotificationFailureQueue', () => {
     const result = await getGlobalNotificationFailureQueue({ sort: 'retryAvailable' })
     const ids = result.items.map((i) => i.attemptId)
 
-    // canRetry=true group first (createdAt DESC within group)
     expect(ids[0]).toBe('canRetry-newer')
     expect(ids[1]).toBe('canRetry-older')
-    // canRetry=false group second
     expect(ids[2]).toBe('blocked-newer')
     expect(ids[3]).toBe('blocked-older')
   })
 
   it('sort=retryAvailable: low retryCount but canRetry=false does not precede canRetry=true', async () => {
-    // ERROR_FALLBACK origin: retryCount=0 but canRetry=false (ORIGIN_NOT_RETRYABLE)
     const fallback = buildAttempt({ id: 'fallback', attemptOrigin: 'ERROR_FALLBACK', retryCount: 0 })
     const retryable = buildAttempt({ id: 'retryable', attemptOrigin: 'PRIMARY', retryCount: 2 })
 
@@ -167,8 +157,8 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     const result = await getGlobalNotificationFailureQueue({ sort: 'retryAvailable' })
 
-    expect(result.items[0]?.attemptId).toBe('retryable') // canRetry=true, retryCount=2
-    expect(result.items[1]?.attemptId).toBe('fallback')  // canRetry=false despite retryCount=0
+    expect(result.items[0]?.attemptId).toBe('retryable')
+    expect(result.items[1]?.attemptId).toBe('fallback')
   })
 
   it('sort=retryAvailable: DB query uses createdAt DESC (no retryCount proxy)', async () => {
@@ -177,10 +167,8 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     await getGlobalNotificationFailureQueue({ sort: 'retryAvailable' })
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const orderByArg = mockAttemptFindMany.mock.calls[0]![0].orderBy
     expect(orderByArg[0]).toEqual({ createdAt: 'desc' })
-    // must NOT use retryCount as DB-level sort proxy
     expect(orderByArg.find((o: Record<string, unknown>) => 'retryCount' in o)).toBeUndefined()
   })
 
@@ -190,7 +178,6 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     await getGlobalNotificationFailureQueue({ limit: 10, offset: 20 })
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const callArg = mockAttemptFindMany.mock.calls[0]![0]
     expect(callArg.take).toBe(10)
     expect(callArg.skip).toBe(20)
@@ -202,7 +189,6 @@ describe('getGlobalNotificationFailureQueue', () => {
 
     await getGlobalNotificationFailureQueue({ limit: 999 })
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(mockAttemptFindMany.mock.calls[0]![0].take).toBe(100)
   })
 
