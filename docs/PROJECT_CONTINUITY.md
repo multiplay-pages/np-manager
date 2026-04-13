@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-11)
+## Aktualny stan projektu (2026-04-12)
 
 ### Zrealizowane PR-y
 
@@ -24,6 +24,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR19A-1 | NotificationOps foundation: first-class delivery attempts + dual-write | DONE   |
 | PR19A-2 | Request-level read layer dla internal notification attempts        | DONE   |
 | PR19B-1 | Backend retry eligibility + request-scoped retry endpoint          | DONE   |
+| PR20E | Full server-side operational status filters for global queue       | DONE   |
 
 ---
 

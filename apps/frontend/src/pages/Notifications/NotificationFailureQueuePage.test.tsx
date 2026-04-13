@@ -137,30 +137,20 @@ describe('NotificationFailureQueuePage', () => {
     })
   })
 
-  it('manual intervention filter sends operationalStatus param to backend', async () => {
-    getGlobalNotificationFailureQueueMock
-      .mockResolvedValueOnce({ items: [makeItem()], total: 1 })
-      .mockResolvedValueOnce({
-        items: [
-          makeItem({
-            attemptId: 'attempt-manual',
-            eventLabel: 'Zdarzenie wymagające interwencji',
-            outcome: 'MISCONFIGURED',
-            failureKind: 'CONFIGURATION',
-            canRetry: false,
-          }),
-        ],
-        total: 1,
-      })
-
+  it('sends operationalStatus to the backend when the select changes', async () => {
     renderPage()
 
-    await screen.findByRole('button', { name: 'Ponów' })
-    fireEvent.click(screen.getByLabelText('Tylko wymagające interwencji'))
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'RETRY_AVAILABLE' },
+    })
 
     await waitFor(() => {
       expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
-        expect.objectContaining({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' }),
+        expect.objectContaining({
+          operationalStatus: 'RETRY_AVAILABLE',
+          limit: 50,
+          offset: 0,
+        }),
       )
     })
   })
@@ -184,39 +174,70 @@ describe('NotificationFailureQueuePage', () => {
     renderPage()
 
     await screen.findByText('Zmiana statusu sprawy')
-    fireEvent.click(screen.getByLabelText('Tylko wymagające interwencji'))
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'MANUAL_INTERVENTION_REQUIRED' },
+    })
 
     await waitFor(() => {
       expect(screen.queryByText('Zmiana statusu sprawy')).toBeNull()
     })
     expect(screen.getByText('Zdarzenie wymagające interwencji')).toBeTruthy()
+    expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' }),
+    )
   })
 
-  it('manual intervention filter does not show client-side page note', async () => {
-    getGlobalNotificationFailureQueueMock
-      .mockResolvedValueOnce({ items: [makeItem()], total: 1 })
-      .mockResolvedValueOnce({ items: [], total: 0 })
-
+  it('clears operationalStatus for the Wszystkie option', async () => {
     renderPage()
 
-    await screen.findByRole('button', { name: 'Ponów' })
-    fireEvent.click(screen.getByLabelText('Tylko wymagające interwencji'))
-
-    await waitFor(() => {
-      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledTimes(2)
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'MANUAL_INTERVENTION_REQUIRED' },
     })
-    expect(screen.queryByText('Wyniki przefiltrowane na bieżącej stronie')).toBeNull()
-  })
-
-  it('keeps retry availability filter wired to queue refresh', async () => {
-    renderPage()
-
-    await screen.findByRole('button', { name: 'Ponów' })
-    fireEvent.click(screen.getByLabelText('Tylko z dostępnym retry'))
 
     await waitFor(() => {
       expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
-        expect.objectContaining({ canRetry: true, limit: 50, offset: 0 }),
+        expect.objectContaining({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' }),
+      )
+    })
+
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: '' },
+    })
+
+    await waitFor(() => {
+      const lastCall = getGlobalNotificationFailureQueueMock.mock.calls.at(-1)?.[0]
+      expect(lastCall).toEqual(expect.objectContaining({ limit: 50, offset: 0 }))
+      expect(lastCall).not.toHaveProperty('operationalStatus')
+    })
+  })
+
+  it('resets offset to zero when the filter changes', async () => {
+    getGlobalNotificationFailureQueueMock.mockResolvedValue({
+      items: [makeItem()],
+      total: 120,
+    })
+
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Następna' }))
+
+    await waitFor(() => {
+      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 50, offset: 50 }),
+      )
+    })
+
+    fireEvent.change(screen.getByLabelText('Filtr operacyjny'), {
+      target: { value: 'RETRY_BLOCKED_OTHER' },
+    })
+
+    await waitFor(() => {
+      expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operationalStatus: 'RETRY_BLOCKED_OTHER',
+          limit: 50,
+          offset: 0,
+        }),
       )
     })
   })
@@ -233,7 +254,10 @@ describe('NotificationFailureQueuePage', () => {
 
     await waitFor(() => {
       expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 50, offset: 50 }),
+        expect.objectContaining({
+          limit: 50,
+          offset: 50,
+        }),
       )
     })
   })

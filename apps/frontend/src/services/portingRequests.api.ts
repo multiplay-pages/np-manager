@@ -36,6 +36,7 @@ import type {
   SendPortingCommunicationResultDto,
   UpdatePortingRequestStatusDto,
 } from '@np-manager/shared'
+import type { NotificationFailureQueueOperationalStatus } from '@/lib/notificationFailureQueueOperationalStatus'
 
 export type GetPortingRequestsParams = PortingRequestListQueryDto
 export type GetPortingRequestsSummaryParams = PortingRequestSummaryQueryDto
@@ -249,7 +250,7 @@ export async function getPortingRequestInternalNotificationAttempts(
 export interface GetGlobalNotificationFailureQueueParams {
   outcomes?: ('FAILED' | 'MISCONFIGURED')[]
   canRetry?: boolean
-  operationalStatus?: 'MANUAL_INTERVENTION_REQUIRED'
+  operationalStatus?: NotificationFailureQueueOperationalStatus
   sort?: 'newest' | 'retryAvailable'
   limit?: number
   offset?: number

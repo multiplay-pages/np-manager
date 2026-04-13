@@ -6,6 +6,14 @@ export type OperationalStatus =
   | 'RETRY_BLOCKED_OTHER'
   | 'MANUAL_INTERVENTION_REQUIRED'
 
+export type NotificationFailureQueueOperationalStatus = OperationalStatus
+export type NotificationFailureQueueOperationalStatusFilter = OperationalStatus | ''
+
+export interface NotificationFailureQueueOperationalStatusOption {
+  value: NotificationFailureQueueOperationalStatusFilter
+  label: string
+}
+
 type StatusInput = Pick<
   GlobalNotificationFailureQueueItemDto,
   'outcome' | 'failureKind' | 'canRetry' | 'retryBlockedReasonCode'
@@ -13,7 +21,7 @@ type StatusInput = Pick<
 
 export function deriveOperationalStatus(item: StatusInput): OperationalStatus {
   // MISCONFIGURED outcome or configuration/policy failure kind signals that retrying
-  // alone won't help — the operator needs to fix a config or policy first.
+  // alone won't help - the operator needs to fix a config or policy first.
   // Note: failureKind=POLICY is an operational heuristic for v1. Policy failures
   // often require human decisions (e.g. operator rule changes), not just a retry.
   if (
@@ -54,3 +62,18 @@ export const OPERATIONAL_STATUS_CONFIG: Record<
     rowAccentClass: 'border-l-4 border-l-orange-400',
   },
 }
+
+export const NOTIFICATION_FAILURE_QUEUE_OPERATIONAL_STATUS_OPTIONS: NotificationFailureQueueOperationalStatusOption[] =
+  [
+    { value: '', label: 'Wszystkie' },
+    { value: 'RETRY_AVAILABLE', label: OPERATIONAL_STATUS_CONFIG.RETRY_AVAILABLE.label },
+    {
+      value: 'RETRY_BLOCKED_EXHAUSTED',
+      label: OPERATIONAL_STATUS_CONFIG.RETRY_BLOCKED_EXHAUSTED.label,
+    },
+    { value: 'RETRY_BLOCKED_OTHER', label: OPERATIONAL_STATUS_CONFIG.RETRY_BLOCKED_OTHER.label },
+    {
+      value: 'MANUAL_INTERVENTION_REQUIRED',
+      label: OPERATIONAL_STATUS_CONFIG.MANUAL_INTERVENTION_REQUIRED.label,
+    },
+  ]
