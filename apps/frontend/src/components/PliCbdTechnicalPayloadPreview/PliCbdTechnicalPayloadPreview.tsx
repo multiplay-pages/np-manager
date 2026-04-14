@@ -18,7 +18,7 @@ export function PliCbdTechnicalPayloadPreview({
           Payload techniczny {messageType}
         </h2>
         <p className="text-sm text-gray-500">
-          Read-only preview ustandaryzowanego payloadu pod przyszly serializer XML / SOAP.
+          Podglad danych technicznych przygotowanych dla komunikatu {messageType}.
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 import {
   COMMUNICATION_DELIVERY_OUTCOME_LABELS,
+  PORTING_CASE_STATUS_LABELS,
   PORTING_COMMUNICATION_STATUS_LABELS,
   PORTING_REQUEST_COMMUNICATION_ACTION_TYPE_LABELS,
   type CommunicationDeliveryAttemptDto,
@@ -7,9 +8,11 @@ import {
   type PortingCommunicationDto,
   type PortingCommunicationPreviewDto,
   type PortingCommunicationSummaryDto,
+  type PortingCaseStatus,
   type PortingRequestCommunicationActionDto,
   type PortingRequestCommunicationActionType,
 } from '@np-manager/shared'
+import { Badge, Button, cx } from '@/components/ui'
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('pl-PL', {
@@ -59,6 +62,40 @@ function getActionTypeLabel(type: PortingRequestCommunicationActionType): string
   return PORTING_REQUEST_COMMUNICATION_ACTION_TYPE_LABELS[type]
 }
 
+const actionAvailabilityByType: Record<PortingRequestCommunicationActionType, PortingCaseStatus[]> = {
+  MISSING_DOCUMENTS: ['DRAFT', 'SUBMITTED', 'PENDING_DONOR'],
+  CLIENT_CONFIRMATION: ['DRAFT', 'SUBMITTED', 'PENDING_DONOR', 'CONFIRMED'],
+  REJECTION_NOTICE: ['REJECTED'],
+  COMPLETION_NOTICE: ['PORTED'],
+  INTERNAL_NOTE_EMAIL: ['DRAFT', 'SUBMITTED', 'PENDING_DONOR', 'CONFIRMED', 'ERROR'],
+}
+
+function formatStatusList(statuses: PortingCaseStatus[]): string {
+  return statuses.map((status) => PORTING_CASE_STATUS_LABELS[status]).join(', ')
+}
+
+function buildBlockedReason(
+  action: PortingRequestCommunicationActionDto,
+  currentStatus: PortingCaseStatus | null,
+): string | null {
+  if (!action.disabledReason) {
+    return null
+  }
+
+  if (action.existingDraftInfo) {
+    return 'Akcja jest wstrzymana, bo istnieje aktywny draft tego typu. Oznacz go jako wyslany albo anuluj przed utworzeniem kolejnego.'
+  }
+
+  const availableStatuses = actionAvailabilityByType[action.type]
+
+  if (availableStatuses.length > 0) {
+    const currentStatusLabel = currentStatus ? PORTING_CASE_STATUS_LABELS[currentStatus] : 'nieznany'
+    return `Akcja bedzie dostepna dla statusow: ${formatStatusList(availableStatuses)}. Aktualny status: ${currentStatusLabel}.`
+  }
+
+  return action.disabledReason
+}
+
 function canSend(status: PortingCommunicationDto['status']): boolean {
   return status === 'DRAFT' || status === 'READY_TO_SEND'
 }
@@ -87,6 +124,7 @@ interface PortingCommunicationPanelProps {
   cancellingId: string | null
   deliveryAttemptsByCommId: Record<string, CommunicationDeliveryAttemptsResultDto>
   loadingDeliveryAttemptsId: string | null
+  currentStatus?: PortingCaseStatus | null
   onPreviewDraft: (actionType: PortingRequestCommunicationActionType) => void
   onCreateDraft: (actionType: PortingRequestCommunicationActionType) => void
   onMarkAsSent: (communicationId: string) => void
@@ -112,6 +150,7 @@ export function PortingCommunicationPanel({
   cancellingId,
   deliveryAttemptsByCommId,
   loadingDeliveryAttemptsId,
+  currentStatus = null,
   onPreviewDraft,
   onCreateDraft,
   onMarkAsSent,
@@ -121,38 +160,37 @@ export function PortingCommunicationPanel({
   onLoadDeliveryAttempts,
 }: PortingCommunicationPanelProps) {
   return (
-    <div className="card p-5">
+    <div className="panel p-5">
       <div className="mb-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+        <h2 className="text-sm font-semibold text-ink-900">
           Komunikacja operacyjna
         </h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Backend steruje dostepnymi akcjami, blokadami i duplikatami draftow. UI tylko pokazuje
-          aktualna polityke i historie.
+        <p className="mt-1 text-sm leading-6 text-ink-500">
+          Drafty i wysylki do klienta zgodne z aktualnym statusem sprawy oraz polityka uprawnien.
         </p>
       </div>
 
       <div className="mb-5 grid gap-3 md:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-          <p className="text-xs uppercase tracking-wide text-gray-500">Drafty</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900">{summary.draftCount}</p>
-          <p className="text-xs text-gray-500">Lacznie komunikacji: {summary.totalCount}</p>
+        <div className="rounded-lg border border-line bg-ink-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">Drafty</p>
+          <p className="mt-1 text-lg font-semibold text-ink-900">{summary.draftCount}</p>
+          <p className="text-xs text-ink-500">Lacznie komunikacji: {summary.totalCount}</p>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-          <p className="text-xs uppercase tracking-wide text-gray-500">Wyslane</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900">{summary.sentCount}</p>
-          <p className="text-xs text-gray-500">Bledy: {summary.errorCount}</p>
+        <div className="rounded-lg border border-line bg-ink-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">Wyslane</p>
+          <p className="mt-1 text-lg font-semibold text-ink-900">{summary.sentCount}</p>
+          <p className="text-xs text-ink-500">Bledy: {summary.errorCount}</p>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-          <p className="text-xs uppercase tracking-wide text-gray-500">Ostatnia komunikacja</p>
-          <p className="mt-1 text-sm font-semibold text-gray-900">
+        <div className="rounded-lg border border-line bg-ink-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">Ostatnia komunikacja</p>
+          <p className="mt-1 text-sm font-semibold text-ink-900">
             {summary.lastCommunicationType
               ? getActionTypeLabel(summary.lastCommunicationType)
               : 'Brak komunikacji'}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-500">
             {summary.lastCommunicationAt ? formatDateTime(summary.lastCommunicationAt) : '-'}
           </p>
         </div>
@@ -175,46 +213,61 @@ export function PortingCommunicationPanel({
           actions.map((action) => {
             const isPreviewLoading = previewingActionType === action.type
             const isCreateLoading = creatingDraftActionType === action.type
+            const isActionBusy = isPreviewLoading || isCreateLoading
+            const blockedReason = buildBlockedReason(action, currentStatus)
             const previewForAction = preview?.actionType === action.type ? preview : null
+            const disabledActionClass =
+              'border-line bg-ink-50 text-ink-400 shadow-none hover:border-line hover:bg-ink-50'
 
             return (
-              <div key={action.type} className="rounded-lg border border-gray-200 bg-white p-4">
+              <div
+                key={action.type}
+                className={cx(
+                  'rounded-lg border p-4',
+                  action.disabled || !action.canCreateDraft
+                    ? 'border-line bg-ink-50/80'
+                    : 'border-line bg-surface',
+                )}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="max-w-3xl">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900">{action.label}</h3>
+                      <h3 className="text-sm font-semibold text-ink-900">{action.label}</h3>
                       {action.existingDraftInfo && (
-                        <span className="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                          Aktywny draft
-                        </span>
+                        <Badge tone="amber">Aktywny draft</Badge>
+                      )}
+                      {action.disabled && (
+                        <Badge tone="neutral" className="bg-ink-100 text-ink-500">
+                          Niedostepne teraz
+                        </Badge>
                       )}
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">{action.description}</p>
+                    <p className="mt-1 text-sm leading-6 text-ink-500">{action.description}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
+                    <Button
                       onClick={() => onPreviewDraft(action.type)}
-                      className="btn-secondary"
+                      variant="secondary"
+                      className={!action.canPreview ? disabledActionClass : undefined}
                       disabled={!action.canPreview || isPreviewLoading || isCreateLoading}
                     >
-                      {isPreviewLoading ? 'Ladowanie...' : 'Podglad'}
-                    </button>
-                    <button
-                      type="button"
+                      {isPreviewLoading ? 'Przygotowuje podglad' : 'Podglad'}
+                    </Button>
+                    <Button
                       onClick={() => onCreateDraft(action.type)}
-                      className="btn-primary"
+                      variant={action.canCreateDraft ? 'primary' : 'secondary'}
+                      className={!action.canCreateDraft ? disabledActionClass : undefined}
                       disabled={!action.canCreateDraft || isCreateLoading || isPreviewLoading}
                     >
-                      {isCreateLoading ? 'Tworzenie...' : 'Utworz draft'}
-                    </button>
-                    <button
-                      type="button"
+                      {isCreateLoading ? 'Tworze draft' : 'Utworz draft'}
+                    </Button>
+                    <Button
                       onClick={() =>
                         action.existingDraftId ? onMarkAsSent(action.existingDraftId) : undefined
                       }
-                      className="btn-secondary"
+                      variant="secondary"
+                      className={!action.canMarkSent ? disabledActionClass : undefined}
                       disabled={
                         !action.canMarkSent ||
                         !action.existingDraftId ||
@@ -222,22 +275,28 @@ export function PortingCommunicationPanel({
                       }
                     >
                       {markingSentId === action.existingDraftId
-                        ? 'Zapisywanie...'
+                        ? 'Zapis statusu'
                         : 'Oznacz jako wyslane'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
-                {action.disabledReason && (
-                  <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    {action.disabledReason}
+                {isActionBusy && (
+                  <p role="status" className="mt-3 text-xs font-medium text-ink-500">
+                    Trwa jednorazowa operacja. Po zakonczeniu panel odswiezy historie komunikacji.
+                  </p>
+                )}
+
+                {blockedReason && (
+                  <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+                    {blockedReason}
                   </div>
                 )}
 
                 {action.existingDraftInfo && (
-                  <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  <div className="mt-3 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-700">
                     <p className="font-medium">Istnieje juz aktywny draft tego typu.</p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-ink-500">
                       {action.existingDraftInfo.subject}
                       {' · '}
                       {action.existingDraftInfo.recipient}
@@ -251,13 +310,13 @@ export function PortingCommunicationPanel({
                 )}
 
                 {previewForAction && (
-                  <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-xs uppercase tracking-wide text-gray-500">Podglad draftu</p>
-                    <p className="mt-1 text-sm text-gray-700">Do: {previewForAction.recipient}</p>
-                    <p className="mt-2 text-sm font-semibold text-gray-900">
+                  <div className="mt-3 rounded-lg border border-line bg-ink-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">Podglad draftu</p>
+                    <p className="mt-1 text-sm text-ink-700">Do: {previewForAction.recipient}</p>
+                    <p className="mt-2 text-sm font-semibold text-ink-900">
                       {previewForAction.subject}
                     </p>
-                    <pre className="mt-2 whitespace-pre-wrap text-sm text-gray-700">
+                    <pre className="mt-2 whitespace-pre-wrap text-sm text-ink-700">
                       {previewForAction.body}
                     </pre>
                   </div>
@@ -320,7 +379,7 @@ export function PortingCommunicationPanel({
                           className="btn-secondary"
                           disabled={markingSentId === item.id || isSending || isRetrying || isCancelling}
                         >
-                          {markingSentId === item.id ? 'Zapisywanie...' : 'Oznacz jako wyslane'}
+                          {markingSentId === item.id ? 'Zapis statusu' : 'Oznacz jako wyslane'}
                         </button>
                       )}
 

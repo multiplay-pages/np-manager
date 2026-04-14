@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Badge, Button, ButtonLink, FilterChip, MetricCard, PageHeader, cx } from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
 import {
@@ -17,13 +18,15 @@ import {
   PORTING_MODE_LABELS,
 } from '@np-manager/shared'
 import type {
+  CommercialOwnerFilter,
+  NotificationHealthFilter,
   NotificationHealthStatus,
   PortingCaseStatus,
   PortingMode,
+  PortingRequestAssigneeSummaryDto,
   PortingRequestListItemDto,
   PortingRequestListResultDto,
   PortingRequestOperationalSummaryDto,
-  PortingRequestAssigneeSummaryDto,
 } from '@np-manager/shared'
 import {
   applyQueryParamUpdates,
@@ -37,6 +40,25 @@ import {
 
 const PAGE_SIZE = 20
 const PORTING_MODES: PortingMode[] = ['DAY', 'END', 'EOP']
+
+const ownershipOptions: Array<{ id: OwnershipFilter; label: string }> = [
+  { id: 'ALL', label: 'Wszystkie' },
+  { id: 'MINE', label: 'Moje sprawy' },
+  { id: 'UNASSIGNED', label: 'Nieprzypisane' },
+]
+
+const commercialOwnerOptions: Array<{ id: CommercialOwnerFilter; label: string }> = [
+  { id: 'ALL', label: 'Wszystkie' },
+  { id: 'WITH_OWNER', label: 'Z opiekunem' },
+  { id: 'WITHOUT_OWNER', label: 'Bez opiekuna' },
+  { id: 'MINE', label: 'Moje handlowe' },
+]
+
+const notificationHealthOptions: Array<{ id: NotificationHealthFilter; label: string }> = [
+  { id: 'ALL', label: 'Wszystkie' },
+  { id: 'HAS_FAILURES', label: 'Bledy notyfikacji' },
+  { id: 'NO_FAILURES', label: 'Bez bledow' },
+]
 
 function parseStatus(value: string | null): PortingCaseStatus | null {
   const valid = Object.values(PORTING_CASE_STATUSES) as PortingCaseStatus[]
@@ -60,45 +82,58 @@ function formatCommercialOwnerLabel(assignee: PortingRequestAssigneeSummaryDto |
   return `${assignee.displayName} (${assignee.email})`
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
+function pluralizeRequests(total: number): string {
+  return total === 1 ? 'sprawa' : total < 5 ? 'sprawy' : 'spraw'
+}
+
 function StatusBadge({ status }: { status: PortingCaseStatus }) {
   const meta = getPortingStatusMeta(status)
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${meta.className}`}>
-      {meta.label}
-    </span>
-  )
+  const toneByStatus = {
+    gray: 'neutral',
+    blue: 'brand',
+    amber: 'amber',
+    green: 'green',
+    red: 'red',
+    emerald: 'emerald',
+  } as const
+  const tone = toneByStatus[meta.tone]
+
+  return <Badge tone={tone}>{meta.label}</Badge>
 }
 
 function NotificationHealthBadge({ request }: { request: PortingRequestListItemDto }) {
   const { notificationHealthStatus, notificationFailureCount, notificationLastFailureAt } = request
 
-  const statusConfig: Record<NotificationHealthStatus, { label: string; className: string }> = {
-    OK: { label: 'OK', className: 'bg-emerald-100 text-emerald-700' },
-    FAILED: { label: 'Blad wysylki', className: 'bg-red-100 text-red-700' },
-    MISCONFIGURED: { label: 'Blad konfiguracji', className: 'bg-amber-100 text-amber-700' },
-    MIXED: { label: 'Bledy mieszane', className: 'bg-orange-100 text-orange-700' },
+  const statusConfig: Record<
+    NotificationHealthStatus,
+    { label: string; tone: 'emerald' | 'red' | 'amber' | 'orange' }
+  > = {
+    OK: { label: 'OK', tone: 'emerald' },
+    FAILED: { label: 'Blad wysylki', tone: 'red' },
+    MISCONFIGURED: { label: 'Blad konfiguracji', tone: 'amber' },
+    MIXED: { label: 'Bledy mieszane', tone: 'orange' },
   }
 
   const config = statusConfig[notificationHealthStatus]
 
   if (notificationHealthStatus === 'OK') {
-    return (
-      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${config.className}`}>
-        OK
-      </span>
-    )
+    return <Badge tone={config.tone}>OK</Badge>
   }
 
-  const lastFailureDate = notificationLastFailureAt
-    ? new Date(notificationLastFailureAt).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : null
+  const lastFailureDate = notificationLastFailureAt ? formatDate(notificationLastFailureAt) : null
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${config.className}`}>
-        {config.label}
-      </span>
-      <span className="text-xs text-gray-400">
+    <div className="flex flex-col gap-1">
+      <Badge tone={config.tone}>{config.label}</Badge>
+      <span className="text-xs leading-5 text-ink-500">
         {notificationFailureCount} {notificationFailureCount === 1 ? 'blad' : 'bledow'}
         {lastFailureDate ? `, ost. ${lastFailureDate}` : ''}
       </span>
@@ -106,35 +141,79 @@ function NotificationHealthBadge({ request }: { request: PortingRequestListItemD
   )
 }
 
+function FilterGroup({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
+}
+
 export function RequestRow({
   request,
   onClick,
-  formatDate,
+  formatDate: formatDateValue,
 }: {
   request: PortingRequestListItemDto
   onClick: () => void
   formatDate: (value: string) => string
 }) {
+  const ownerLabel = formatCommercialOwnerLabel(request.commercialOwnerSummary)
+  const assigneeLabel = formatAssigneeLabel(request.assignedUserSummary)
+
   return (
-    <tr onClick={onClick} className="hover:bg-blue-50 cursor-pointer transition-colors">
-      <td className="px-4 py-3 font-mono text-xs text-gray-700 whitespace-nowrap">{request.caseNumber}</td>
-      <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{request.clientDisplayName}</td>
-      <td className="px-4 py-3 text-gray-600 font-mono text-xs whitespace-nowrap">{request.numberDisplay}</td>
-      <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate">{request.donorOperatorName}</td>
-      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{PORTING_MODE_LABELS[request.portingMode]}</td>
-      <td className="px-4 py-3 whitespace-nowrap">
+    <tr
+      onClick={onClick}
+      className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-brand-50/70"
+    >
+      <td className="px-5 py-4 align-top">
+        <div className="font-mono text-xs font-semibold text-ink-700">{request.caseNumber}</div>
+        <div className="mt-1 text-xs text-ink-400">{formatDateValue(request.createdAt)}</div>
+      </td>
+      <td className="px-5 py-4 align-top">
+        <div className="max-w-[240px] truncate text-sm font-semibold text-ink-900">
+          {request.clientDisplayName}
+        </div>
+        <div className="mt-1 font-mono text-xs text-ink-500">{request.numberDisplay}</div>
+      </td>
+      <td className="px-5 py-4 align-top">
+        <div className="max-w-[180px] truncate text-sm text-ink-650">{request.donorOperatorName}</div>
+        <div className="mt-1 text-xs font-semibold text-ink-400">
+          {PORTING_MODE_LABELS[request.portingMode]}
+        </div>
+      </td>
+      <td className="px-5 py-4 align-top">
         <StatusBadge status={request.statusInternal} />
       </td>
-      <td className="px-4 py-3 text-gray-600 max-w-[220px] truncate">
-        {formatAssigneeLabel(request.assignedUserSummary)}
+      <td className="px-5 py-4 align-top">
+        <div className="max-w-[220px] truncate text-sm font-medium text-ink-700">
+          {assigneeLabel}
+        </div>
+        <div className="mt-1 text-xs text-ink-400">BOK</div>
       </td>
-      <td className="px-4 py-3 text-gray-600 max-w-[220px] truncate">
-        {formatCommercialOwnerLabel(request.commercialOwnerSummary)}
+      <td className="px-5 py-4 align-top">
+        <div
+          className={cx(
+            'max-w-[260px] truncate text-sm font-semibold',
+            request.commercialOwnerSummary ? 'text-ink-800' : 'text-amber-800',
+          )}
+        >
+          {ownerLabel}
+        </div>
+        <div className="mt-1 text-xs text-ink-400">Opiekun handlowy</div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap">
+      <td className="px-5 py-4 align-top">
         <NotificationHealthBadge request={request} />
       </td>
-      <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{formatDate(request.createdAt)}</td>
     </tr>
   )
 }
@@ -244,292 +323,223 @@ export function RequestsPage() {
     void loadData()
   }, [loadData])
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('pl-PL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
-
   const { items = [], pagination } = result ?? {}
   const summaryCards = summary ? buildRequestsSummaryCards(summary, filters) : []
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sprawy portowania</h1>
-          {pagination && (
-            <p className="text-sm text-gray-500 mt-0.5">
-              {pagination.total}{' '}
-              {pagination.total === 1 ? 'sprawa' : pagination.total < 5 ? 'sprawy' : 'spraw'}
-            </p>
-          )}
-        </div>
-        <Link to={ROUTES.REQUEST_NEW} className="btn-primary">
-          + Nowa sprawa
-        </Link>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Operacje"
+        title="Sprawy portowania"
+        description={
+          pagination ? (
+            <>
+              {pagination.total} {pluralizeRequests(pagination.total)} w aktualnym widoku.
+            </>
+          ) : (
+            'Lista operacyjna spraw z filtrami ownership, statusu i zdrowia notyfikacji.'
+          )
+        }
+        actions={
+          <ButtonLink to={ROUTES.REQUEST_NEW} variant="primary">
+            + Nowa sprawa
+          </ButtonLink>
+        }
+      />
 
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {summaryCards.map((card) => (
-            <button
+            <MetricCard
               key={card.id}
-              type="button"
+              title={card.title}
+              value={card.value}
+              active={card.isActive}
+              detail={card.id === 'HAS_FAILURES' ? 'Wymaga kontroli operacyjnej' : 'Szybki filtr listy'}
               onClick={() => setParam(card.filterUpdates)}
-              className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                card.isActive
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
-              }`}
-            >
-              <p className="text-xs text-gray-500">{card.title}</p>
-              <p className="mt-1 text-2xl font-semibold text-gray-900">{card.value}</p>
-            </button>
+            />
           ))}
         </div>
       )}
 
-      <div className="card p-4 space-y-3">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-3">
-          <input
-            type="search"
-            value={localSearch}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            className="input-field"
-            placeholder="Szukaj po numerze sprawy, numerze telefonu lub nazwie klienta..."
-          />
-          <select
-            value={donorOperatorId}
-            onChange={(event) => {
-              setParam({ donorOperatorId: event.target.value || null, page: null })
-            }}
-            className="input-field"
-          >
-            <option value="">Wszyscy dawcy</option>
-            {operators.map((operator) => (
-              <option key={operator.id} value={operator.id}>
-                {operator.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setParam({ status: null, page: null })}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              !statusFilter
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            Wszystkie statusy
-          </button>
-          {(Object.values(PORTING_CASE_STATUSES) as PortingCaseStatus[]).map((status) => {
-            const meta = getPortingStatusMeta(status)
-            const isActive = statusFilter === status
-            return (
-              <button
-                key={status}
-                onClick={() => setParam({ status: isActive ? null : status, page: null })}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? `${meta.className} ring-2 ring-offset-1 ring-current`
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {meta.label}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 mr-1">Tryb:</span>
-          <button
-            onClick={() => setParam({ portingMode: null, page: null })}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              !portingModeFilter
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            Wszystkie
-          </button>
-          {PORTING_MODES.map((mode) => {
-            const isActive = portingModeFilter === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => setParam({ portingMode: isActive ? null : mode, page: null })}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {PORTING_MODE_LABELS[mode]}
-              </button>
-            )
-          })}
-
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="ml-auto px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+      <section className="panel overflow-hidden">
+        <div className="border-b border-line px-5 py-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="relative flex-1">
+              <input
+                type="search"
+                value={localSearch}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                className="input-field h-11 pl-10"
+                placeholder="Szukaj po numerze sprawy, telefonie lub kliencie..."
+              />
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-400">
+                S
+              </span>
+            </div>
+            <select
+              value={donorOperatorId}
+              onChange={(event) => {
+                setParam({ donorOperatorId: event.target.value || null, page: null })
+              }}
+              className="input-field h-11 lg:max-w-[260px]"
             >
-              Wyczysc filtry
-            </button>
-          )}
+              <option value="">Wszyscy dawcy</option>
+              {operators.map((operator) => (
+                <option key={operator.id} value={operator.id}>
+                  {operator.name}
+                </option>
+              ))}
+            </select>
+            {hasActiveFilters && (
+              <Button onClick={clearFilters} variant="ghost" className="h-11">
+                Wyczysc filtry
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 mr-1">Przypisanie:</span>
-          {(['ALL', 'MINE', 'UNASSIGNED'] as OwnershipFilter[]).map((filter) => {
-            const isActive = ownershipFilter === filter
-            const label =
-              filter === 'ALL' ? 'Wszystkie' : filter === 'MINE' ? 'Moje sprawy' : 'Nieprzypisane'
+        <div className="grid gap-5 px-5 py-5 xl:grid-cols-[1.15fr_0.85fr]">
+          <FilterGroup label="Status">
+            <FilterChip active={!statusFilter} onClick={() => setParam({ status: null, page: null })}>
+              Wszystkie
+            </FilterChip>
+            {(Object.values(PORTING_CASE_STATUSES) as PortingCaseStatus[]).map((status) => {
+              const meta = getPortingStatusMeta(status)
+              const isActive = statusFilter === status
+              return (
+                <FilterChip
+                  key={status}
+                  active={isActive}
+                  onClick={() => setParam({ status: isActive ? null : status, page: null })}
+                >
+                  {meta.label}
+                </FilterChip>
+              )
+            })}
+          </FilterGroup>
 
-            return (
-              <button
-                key={filter}
-                onClick={() => setParam({ ownership: filter === 'ALL' ? null : filter, page: null })}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
+          <FilterGroup label="Tryb portowania">
+            <FilterChip
+              active={!portingModeFilter}
+              onClick={() => setParam({ portingMode: null, page: null })}
+            >
+              Wszystkie
+            </FilterChip>
+            {PORTING_MODES.map((mode) => {
+              const isActive = portingModeFilter === mode
+              return (
+                <FilterChip
+                  key={mode}
+                  active={isActive}
+                  onClick={() => setParam({ portingMode: isActive ? null : mode, page: null })}
+                >
+                  {PORTING_MODE_LABELS[mode]}
+                </FilterChip>
+              )
+            })}
+          </FilterGroup>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 mr-1">Opiekun handlowy:</span>
-          {(
-            [
-              { id: 'ALL', label: 'Wszystkie' },
-              { id: 'WITH_OWNER', label: 'Z opiekunem' },
-              { id: 'WITHOUT_OWNER', label: 'Bez opiekuna' },
-              { id: 'MINE', label: 'Moje handlowe' },
-            ] as const
-          ).map((filter) => {
-            const isActive = commercialOwnerFilter === filter.id
-
-            return (
-              <button
+          <FilterGroup label="Przypisanie BOK">
+            {ownershipOptions.map((filter) => (
+              <FilterChip
                 key={filter.id}
+                active={ownershipFilter === filter.id}
+                onClick={() => setParam({ ownership: filter.id === 'ALL' ? null : filter.id, page: null })}
+              >
+                {filter.label}
+              </FilterChip>
+            ))}
+          </FilterGroup>
+
+          <FilterGroup label="Opiekun i notyfikacje">
+            {commercialOwnerOptions.map((filter) => (
+              <FilterChip
+                key={filter.id}
+                active={commercialOwnerFilter === filter.id}
                 onClick={() =>
                   setParam({
                     commercialOwnerFilter: filter.id === 'ALL' ? null : filter.id,
                     page: null,
                   })
                 }
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
               >
                 {filter.label}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-gray-500 mr-1">Notyfikacje:</span>
-          {(
-            [
-              { id: 'ALL', label: 'Wszystkie' },
-              { id: 'HAS_FAILURES', label: 'Bledy notyfikacji' },
-              { id: 'NO_FAILURES', label: 'Bez bledow' },
-            ] as const
-          ).map((filter) => {
-            const isActive = notificationHealthFilter === filter.id
-
-            return (
-              <button
+              </FilterChip>
+            ))}
+            {notificationHealthOptions.map((filter) => (
+              <FilterChip
                 key={filter.id}
+                active={notificationHealthFilter === filter.id}
                 onClick={() =>
                   setParam({
                     notificationHealthFilter: filter.id === 'ALL' ? null : filter.id,
                     page: null,
                   })
                 }
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
               >
                 {filter.label}
-              </button>
-            )
-          })}
+              </FilterChip>
+            ))}
+          </FilterGroup>
         </div>
-      </div>
+      </section>
 
-      <div className="card overflow-hidden">
+      <section className="panel overflow-hidden">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold text-ink-900">Lista spraw</h2>
+            <p className="mt-1 text-xs text-ink-500">
+              Status, opiekun i health notyfikacji sa widoczne bez wchodzenia w szczegoly.
+            </p>
+          </div>
+          {pagination && (
+            <Badge tone="neutral">
+              {pagination.total} {pluralizeRequests(pagination.total)}
+            </Badge>
+          )}
+        </div>
+
         {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400 text-sm">Ladowanie...</div>
+          <div className="flex items-center justify-center py-16 text-sm font-medium text-ink-500">
+            Ladowanie listy...
+          </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <p className="text-red-500 text-sm">{error}</p>
-            <button onClick={() => void loadData()} className="btn-secondary text-xs">
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <p className="text-sm font-medium text-red-600">{error}</p>
+            <Button onClick={() => void loadData()} variant="secondary" size="sm">
               Sprobuj ponownie
-            </button>
+            </Button>
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-2">
-            <p className="text-sm font-medium text-gray-600">Brak spraw portowania</p>
-            <p className="text-xs">
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <p className="text-sm font-semibold text-ink-800">Brak spraw portowania</p>
+            <p className="max-w-md text-sm leading-6 text-ink-500">
               {hasActiveFilters
                 ? 'Zadna sprawa nie pasuje do podanych kryteriow.'
                 : 'Utworz pierwsza sprawe przyciskiem powyzej.'}
             </p>
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="btn-secondary text-xs mt-1">
+              <Button onClick={clearFilters} variant="secondary" size="sm">
                 Wyczysc filtry
-              </button>
+              </Button>
             )}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full min-w-[1100px] text-sm">
+              <thead className="bg-ink-50 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                    Numer sprawy
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Klient</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                    Numer / zakres
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                    Operator oddajacy
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Tryb</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                    Przypisanie
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                    Opiekun handlowy
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                    Notyfikacje
-                  </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                    Utworzono
-                  </th>
+                  <th className="px-5 py-3 text-left">Sprawa</th>
+                  <th className="px-5 py-3 text-left">Klient i numer</th>
+                  <th className="px-5 py-3 text-left">Operator / tryb</th>
+                  <th className="px-5 py-3 text-left">Status</th>
+                  <th className="px-5 py-3 text-left">Przypisanie</th>
+                  <th className="px-5 py-3 text-left">Owner</th>
+                  <th className="min-w-[130px] whitespace-nowrap px-5 py-3 text-left">Notyfikacje</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {items.map((request) => (
                   <RequestRow
                     key={request.id}
@@ -542,30 +552,32 @@ export function RequestsPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-ink-500">
             Strona {pagination.page} z {pagination.totalPages}
             {' | '}
             {pagination.total} rekordow
           </p>
           <div className="flex gap-2">
-            <button
+            <Button
               disabled={page <= 1}
               onClick={() => setParam({ page: String(page - 1) })}
-              className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40"
+              variant="secondary"
+              size="sm"
             >
               Poprzednia
-            </button>
-            <button
+            </Button>
+            <Button
               disabled={page >= pagination.totalPages}
               onClick={() => setParam({ page: String(page + 1) })}
-              className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40"
+              variant="secondary"
+              size="sm"
             >
               Nastepna
-            </button>
+            </Button>
           </div>
         </div>
       )}

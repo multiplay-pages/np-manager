@@ -4,9 +4,9 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-12)
+## Aktualny stan projektu (2026-04-14)
 
-### Zrealizowane PR-y
+### Stan prac / etapy
 
 | PR    | Opis                                                                 | Status |
 |-------|----------------------------------------------------------------------|--------|
@@ -25,6 +25,10 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR19A-2 | Request-level read layer dla internal notification attempts        | DONE   |
 | PR19B-1 | Backend retry eligibility + request-scoped retry endpoint          | DONE   |
 | PR20E | Full server-side operational status filters for global queue       | DONE   |
+| Etap 2A.1 | Frontend redesign foundation + app shell + RequestsPage          | DONE   |
+| Etap 2A.2 | Frontend redesign RequestDetailPage                              | DONE   |
+| Etap 2A.3 | Operacyjny UX polish po review                                  | DONE   |
+| Etap 2A.4 | Final micro-polish przed zamknieciem 2A                         | DONE   |
 
 ---
 
@@ -217,6 +221,52 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - bez przebudowy historii PR14,
   - bez zmian w customer communication module.
 
+### Etap 2A - redesign frontendowy UI/UX
+
+Zakres pozostaje wylacznie frontendowy: bez zmian backendu, DTO, endpointow, workflow i logiki domenowej.
+
+Etap 2A.1:
+- Dodano lekka foundation UI w `apps/frontend/src/components/ui/`:
+  - `Button`, `ButtonLink`, `Badge`, `FilterChip`, `MetricCard`, `PageHeader`, `cx`.
+- Rozszerzono tokeny Tailwind o spokojny system `brand`, `ink`, `surface`, `canvas`, `line`, radiusy `ui/panel` i cienie `soft/panel`.
+- Przebudowano `AppLayout` na jasniejszy SaaS shell: sidebar, topbar, wrapper tresci.
+- Przeprojektowano `RequestsPage`:
+  - naglowek operacyjny,
+  - summary cards jako szybkie filtry,
+  - pogrupowany panel filtrow,
+  - tabela z mocniej widocznym statusem, ownerem i health notyfikacji.
+- Zachowano istniejace hooki, API calls, URL params i zachowanie biznesowe.
+
+Etap 2A.2:
+- Przeprojektowano `RequestDetailPage` w tym samym kierunku wizualnym:
+  - header sprawy z numerem, klientem, statusem, trybem i szybka akcja,
+  - metryki decyzyjne u gory: status, przypisanie BOK, opiekun handlowy, notyfikacje,
+  - sekcje operacyjne przed historia i diagnostyka,
+  - PLI CBD oraz diagnostyka pozostaja dostepne nizej w sekcjach rozwijanych dla admina.
+- Nie usunieto istniejacych funkcji detail page; zmieniono hierarchie, grupowanie i styling.
+
+Etap 2A.3:
+- Wdrozono frontend-only polish po review bez zmian backendu, DTO, endpointow i workflow.
+- Poprawiono disabled CTA w komunikacji operacyjnej:
+  - zablokowane akcje nie wygladaja jak aktywne primary CTA,
+  - operator widzi powody blokady oraz statusy, w ktorych akcja bedzie dostepna.
+- Dodano lekkie `Szybkie akcje` i shortcuty z kart detail do workflow, przypisania, opiekuna i notyfikacji.
+- Dopracowano empty state historii sprawy oraz usunieto z UI techniczne copy typu foundation/SOAP.
+- Dodano affordance disclosure dla PLI CBD/Diagnostyki.
+
+Etap 2A.4:
+- Wdrozono finalny frontend-only micro-polish przed zamknieciem 2A.
+- Uspojniono disclosure/focus:
+  - caly naglowek sekcji jest klikalny,
+  - focus po toggle pozostaje logicznie na headerze sekcji.
+- Skrocono naglowek kolumny notyfikacji na liscie do `Notyfikacje`.
+- Lekko wzmocniono mikro-linki w gornych kartach detail (`Akcje`, `Zmien`, `Historia`) bez robienia z nich duzych CTA.
+- Routing po `requestNumber` pozostaje osobnym follow-upem poza zakresem 2A.
+
+Otwarte:
+- Po pozytywnym smoke tescie w przegladarce Etap 2A moze zostac zamkniety.
+- Etap 2A nie oznacza jeszcze redesignu wszystkich ekranow; kolejne widoki powinny korzystac z `components/ui`.
+
 #### Konfiguracja transportu email
 
 ```env
@@ -297,6 +347,8 @@ packages/shared/src/
   dto/porting-internal-notifications.dto.ts # historia + DTO attempts (PR19A-2)
 
 apps/frontend/src/
+  components/ui/                 # Etap 2A frontend foundation
+  components/layout/AppLayout.tsx # Etap 2A app shell
   components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel.tsx
   components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel.tsx
   pages/Requests/RequestDetailPage.tsx

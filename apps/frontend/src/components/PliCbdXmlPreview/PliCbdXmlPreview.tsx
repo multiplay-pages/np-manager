@@ -14,7 +14,7 @@ export function PliCbdXmlPreview({ messageType, result, isLoading }: PliCbdXmlPr
           XML preview {messageType}
         </h2>
         <p className="text-sm text-gray-500">
-          Internal read-only serializer preview nad technical payload, bez SOAP i bez transportu.
+          Podglad XML dla komunikatu {messageType}, tylko do weryfikacji administracyjnej.
         </p>
       </div>
 
