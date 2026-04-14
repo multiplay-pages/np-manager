@@ -24,6 +24,7 @@ function makeItem(
   return {
     attemptId: 'attempt-1',
     requestId: 'request-1',
+    caseNumber: 'FNP-20260411-ABC123',
     eventCode: 'STATUS_CHANGED',
     eventLabel: 'Zmiana statusu sprawy',
     attemptOrigin: 'PRIMARY',
@@ -185,6 +186,15 @@ describe('NotificationFailureQueuePage', () => {
     expect(getGlobalNotificationFailureQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({ operationalStatus: 'MANUAL_INTERVENTION_REQUIRED' }),
     )
+  })
+
+  it('shows API loading error instead of empty state', async () => {
+    getGlobalNotificationFailureQueueMock.mockRejectedValueOnce(new Error('API unavailable'))
+
+    renderPage()
+
+    expect(await screen.findByText(/Nie uda/)).toBeTruthy()
+    expect(screen.queryByText(/Brak problematycznych/)).toBeNull()
   })
 
   it('clears operationalStatus for the Wszystkie option', async () => {

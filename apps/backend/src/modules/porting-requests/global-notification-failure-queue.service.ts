@@ -25,6 +25,7 @@ export interface GlobalNotificationFailureQueueParams {
 type FailureAttemptRecord = {
   id: string
   requestId: string
+  request: { caseNumber: string }
   eventCode: string
   eventLabel: string
   attemptOrigin: 'PRIMARY' | 'ERROR_FALLBACK' | 'RETRY'
@@ -49,6 +50,11 @@ export async function getGlobalNotificationFailureQueue(
   const dbSelect = {
     id: true,
     requestId: true,
+    request: {
+      select: {
+        caseNumber: true,
+      },
+    },
     eventCode: true,
     eventLabel: true,
     attemptOrigin: true,
@@ -159,6 +165,7 @@ function mapToDto(record: FailureAttemptRecord): GlobalNotificationFailureQueueI
   return {
     attemptId: record.id,
     requestId: record.requestId,
+    caseNumber: record.request.caseNumber,
     eventCode: record.eventCode,
     eventLabel: record.eventLabel,
     attemptOrigin: record.attemptOrigin,

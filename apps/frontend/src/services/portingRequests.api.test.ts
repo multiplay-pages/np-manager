@@ -17,6 +17,7 @@ vi.mock('./api.client', () => ({
 import {
   assignPortingRequestToMe,
   getPortingRequestInternalNotificationAttempts,
+  getGlobalNotificationFailureQueue,
   getPortingRequestNotificationFailures,
   getPortingRequestAssignmentHistory,
   getPortingRequestAssignmentUsers,
@@ -170,6 +171,20 @@ describe('portingRequests.api assignment flow', () => {
     expect(postMock).toHaveBeenCalledWith(
       '/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
       {},
+    )
+  })
+
+  it('calls global internal notification failures endpoint', async () => {
+    getMock.mockResolvedValueOnce({ data: { data: { items: [], total: 0 } } })
+
+    await getGlobalNotificationFailureQueue({
+      operationalStatus: 'RETRY_AVAILABLE',
+      limit: 50,
+      offset: 0,
+    })
+
+    expect(getMock).toHaveBeenCalledWith(
+      '/internal-notification-failures?operationalStatus=RETRY_AVAILABLE&limit=50',
     )
   })
 

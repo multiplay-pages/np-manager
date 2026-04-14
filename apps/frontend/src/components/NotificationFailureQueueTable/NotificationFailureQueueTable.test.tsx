@@ -11,6 +11,7 @@ function makeItem(
   return {
     attemptId: 'attempt-1',
     requestId: 'request-abc-123',
+    caseNumber: 'FNP-20260411-ABC123',
     eventCode: 'STATUS_CHANGED',
     eventLabel: 'Zmiana statusu sprawy',
     attemptOrigin: 'PRIMARY',
@@ -89,6 +90,37 @@ describe('NotificationFailureQueueTable', () => {
     })
 
     expect(html).not.toContain('Ponów')
+  })
+
+  it('renders business case number as request link', () => {
+    const html = renderTable({
+      items: [makeItem({ requestId: 'request-abc-123', caseNumber: 'FNP-20260411-ABC123' })],
+    })
+
+    expect(html).toContain('FNP-20260411-ABC123')
+    expect(html).toContain('/requests/request-abc-123')
+  })
+
+  it('renders channel label and recipient', () => {
+    const html = renderTable({
+      items: [makeItem({ channel: 'TEAMS', recipient: 'https://teams.test/webhook' })],
+    })
+
+    expect(html).toContain('Teams')
+    expect(html).toContain('https://teams.test/webhook')
+  })
+
+  it('renders readable retry blocked reason', () => {
+    const html = renderTable({
+      items: [
+        makeItem({
+          canRetry: false,
+          retryBlockedReasonCode: 'ORIGIN_NOT_RETRYABLE',
+        }),
+      ],
+    })
+
+    expect(html).toContain('Tego typu proby nie mozna ponowic')
   })
 
   it('renders RETRY_LIMIT_REACHED as Limit wyczerpany', () => {
