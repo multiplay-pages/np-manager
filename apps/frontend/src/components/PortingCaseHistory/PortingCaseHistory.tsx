@@ -79,16 +79,25 @@ function HistoryItem({ item }: { item: PortingRequestCaseHistoryItemDto }) {
 interface PortingCaseHistoryProps {
   items: PortingRequestCaseHistoryItemDto[]
   isLoading: boolean
+  showHeader?: boolean
 }
 
-export function PortingCaseHistory({ items, isLoading }: PortingCaseHistoryProps) {
+function HistoryHeader() {
+  return (
+    <>
+      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-700">
+        Historia sprawy
+      </h2>
+      <p className="mb-4 text-sm text-gray-500">Biznesowy audit trail zmian statusu sprawy.</p>
+    </>
+  )
+}
+
+export function PortingCaseHistory({ items, isLoading, showHeader = true }: PortingCaseHistoryProps) {
   if (isLoading) {
     return (
-      <div className="card p-5">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-700">
-          Historia sprawy
-        </h2>
-        <p className="mb-4 text-sm text-gray-500">Biznesowy audit trail zmian statusu sprawy.</p>
+      <div className={showHeader ? 'card p-5' : ''}>
+        {showHeader && <HistoryHeader />}
         <div className="flex items-center justify-center py-8 text-sm text-gray-400">
           Ladowanie historii...
         </div>
@@ -98,24 +107,18 @@ export function PortingCaseHistory({ items, isLoading }: PortingCaseHistoryProps
 
   if (items.length === 0) {
     return (
-      <div className="card p-5">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-700">
-          Historia sprawy
-        </h2>
-        <p className="mb-4 text-sm text-gray-500">Biznesowy audit trail zmian statusu sprawy.</p>
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
-          Brak wpisow w historii sprawy.
+      <div className={showHeader ? 'card p-5' : ''}>
+        {showHeader && <HistoryHeader />}
+        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center text-sm leading-6 text-gray-600">
+          Brak wpisow w historii statusu tej sprawy. Komunikacja, powiadomienia i operacje PLI CBD sa pokazane w osobnych sekcjach.
         </div>
       </div>
     )
   }
 
   return (
-    <div className="card p-5">
-      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-700">
-        Historia sprawy
-      </h2>
-      <p className="mb-4 text-sm text-gray-500">Biznesowy audit trail zmian statusu sprawy.</p>
+    <div className={showHeader ? 'card p-5' : ''}>
+      {showHeader && <HistoryHeader />}
       <div>
         {items.map((item) => (
           <HistoryItem key={item.id} item={item} />

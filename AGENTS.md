@@ -13,6 +13,12 @@ Przed zmianami przeczytaj:
 2. `CLAUDE.md`
 3. `docs/PROJECT_CONTINUITY.md`
 
+### Role dokumentow
+
+- `AGENTS.md` - stale zasady pracy, walidacji, bezpieczenstwa i konwencji repo.
+- `docs/PROJECT_CONTINUITY.md` - biezaca ciaglosc projektu, aktualny stan i decyzje architektoniczne.
+- `CLAUDE.md` - lekki entrypoint dla Claude Code, bez duplikowania pelnej dokumentacji.
+
 ---
 
 ## Struktura projektu

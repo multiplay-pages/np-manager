@@ -36,9 +36,18 @@ function DiagnosticPanel({ label, data }: { label: string; data: unknown }) {
   if (!data) return null
 
   return (
-    <details className="mt-2">
-      <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 select-none">
-        {label}
+    <details className="group mt-2">
+      <summary
+        onClick={(event) => event.currentTarget.focus()}
+        className="flex w-full cursor-pointer list-none items-center gap-2 text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 [&::-webkit-details-marker]:hidden"
+      >
+        <span
+          aria-hidden="true"
+          className="inline-flex h-5 w-5 items-center justify-center rounded border border-gray-200 bg-white text-[10px] font-semibold transition-transform group-open:rotate-180"
+        >
+          v
+        </span>
+        <span>{label}</span>
       </summary>
       <pre className="mt-1 overflow-x-auto rounded bg-gray-50 border border-gray-200 p-2 text-xs text-gray-700 whitespace-pre-wrap break-all">
         {JSON.stringify(data, null, 2)}
@@ -84,7 +93,7 @@ function IntegrationEventItem({ item }: { item: PliCbdIntegrationEventDto }) {
           <p className="text-sm text-gray-600">
             {item.errorMessage ??
               item.actionName ??
-              'Operacja foundation PLI CBD zostala zapisana.'}
+              'Operacja PLI CBD zostala zapisana.'}
           </p>
 
           {hasTransportMeta && (

@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
+import { Badge, Button, ButtonLink, type BadgeTone, cx } from '@/components/ui'
 import {
   assignPortingRequestToMe,
   cancelPortingCommunication,
@@ -212,43 +213,58 @@ function getAssignmentActionErrorMessage(error: unknown, fallback: string): stri
 }
 
 function SectionCard({
+  id,
   title,
   description,
   children,
+  compact = false,
 }: {
+  id?: string
   title: string
   description?: string
   children: React.ReactNode
+  compact?: boolean
 }) {
   return (
-    <div className="card p-5">
-      <div className="mb-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">{title}</h2>
-        {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+    <section id={id} className={cx('panel scroll-mt-6', compact ? 'p-4' : 'p-5')}>
+      <div className={compact ? 'mb-3' : 'mb-4'}>
+        <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
+        {description && <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>}
       </div>
       {children}
-    </div>
+    </section>
   )
 }
 
 function DisclosureCard({
+  id,
   title,
   description,
   children,
 }: {
+  id?: string
   title: string
   description: string
   children: React.ReactNode
 }) {
   return (
-    <details className="card overflow-hidden">
-      <summary className="cursor-pointer list-none px-5 py-4">
-        <div className="pr-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">{title}</h2>
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
+    <details id={id} className="panel group scroll-mt-6 overflow-hidden">
+      <summary
+        onClick={(event) => event.currentTarget.focus()}
+        className="flex w-full cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset group-open:bg-ink-50/50 [&::-webkit-details-marker]:hidden"
+      >
+        <div className="min-w-0 pr-4">
+          <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
+          <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>
         </div>
+        <span
+          aria-hidden="true"
+          className="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-ui border border-line bg-surface text-sm font-semibold text-ink-500 transition-transform group-open:rotate-180"
+        >
+          v
+        </span>
       </summary>
-      <div className="border-t border-gray-100 px-5 py-5">{children}</div>
+      <div className="border-t border-line px-5 py-5">{children}</div>
     </details>
   )
 }
@@ -264,9 +280,9 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="mb-0.5 text-xs text-gray-500">{label}</dt>
-      <dd className={`text-sm text-gray-900 ${mono ? 'font-mono' : ''}`}>
-        {value ?? <span className="text-gray-400">-</span>}
+      <dt className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">{label}</dt>
+      <dd className={cx('text-sm font-medium text-ink-800', mono && 'font-mono')}>
+        {value ?? <span className="font-normal text-ink-400">-</span>}
       </dd>
     </div>
   )
@@ -275,12 +291,61 @@ function Field({
 function WideField({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="sm:col-span-2">
-      <dt className="mb-0.5 text-xs text-gray-500">{label}</dt>
-      <dd className="whitespace-pre-wrap text-sm text-gray-900">
-        {value ?? <span className="text-gray-400">-</span>}
+      <dt className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">{label}</dt>
+      <dd className="whitespace-pre-wrap text-sm font-medium leading-6 text-ink-800">
+        {value ?? <span className="font-normal text-ink-400">-</span>}
       </dd>
     </div>
   )
+}
+
+function DetailMetric({
+  label,
+  value,
+  tone = 'neutral',
+  actionLabel,
+  onAction,
+}: {
+  label: string
+  value: string
+  tone?: BadgeTone
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="rounded-panel border border-line bg-surface px-4 py-3">
+      <div className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-400">{label}</div>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <Badge tone={tone}>{value}</Badge>
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            className="rounded-ui bg-brand-50/70 px-2 py-1 text-xs font-semibold text-brand-800 underline-offset-4 transition-colors hover:bg-brand-100 hover:text-brand-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          >
+            {actionLabel} {'>'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function scrollToSection(sectionId: string) {
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function getStatusTone(status: ReturnType<typeof getPortingStatusMeta>['tone']): BadgeTone {
+  const toneByStatus: Record<ReturnType<typeof getPortingStatusMeta>['tone'], BadgeTone> = {
+    gray: 'neutral',
+    blue: 'brand',
+    amber: 'amber',
+    green: 'green',
+    red: 'red',
+    emerald: 'emerald',
+  }
+
+  return toneByStatus[status]
 }
 
 function formatDateTime(iso: string): string {
@@ -310,7 +375,7 @@ function buildAdminTransportBanner(result: PliCbdManualExportResultDto) {
     outcome === 'ACCEPTED'
       ? 'Zaakceptowany przez PLI CBD.'
       : outcome === 'STUBBED'
-        ? 'Stub: brak realnego transportu, artefakty zapisane lokalnie.'
+        ? 'Operacja zapisana w trybie testowym.'
         : outcome === 'REJECTED'
           ? `Odrzucony przez PLI CBD: ${transportResult?.rejectionReason ?? 'brak powodu'}`
           : outcome === 'TRANSPORT_ERROR'
@@ -325,57 +390,55 @@ function buildAdminTransportBanner(result: PliCbdManualExportResultDto) {
 function NotificationHealthPanel({ health }: { health: NotificationHealthDiagnosticsDto }) {
   const statusConfig: Record<
     NotificationHealthDiagnosticsDto['status'],
-    { label: string; badgeClass: string; panelClass: string }
+    { label: string; tone: BadgeTone; panelClass: string }
   > = {
     OK: {
       label: 'OK — brak bledow notyfikacji',
-      badgeClass: 'bg-emerald-100 text-emerald-700',
-      panelClass: 'border-emerald-200 bg-emerald-50',
+      tone: 'emerald',
+      panelClass: 'border-emerald-200 bg-emerald-50/70',
     },
     FAILED: {
       label: 'Blad wysylki',
-      badgeClass: 'bg-red-100 text-red-700',
-      panelClass: 'border-red-200 bg-red-50',
+      tone: 'red',
+      panelClass: 'border-red-200 bg-red-50/80',
     },
     MISCONFIGURED: {
       label: 'Blad konfiguracji',
-      badgeClass: 'bg-amber-100 text-amber-700',
-      panelClass: 'border-amber-200 bg-amber-50',
+      tone: 'amber',
+      panelClass: 'border-amber-200 bg-amber-50/80',
     },
     MIXED: {
       label: 'Bledy mieszane',
-      badgeClass: 'bg-orange-100 text-orange-700',
-      panelClass: 'border-orange-200 bg-orange-50',
+      tone: 'orange',
+      panelClass: 'border-orange-200 bg-orange-50/80',
     },
   }
 
   const config = statusConfig[health.status]
 
   return (
-    <div className={`rounded-lg border p-4 ${config.panelClass}`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-700">Diagnostyka powiadomien wewnetrznych</h3>
-        <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${config.badgeClass}`}>
-          {config.label}
-        </span>
+    <div className={`rounded-panel border p-4 ${config.panelClass}`}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-ink-800">Zdrowie powiadomien wewnetrznych</h3>
+        <Badge tone={config.tone}>{config.label}</Badge>
       </div>
       {health.status !== 'OK' && (
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
           <div>
-            <dt className="text-gray-500">Wszystkich bledow</dt>
-            <dd className="font-medium text-gray-800">{health.failureCount}</dd>
+            <dt className="text-ink-500">Wszystkich bledow</dt>
+            <dd className="font-semibold text-ink-800">{health.failureCount}</dd>
           </div>
           <div>
-            <dt className="text-gray-500">Blad wysylki</dt>
-            <dd className="font-medium text-gray-800">{health.failedCount}</dd>
+            <dt className="text-ink-500">Blad wysylki</dt>
+            <dd className="font-semibold text-ink-800">{health.failedCount}</dd>
           </div>
           <div>
-            <dt className="text-gray-500">Blad konfiguracji</dt>
-            <dd className="font-medium text-gray-800">{health.misconfiguredCount}</dd>
+            <dt className="text-ink-500">Blad konfiguracji</dt>
+            <dd className="font-semibold text-ink-800">{health.misconfiguredCount}</dd>
           </div>
           <div>
-            <dt className="text-gray-500">Ostatni blad</dt>
-            <dd className="font-medium text-gray-800">
+            <dt className="text-ink-500">Ostatni blad</dt>
+            <dd className="font-semibold text-ink-800">
               {health.lastFailureAt
                 ? new Date(health.lastFailureAt).toLocaleDateString('pl-PL', {
                     day: '2-digit',
@@ -1456,58 +1519,156 @@ export function RequestDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-gray-400">Ladowanie...</div>
+      <div className="flex items-center justify-center py-24 text-sm font-medium text-ink-500">
+        Ladowanie szczegolow sprawy...
+      </div>
     )
   }
 
   if (error || !request) {
     return (
-      <div className="p-6">
-        <div className="card p-8 text-center">
-          <p className="mb-4 text-sm text-red-500">{error ?? 'Sprawa nie zostala znaleziona.'}</p>
-          <button onClick={() => void navigate(ROUTES.REQUESTS)} className="btn-secondary">
-            Wroc do listy
-          </button>
-        </div>
+      <div className="panel p-8 text-center">
+        <p className="mb-4 text-sm font-medium text-red-600">
+          {error ?? 'Sprawa nie zostala znaleziona.'}
+        </p>
+        <Button onClick={() => void navigate(ROUTES.REQUESTS)} variant="secondary">
+          Wroc do listy
+        </Button>
       </div>
     )
   }
 
   const statusMeta = getPortingStatusMeta(request.statusInternal)
+  const assignedUserLabel = request.assignedUser
+    ? `${request.assignedUser.displayName} (${request.assignedUser.email})`
+    : 'Nieprzypisana'
+  const commercialOwnerLabel = request.commercialOwner
+    ? `${request.commercialOwner.displayName} (${request.commercialOwner.email})`
+    : 'Brak opiekuna'
+  const quickStatusActions = canManageStatus ? availableStatusActions.slice(0, 3) : []
+  const hasQuickActions =
+    quickStatusActions.length > 0 || canManageAssignment || availableCommunicationActions.length > 0
 
   return (
-    <div className="max-w-6xl space-y-4 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <button
-            onClick={() => void navigate(ROUTES.REQUESTS)}
-            className="mb-2 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-          >
-            {'<-'} Sprawy portowania
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">{request.caseNumber}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusMeta.className}`}
-            >
-              {statusMeta.label}
-            </span>
-            <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-              {PORTING_MODE_LABELS[request.portingMode]}
-            </span>
-            <span className="text-sm text-gray-500">{request.client.displayName}</span>
-            <span className="text-sm text-gray-500">{request.numberDisplay}</span>
+    <div className="space-y-6">
+      <section className="panel overflow-hidden">
+        <div className="border-b border-line px-5 py-5">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <Button
+                onClick={() => void navigate(ROUTES.REQUESTS)}
+                variant="ghost"
+                size="sm"
+                className="mb-3 -ml-2"
+              >
+                {'<-'} Sprawy portowania
+              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone="neutral">{request.caseNumber}</Badge>
+                <Badge tone={getStatusTone(statusMeta.tone)}>{statusMeta.label}</Badge>
+                <Badge tone="brand">{PORTING_MODE_LABELS[request.portingMode]}</Badge>
+              </div>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink-900">
+                {request.client.displayName}
+              </h1>
+              <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-ink-500">
+                <span className="font-mono text-ink-700">{request.numberDisplay}</span>
+                <span>{request.subscriberDisplayName}</span>
+                <span>
+                  {request.donorOperator.name} {'->'} {request.recipientOperator.name}
+                </span>
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <ButtonLink to={ROUTES.REQUEST_NEW} variant="secondary">
+                + Nowa sprawa
+              </ButtonLink>
+            </div>
           </div>
         </div>
 
-        <button onClick={() => void navigate(ROUTES.REQUEST_NEW)} className="btn-secondary">
-          + Nowa sprawa
-        </button>
-      </div>
+        <div className="grid gap-3 bg-ink-50/70 px-5 py-4 md:grid-cols-2 xl:grid-cols-4">
+          <DetailMetric
+            label="Status"
+            value={statusMeta.label}
+            tone={getStatusTone(statusMeta.tone)}
+            actionLabel={canManageStatus ? 'Akcje' : undefined}
+            onAction={canManageStatus ? () => scrollToSection('workflow-actions') : undefined}
+          />
+          <DetailMetric
+            label="Przypisanie BOK"
+            value={request.assignedUser ? request.assignedUser.displayName : 'Nieprzypisana'}
+            tone={request.assignedUser ? 'brand' : 'amber'}
+            actionLabel={canManageAssignment ? 'Zmien' : 'Szczegoly'}
+            onAction={() => scrollToSection('assignment-panel')}
+          />
+          <DetailMetric
+            label="Opiekun handlowy"
+            value={request.commercialOwner ? request.commercialOwner.displayName : 'Brak opiekuna'}
+            tone={request.commercialOwner ? 'emerald' : 'amber'}
+            actionLabel={canManageCommercialOwner ? 'Zmien' : 'Szczegoly'}
+            onAction={() => scrollToSection('commercial-owner-panel')}
+          />
+          <DetailMetric
+            label="Notyfikacje"
+            value={request.notificationHealth.status === 'OK' ? 'OK' : `${request.notificationHealth.failureCount} bledow`}
+            tone={request.notificationHealth.status === 'OK' ? 'emerald' : 'red'}
+            actionLabel={request.notificationHealth.failureCount > 0 ? 'Sprawdz' : 'Historia'}
+            onAction={() => scrollToSection('notification-panel')}
+          />
+        </div>
+      </section>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-        <div className="space-y-4">
-          <SectionCard title="Przeglad" description="Najwazniejsze dane operacyjne sprawy.">
+      {hasQuickActions && (
+        <section className="panel p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-ink-900">Szybkie akcje</h2>
+              <p className="mt-1 text-sm text-ink-500">
+                Najczestsze przejscia operacyjne bez szukania panelu w prawej kolumnie.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {quickStatusActions.map((action) => (
+                <Button
+                  key={`${action.actionId}-${action.targetStatus}`}
+                  onClick={() => {
+                    handleSelectStatusAction(action)
+                    scrollToSection('workflow-actions')
+                  }}
+                  variant="primary"
+                  size="sm"
+                >
+                  {action.label}
+                </Button>
+              ))}
+              {canManageAssignment && (
+                <Button
+                  onClick={() => scrollToSection('assignment-panel')}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Przypisanie BOK
+                </Button>
+              )}
+              {availableCommunicationActions.length > 0 && (
+                <Button
+                  onClick={() => scrollToSection('communication-panel')}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Komunikacja
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
+        <div className="space-y-5">
+          <SectionCard title="Najwazniejsze informacje" description="Dane potrzebne od razu po wejsciu w sprawe.">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Klient" value={request.client.displayName} />
               <Field label="Abonent" value={request.subscriberDisplayName} />
@@ -1522,7 +1683,7 @@ export function RequestDetailPage() {
             </dl>
           </SectionCard>
 
-          <SectionCard title="Terminy" description="Terminy istotne z perspektywy codziennej obslugi.">
+          <SectionCard title="Porting i terminy" description="Daty oraz parametry potrzebne do operacyjnej obslugi portowania.">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Wnioskowany dzien przeniesienia" value={request.requestedPortDate} mono />
               <Field label="Najwczesniejsza akceptowalna data" value={request.earliestAcceptablePortDate} mono />
@@ -1533,7 +1694,7 @@ export function RequestDetailPage() {
             </dl>
           </SectionCard>
 
-          <SectionCard title="Dane sprawy" description="Tozsamosc abonenta, kontakt i notatki operacyjne.">
+          <SectionCard title="Dane klienta i kontakt" description="Tozsamosc abonenta, kontakt i notatki operacyjne.">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Typ identyfikatora" value={SUBSCRIBER_IDENTITY_TYPE_LABELS[request.identityType]} />
               <Field label="Wartosc identyfikatora" value={request.identityValue} mono />
@@ -1544,61 +1705,79 @@ export function RequestDetailPage() {
             </dl>
           </SectionCard>
 
-          <PortingCommunicationPanel
-            actions={availableCommunicationActions}
-            summary={communicationSummary}
-            items={communicationItems}
-            isLoadingHistory={isCommunicationLoading}
-            preview={communicationPreview}
-            feedbackError={communicationFeedbackError}
-            feedbackSuccess={communicationFeedbackSuccess}
-            previewingActionType={previewingCommunicationActionType}
-            creatingDraftActionType={creatingCommunicationActionType}
-            markingSentId={markingCommunicationId}
-            sendingId={sendingCommunicationId}
-            retryingId={retryingCommunicationId}
-            cancellingId={cancellingCommunicationId}
-            deliveryAttemptsByCommId={deliveryAttemptsByCommId}
-            loadingDeliveryAttemptsId={loadingDeliveryAttemptsId}
-            onCreateDraft={(actionType) => void handleCreateCommunicationDraft(actionType)}
-            onPreviewDraft={(actionType) => void handlePreviewCommunicationDraft(actionType)}
-            onMarkAsSent={(communicationId) => void handleMarkCommunicationAsSent(communicationId)}
-            onSend={(communicationId) => void handleSendCommunication(communicationId)}
-            onRetry={(communicationId) => void handleRetryCommunication(communicationId)}
-            onCancel={(communicationId) => void handleCancelCommunication(communicationId)}
-            onLoadDeliveryAttempts={(communicationId) => void handleLoadDeliveryAttempts(communicationId)}
-          />
+          <SectionCard
+            id="notification-panel"
+            title="Stan notyfikacji"
+            description="Widok problemow transportu i historii wewnetrznych powiadomien."
+          >
+            <div className="space-y-4">
+              <NotificationHealthPanel health={request.notificationHealth} />
 
-          <PortingCaseHistory items={caseHistoryItems} isLoading={isCaseHistoryLoading} />
+              {(request.notificationHealth.failureCount > 0 ||
+                isNotificationFailuresLoading ||
+                notificationFailuresError) && (
+                <NotificationFailureHistoryPanel
+                  items={notificationFailureItems}
+                  isLoading={isNotificationFailuresLoading}
+                  error={notificationFailuresError}
+                />
+              )}
 
-          <NotificationHealthPanel health={request.notificationHealth} />
+              <PortingInternalNotificationsPanel
+                items={internalNotificationItems}
+                isLoading={isInternalNotificationLoading}
+                error={internalNotificationError}
+              />
 
-          {(request.notificationHealth.failureCount > 0 ||
-            isNotificationFailuresLoading ||
-            notificationFailuresError) && (
-            <NotificationFailureHistoryPanel
-              items={notificationFailureItems}
-              isLoading={isNotificationFailuresLoading}
-              error={notificationFailuresError}
+              <InternalNotificationAttemptsPanel
+                items={internalNotificationAttemptItems}
+                isLoading={isInternalNotificationAttemptsLoading}
+                error={internalNotificationAttemptsError}
+              />
+            </div>
+          </SectionCard>
+
+          <div id="communication-panel" className="scroll-mt-6">
+            <PortingCommunicationPanel
+              actions={availableCommunicationActions}
+              summary={communicationSummary}
+              items={communicationItems}
+              isLoadingHistory={isCommunicationLoading}
+              preview={communicationPreview}
+              feedbackError={communicationFeedbackError}
+              feedbackSuccess={communicationFeedbackSuccess}
+              previewingActionType={previewingCommunicationActionType}
+              creatingDraftActionType={creatingCommunicationActionType}
+              markingSentId={markingCommunicationId}
+              sendingId={sendingCommunicationId}
+              retryingId={retryingCommunicationId}
+              cancellingId={cancellingCommunicationId}
+              deliveryAttemptsByCommId={deliveryAttemptsByCommId}
+              loadingDeliveryAttemptsId={loadingDeliveryAttemptsId}
+              currentStatus={request.statusInternal}
+              onCreateDraft={(actionType) => void handleCreateCommunicationDraft(actionType)}
+              onPreviewDraft={(actionType) => void handlePreviewCommunicationDraft(actionType)}
+              onMarkAsSent={(communicationId) => void handleMarkCommunicationAsSent(communicationId)}
+              onSend={(communicationId) => void handleSendCommunication(communicationId)}
+              onRetry={(communicationId) => void handleRetryCommunication(communicationId)}
+              onCancel={(communicationId) => void handleCancelCommunication(communicationId)}
+              onLoadDeliveryAttempts={(communicationId) => void handleLoadDeliveryAttempts(communicationId)}
             />
-          )}
+          </div>
 
-          <PortingInternalNotificationsPanel
-            items={internalNotificationItems}
-            isLoading={isInternalNotificationLoading}
-            error={internalNotificationError}
-          />
-
-          <InternalNotificationAttemptsPanel
-            items={internalNotificationAttemptItems}
-            isLoading={isInternalNotificationAttemptsLoading}
-            error={internalNotificationAttemptsError}
-          />
+          <SectionCard title="Historia operacyjna" description="Chronologia zmian statusu i zdarzen sprawy.">
+            <PortingCaseHistory
+              items={caseHistoryItems}
+              isLoading={isCaseHistoryLoading}
+              showHeader={false}
+            />
+          </SectionCard>
 
           {isAdmin && (
             <DisclosureCard
+              id="pli-cbd-panel"
               title="PLI CBD"
-              description="Sekcja administracyjna z operacjami foundation i statusem procesu PLI CBD."
+              description="Sekcja administracyjna z eksportem, synchronizacja i statusem procesu PLI CBD."
             >
               <div className="space-y-4">
                 <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
@@ -1645,10 +1824,6 @@ export function RequestDetailPage() {
                   </div>
                 )}
 
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Manualne akcje sa foundation pod przyszla integracje. Nadal nie ma realnego klienta SOAP do PLI CBD.
-                </div>
-
                 <PliCbdProcessSnapshot snapshot={processSnapshot} isLoading={isProcessSnapshotLoading} />
               </div>
             </DisclosureCard>
@@ -1656,19 +1831,20 @@ export function RequestDetailPage() {
 
           {isAdmin && (
             <DisclosureCard
+              id="diagnostics-panel"
               title="Diagnostyka"
-              description="Drafty, payloady techniczne, XML preview i historia integracji. Schowane domyslnie."
+              description="Podglady techniczne, XML i historia integracji. Schowane domyslnie."
             >
               <div className="space-y-4">
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Diagnostyka jest widoczna tylko dla administratora. Nie sugeruje jeszcze realnego transportu SOAP.
+                  Diagnostyka jest widoczna tylko dla administratora i sluzy do weryfikacji danych technicznych przed operacjami PLI CBD.
                 </div>
 
                 <div className="space-y-3">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-800">Manualny eksport komunikatow PLI CBD</h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      Buduje draft, payload i XML, zapisuje historie integracji, ale nadal nie wysyla do realnego PLI CBD.
+                      Przygotowuje dane komunikatu, zapisuje historie integracji i pokazuje wynik operacji.
                     </p>
                   </div>
 
@@ -1729,9 +1905,18 @@ export function RequestDetailPage() {
                               )}
 
                               {result.technicalWarnings.length > 0 && (
-                                <details className="mt-1">
-                                  <summary className="cursor-pointer text-xs opacity-75 hover:underline">
-                                    Ostrzezenia techniczne ({result.technicalWarnings.length})
+                                <details className="group mt-1">
+                                  <summary
+                                    onClick={(event) => event.currentTarget.focus()}
+                                    className="flex cursor-pointer list-none items-center gap-2 text-xs opacity-75 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 [&::-webkit-details-marker]:hidden"
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className="inline-flex h-5 w-5 items-center justify-center rounded border border-current text-[10px] font-semibold transition-transform group-open:rotate-180"
+                                    >
+                                      v
+                                    </span>
+                                    <span>Ostrzezenia techniczne ({result.technicalWarnings.length})</span>
                                   </summary>
                                   <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs">
                                     {result.technicalWarnings.map((warning, index) => (
@@ -1780,44 +1965,50 @@ export function RequestDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <PortingAssignmentPanel
-            assignedUser={request.assignedUser}
-            assignedAt={request.assignedAt}
-            assignedByDisplayName={assignedByDisplayName}
-            historyItems={assignmentHistoryItems}
-            isHistoryLoading={isAssignmentHistoryLoading}
-            canManageAssignment={canManageAssignment}
-            canSelectAssignee={canSelectAssignee}
-            isLoadingAssigneeOptions={isAssignableUsersLoading}
-            assigneeOptions={assigneeOptions}
-            selectedAssigneeId={assigneeDraft}
-            currentUserId={user?.id ?? null}
-            isAssigningToMe={isAssigningToMe}
-            isUpdatingAssignment={isUpdatingAssignment}
-            isUnassigning={isUnassigning}
-            feedbackError={assignmentFeedbackError}
-            feedbackSuccess={assignmentFeedbackSuccess}
-            onSelectedAssigneeIdChange={setAssigneeDraft}
-            onAssignToMe={() => void handleAssignToMe()}
-            onUpdateAssignment={() => void handleUpdateAssignment()}
-            onUnassign={() => void handleUnassign()}
-          />
+          <div id="assignment-panel" className="scroll-mt-6">
+            <PortingAssignmentPanel
+              assignedUser={request.assignedUser}
+              assignedAt={request.assignedAt}
+              assignedByDisplayName={assignedByDisplayName}
+              historyItems={assignmentHistoryItems}
+              isHistoryLoading={isAssignmentHistoryLoading}
+              canManageAssignment={canManageAssignment}
+              canSelectAssignee={canSelectAssignee}
+              isLoadingAssigneeOptions={isAssignableUsersLoading}
+              assigneeOptions={assigneeOptions}
+              selectedAssigneeId={assigneeDraft}
+              currentUserId={user?.id ?? null}
+              isAssigningToMe={isAssigningToMe}
+              isUpdatingAssignment={isUpdatingAssignment}
+              isUnassigning={isUnassigning}
+              feedbackError={assignmentFeedbackError}
+              feedbackSuccess={assignmentFeedbackSuccess}
+              onSelectedAssigneeIdChange={setAssigneeDraft}
+              onAssignToMe={() => void handleAssignToMe()}
+              onUpdateAssignment={() => void handleUpdateAssignment()}
+              onUnassign={() => void handleUnassign()}
+            />
+          </div>
 
           <SectionCard
+            id="commercial-owner-panel"
             title="Opiekun handlowy"
             description="Opcjonalny opiekun handlowy odpowiedzialny za relacje z klientem."
+            compact
           >
             <div className="space-y-3">
               <div>
-                <span className="block text-xs font-medium text-gray-500">Aktualny opiekun</span>
-                {request.commercialOwner ? (
-                  <span className="mt-0.5 block text-sm font-medium text-gray-900">
-                    {request.commercialOwner.displayName}{' '}
-                    <span className="font-normal text-gray-500">({request.commercialOwner.email})</span>
-                  </span>
-                ) : (
-                  <span className="mt-0.5 block text-sm text-gray-400">Brak przypisanego opiekuna</span>
-                )}
+                <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">
+                  Aktualny opiekun
+                </span>
+                <span
+                  className={cx(
+                    'mt-1 block text-sm font-semibold',
+                    request.commercialOwner ? 'text-ink-900' : 'text-amber-800',
+                  )}
+                >
+                  {commercialOwnerLabel}
+                </span>
               </div>
 
               {canManageCommercialOwner && (
@@ -1830,7 +2021,7 @@ export function RequestDetailPage() {
                       value={commercialOwnerDraft}
                       onChange={(e) => setCommercialOwnerDraft(e.target.value)}
                       disabled={isUpdatingCommercialOwner || isCommercialOwnerCandidatesLoading}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-gray-50 disabled:text-gray-400"
+                      className="input-field"
                     >
                       <option value="">— brak —</option>
                       {commercialOwnerCandidates.map((candidate) => (
@@ -1848,7 +2039,7 @@ export function RequestDetailPage() {
                       disabled={isUpdatingCommercialOwner || isCommercialOwnerCandidatesLoading}
                       className="btn-primary"
                     >
-                      {isUpdatingCommercialOwner ? 'Zapisywanie...' : 'Zapisz'}
+                      {isUpdatingCommercialOwner ? 'Zapis opiekuna' : 'Zapisz'}
                     </button>
                     {request.commercialOwner && (
                       <button
@@ -1878,8 +2069,10 @@ export function RequestDetailPage() {
           </SectionCard>
 
           <SectionCard
-            title="Akcje"
-            description="Frontend tylko pokazuje dozwolone akcje. Backend pozostaje zrodlem prawdy dla workflow."
+            id="workflow-actions"
+            title="Akcje workflow"
+            description="Dostepne przejscia wynikaja z aktualnego statusu sprawy i uprawnien operatora."
+            compact
           >
             {canManageStatus ? (
               <div className="space-y-4">
@@ -1924,7 +2117,7 @@ export function RequestDetailPage() {
                           type="text"
                           value={statusReason}
                           onChange={(event) => setStatusReason(event.target.value)}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                          className="input-field"
                           placeholder={selectedStatusAction.reasonLabel ?? 'Podaj powod'}
                         />
                       </label>
@@ -1939,7 +2132,7 @@ export function RequestDetailPage() {
                         value={statusComment}
                         onChange={(event) => setStatusComment(event.target.value)}
                         rows={selectedStatusAction.requiresComment ? 4 : 3}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        className="input-field"
                         placeholder={
                           selectedStatusAction.requiresComment
                             ? 'Dodaj wymagany komentarz'
@@ -1955,7 +2148,7 @@ export function RequestDetailPage() {
                         className="btn-primary"
                         disabled={isUpdatingStatus || isExporting || isSyncing}
                       >
-                        {isUpdatingStatus ? 'Zapisywanie...' : selectedStatusAction.label}
+                        {isUpdatingStatus ? 'Zapis statusu' : selectedStatusAction.label}
                       </button>
                       <button
                         type="button"
@@ -2011,8 +2204,9 @@ export function RequestDetailPage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Meta" description="Informacje pomocnicze dla obslugi sprawy.">
+          <SectionCard title="Meta" description="Informacje pomocnicze dla obslugi sprawy." compact>
             <dl className="grid grid-cols-1 gap-4">
+              <Field label="Przypisanie BOK" value={assignedUserLabel} />
               <Field label="Utworzono" value={formatDateTime(request.createdAt)} />
               <Field label="Ostatnia zmiana" value={formatDateTime(request.updatedAt)} />
               <Field

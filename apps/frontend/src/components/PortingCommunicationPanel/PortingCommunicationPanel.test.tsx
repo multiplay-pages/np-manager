@@ -127,6 +127,49 @@ describe('PortingCommunicationPanel', () => {
     expect(html).toContain('Brak komunikacji zapisanych dla tej sprawy.')
   })
 
+  it('renders status-blocked draft action as disabled secondary UI with operational reason', () => {
+    const html = renderToStaticMarkup(
+      <PortingCommunicationPanel
+        actions={[
+          {
+            type: 'COMPLETION_NOTICE',
+            label: 'Informacja o zakonczeniu portowania',
+            description: 'Finalna komunikacja po zakonczeniu przeniesienia numeru.',
+            canPreview: false,
+            canCreateDraft: false,
+            canMarkSent: false,
+            disabled: true,
+            disabledReason:
+              'Akcja jest dostepna dopiero dla spraw w statusie zgodnym z polityka komunikacji.',
+            existingDraftId: null,
+            existingDraftInfo: null,
+            allowsMultipleDrafts: false,
+          },
+        ]}
+        summary={EMPTY_SUMMARY}
+        items={[]}
+        isLoadingHistory={false}
+        preview={null}
+        feedbackError={null}
+        feedbackSuccess={null}
+        previewingActionType={null}
+        creatingDraftActionType={null}
+        markingSentId={null}
+        currentStatus="SUBMITTED"
+        onPreviewDraft={vi.fn()}
+        onCreateDraft={vi.fn()}
+        onMarkAsSent={vi.fn()}
+        {...NEW_DELIVERY_PROPS}
+      />,
+    )
+
+    expect(html).toContain('Niedostepne teraz')
+    expect(html).toContain('Akcja bedzie dostepna dla statusow:')
+    expect(html).toContain('Aktualny status:')
+    expect(html).toContain('bg-ink-50 text-ink-400')
+    expect(html).not.toContain('bg-brand-600')
+  })
+
   it('does not keep a stale success message when the panel is rendered again without feedback', () => {
     const successHtml = renderToStaticMarkup(
       <PortingCommunicationPanel

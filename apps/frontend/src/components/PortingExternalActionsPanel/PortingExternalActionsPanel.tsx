@@ -42,7 +42,7 @@ export function PortingExternalActionsPanel({
       <div>
         <h3 className="text-sm font-semibold text-gray-800">Etapy zewnetrzne</h3>
         <p className="mt-1 text-sm text-gray-500">
-          Reczne akcje foundation pod Adescom/PLI CBD. Dzialaja bez realnej integracji API.
+          Reczne operacje zwiazane z etapami PLI CBD i komunikacja do klienta.
         </p>
       </div>
 
@@ -128,7 +128,7 @@ export function PortingExternalActionsPanel({
               className="btn-primary"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Zapisywanie...' : selectedAction.label}
+              {isSubmitting ? 'Zapis operacji' : selectedAction.label}
             </button>
             <button type="button" onClick={onReset} className="btn-secondary" disabled={isSubmitting}>
               Wyczysc
