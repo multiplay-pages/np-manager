@@ -20,6 +20,7 @@ function buildAttempt(overrides: Record<string, unknown> = {}) {
   return {
     id: 'attempt-1',
     requestId: 'request-1',
+    request: { caseNumber: 'FNP-20260411-ABC123' },
     eventCode: 'STATUS_CHANGED',
     eventLabel: 'Zmiana statusu sprawy',
     attemptOrigin: 'PRIMARY',
@@ -53,6 +54,7 @@ describe('getGlobalNotificationFailureQueue', () => {
     expect(item).toMatchObject({
       attemptId: 'attempt-1',
       requestId: 'request-1',
+      caseNumber: 'FNP-20260411-ABC123',
       outcome: 'FAILED',
       canRetry: true,
       retryBlockedReasonCode: null,

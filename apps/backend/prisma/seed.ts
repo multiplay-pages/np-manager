@@ -17,6 +17,7 @@
  *  - FNP-SEED-COMM-DRAFT-001: detail z dostepnym "Utworz draft" dla komunikacji
  *  - FNP-SEED-COMM-DUPLICATE-001: detail z aktywnym draftem blokujacym duplikat
  *  - FNP-SEED-COMM-FAILED-001: detail z komunikacja FAILED gotowa do retry
+ *  - Global notification failure queue: 2 proby dostarczenia do manualnego QA /notifications/failures
  *
  * Seed jest idempotentny — używa upsert, można uruchomić wielokrotnie.
  *
@@ -125,6 +126,43 @@ export const QA_FAILED_COMMUNICATION_SEED_FIXTURE = {
     },
   },
 } as const
+
+export const QA_NOTIFICATION_FAILURE_QUEUE_SEED_FIXTURES = [
+  {
+    id: '00000000-0000-4000-8000-000000000751',
+    requestCaseNumber: 'FNP-SEED-COMM-FAILED-001',
+    eventCode: 'STATUS_CHANGED',
+    eventLabel: 'Zmiana statusu sprawy',
+    attemptOrigin: 'PRIMARY',
+    channel: 'EMAIL',
+    recipient: 'bok.qa@np-manager.local',
+    mode: 'REAL',
+    outcome: 'FAILED',
+    failureKind: 'DELIVERY',
+    retryCount: 0,
+    isLatestForChain: true,
+    errorCode: 'SMTP_DELIVERY_FAILED',
+    errorMessage: 'Seed QA: symulowany blad SMTP dla rekordu retryowalnego.',
+    createdAt: '2026-04-12T08:00:00.000Z',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000752',
+    requestCaseNumber: 'FNP-SEED-COMM-DUPLICATE-001',
+    eventCode: 'COMMERCIAL_OWNER_CHANGED',
+    eventLabel: 'Zmiana opiekuna handlowego',
+    attemptOrigin: 'PRIMARY',
+    channel: 'TEAMS',
+    recipient: 'https://teams.example.local/webhook/notification-failure-qa',
+    mode: 'REAL',
+    outcome: 'FAILED',
+    failureKind: 'DELIVERY',
+    retryCount: 3,
+    isLatestForChain: true,
+    errorCode: 'TEAMS_DELIVERY_FAILED',
+    errorMessage: 'Seed QA: limit ponowien osiagniety dla Teams.',
+    createdAt: '2026-04-12T08:05:00.000Z',
+  },
+] as const
 
 // ============================================================
 // DANE STATUSÓW
@@ -1583,8 +1621,51 @@ export async function seedMain() {
       createdAt: new Date(QA_FAILED_COMMUNICATION_SEED_FIXTURE.deliveryAttempt.attemptedAt),
     },
   })
+
+  const notificationFailureQueueRequestIdByCaseNumber = new Map([
+    [communicationFailedRequest.caseNumber, communicationFailedRequest.id],
+    [communicationDuplicateRequest.caseNumber, communicationDuplicateRequest.id],
+  ])
+
+  await prisma.internalNotificationDeliveryAttempt.deleteMany({
+    where: {
+      id: {
+        in: QA_NOTIFICATION_FAILURE_QUEUE_SEED_FIXTURES.map((attempt) => attempt.id),
+      },
+    },
+  })
+
+  for (const attempt of QA_NOTIFICATION_FAILURE_QUEUE_SEED_FIXTURES) {
+    const requestId = notificationFailureQueueRequestIdByCaseNumber.get(attempt.requestCaseNumber)
+
+    if (!requestId) {
+      throw new Error(`Brak sprawy seed dla kolejki powiadomien: ${attempt.requestCaseNumber}`)
+    }
+
+    await prisma.internalNotificationDeliveryAttempt.create({
+      data: {
+        id: attempt.id,
+        requestId,
+        eventCode: attempt.eventCode,
+        eventLabel: attempt.eventLabel,
+        attemptOrigin: attempt.attemptOrigin,
+        channel: attempt.channel,
+        recipient: attempt.recipient,
+        mode: attempt.mode,
+        outcome: attempt.outcome,
+        errorCode: attempt.errorCode,
+        errorMessage: attempt.errorMessage,
+        failureKind: attempt.failureKind,
+        retryCount: attempt.retryCount,
+        isLatestForChain: attempt.isLatestForChain,
+        triggeredByUserId: adminUser.id,
+        createdAt: new Date(attempt.createdAt),
+      },
+    })
+  }
+
   console.info(
-    'Dodano klienta QA oraz 6 spraw portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18 + komunikacja create-draft + komunikacja duplicate-block + komunikacja failed-retry)',
+    'Dodano klienta QA oraz 6 spraw portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18 + komunikacja create-draft + komunikacja duplicate-block + komunikacja failed-retry) + 2 rekordy QA kolejki bledow notyfikacji',
   )
 
   // ----------------------------------------------------------

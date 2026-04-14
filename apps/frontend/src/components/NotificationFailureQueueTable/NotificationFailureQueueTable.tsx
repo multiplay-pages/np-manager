@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom'
-import type { GlobalNotificationFailureQueueItemDto } from '@np-manager/shared'
+import type {
+  GlobalNotificationFailureQueueItemDto,
+  InternalNotificationRetryBlockedReasonCodeDto,
+} from '@np-manager/shared'
 import { buildPath, ROUTES } from '@/constants/routes'
 import {
   deriveOperationalStatus,
@@ -35,6 +38,25 @@ function getFailureKindLabel(
   return '—'
 }
 
+
+function getChannelLabel(channel: GlobalNotificationFailureQueueItemDto['channel']): string {
+  if (channel === 'EMAIL') return 'E-mail'
+  if (channel === 'TEAMS') return 'Teams'
+  return channel
+}
+
+const RETRY_BLOCKED_REASON_LABELS: Record<InternalNotificationRetryBlockedReasonCodeDto, string> = {
+  RETRY_LIMIT_REACHED: 'Limit ponowien osiagniety',
+  NOT_LATEST_IN_CHAIN: 'Istnieje nowsza proba',
+  ORIGIN_NOT_RETRYABLE: 'Tego typu proby nie mozna ponowic',
+  OUTCOME_NOT_RETRYABLE: 'Ten wynik nie kwalifikuje sie do ponowienia',
+}
+
+function getRetryBlockedReasonLabel(
+  reasonCode: GlobalNotificationFailureQueueItemDto['retryBlockedReasonCode'],
+): string {
+  return reasonCode ? RETRY_BLOCKED_REASON_LABELS[reasonCode] : 'Retry niedostepne'
+}
 
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime()
@@ -85,6 +107,8 @@ export function NotificationFailureQueueTable({
           <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
             <th className="px-4 py-3">Sprawa</th>
             <th className="px-4 py-3">Zdarzenie</th>
+            <th className="px-4 py-3">Kanal</th>
+            <th className="px-4 py-3">Odbiorca</th>
             <th className="px-4 py-3">Wynik</th>
             <th className="px-4 py-3">Rodzaj błędu</th>
             <th className="px-4 py-3">Ponowienia</th>
@@ -106,10 +130,14 @@ export function NotificationFailureQueueTable({
                     to={buildPath(ROUTES.REQUEST_DETAIL, item.requestId)}
                     className="text-blue-600 hover:underline"
                   >
-                    {item.requestId.slice(0, 8)}...
+                    {item.caseNumber}
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-gray-900">{item.eventLabel}</td>
+                <td className="px-4 py-3 text-gray-600">{getChannelLabel(item.channel)}</td>
+                <td className="max-w-[220px] truncate px-4 py-3 text-gray-600" title={item.recipient}>
+                  {item.recipient}
+                </td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide ${getOutcomeClass(item.outcome)}`}
@@ -130,7 +158,7 @@ export function NotificationFailureQueueTable({
                 </td>
                 <td className="px-4 py-3 text-gray-400">{formatRelativeTime(item.createdAt)}</td>
                 <td className="px-4 py-3">
-                  {item.canRetry && (
+                  {item.canRetry ? (
                     <button
                       type="button"
                       onClick={() => onRetryAttempt(item)}
@@ -139,6 +167,10 @@ export function NotificationFailureQueueTable({
                     >
                       {isRetrying ? 'Ponawiam...' : 'Ponów'}
                     </button>
+                  ) : (
+                    <span className="text-xs text-gray-500">
+                      {getRetryBlockedReasonLabel(item.retryBlockedReasonCode)}
+                    </span>
                   )}
                 </td>
               </tr>

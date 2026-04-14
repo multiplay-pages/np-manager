@@ -88,6 +88,7 @@ export interface InternalNotificationDeliveryAttemptsResultDto {
 export interface GlobalNotificationFailureQueueItemDto {
   attemptId: string
   requestId: string
+  caseNumber: string
   eventCode: string
   eventLabel: string
   attemptOrigin: InternalNotificationAttemptOriginDto
