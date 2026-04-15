@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import type { AuthUser } from '@np-manager/shared'
-import { getDefaultAuthenticatedRoute } from '@/lib/authFlow'
+import { resolvePostLoginDestination } from '@/lib/authFlow'
 import { apiClient } from '@/services/api.client'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -32,7 +32,11 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const location = useLocation()
   const setAuth = useAuthStore((state) => state.setAuth)
+
+  // Target URL passed by ProtectedRoute when redirecting unauthenticated visitors to /login.
+  const from = (location.state as { from?: string } | null)?.from
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -56,7 +60,7 @@ export function LoginPage() {
 
       const { token, user } = response.data.data
       setAuth(token, user)
-      void navigate(getDefaultAuthenticatedRoute(user), { replace: true })
+      void navigate(resolvePostLoginDestination(user, from), { replace: true })
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status

@@ -474,6 +474,7 @@ export function RequestDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copyLinkDone, setCopyLinkDone] = useState(false)
 
   const [caseHistoryItems, setCaseHistoryItems] = useState<PortingRequestCaseHistoryItemDto[]>([])
   const [isCaseHistoryLoading, setIsCaseHistoryLoading] = useState(true)
@@ -1565,12 +1566,20 @@ export function RequestDetailPage() {
     }
   }
 
+  const handleCopyLink = () => {
+    const canonical = window.location.origin + buildPath(ROUTES.REQUEST_DETAIL, caseNumber ?? '')
+    void navigator.clipboard.writeText(canonical).then(() => {
+      setCopyLinkDone(true)
+      setTimeout(() => setCopyLinkDone(false), 2000)
+    })
+  }
+
   if (notFound) {
     return (
       <div className="panel p-10 text-center">
-        <p className="mb-1 text-base font-semibold text-ink-900">Sprawa nie istnieje</p>
+        <p className="mb-1 text-base font-semibold text-ink-900">Nie znaleziono sprawy</p>
         <p className="mb-6 text-sm text-ink-500">
-          Nie znaleziono sprawy o numerze <span className="font-mono font-medium text-ink-700">{caseNumber}</span>.
+          Sprawa o numerze <span className="font-mono font-medium text-ink-700">{caseNumber}</span> nie istnieje lub została usunięta.
         </p>
         <Button onClick={backToList} variant="secondary">
           Wróć do listy spraw
@@ -1582,11 +1591,12 @@ export function RequestDetailPage() {
   if (error || !request) {
     return (
       <div className="panel p-8 text-center">
-        <p className="mb-4 text-sm font-medium text-red-600">
-          {error ?? 'Nie udało się załadować sprawy.'}
+        <p className="mb-1 text-base font-semibold text-ink-900">Nie udało się załadować sprawy</p>
+        <p className="mb-6 text-sm text-ink-500">
+          {error ?? 'Wystąpił nieoczekiwany błąd. Odśwież stronę lub wróć do listy.'}
         </p>
         <Button onClick={backToList} variant="secondary">
-          Wróć do listy
+          Wróć do listy spraw
         </Button>
       </div>
     )
@@ -1615,7 +1625,7 @@ export function RequestDetailPage() {
                 size="sm"
                 className="mb-3 -ml-2"
               >
-                {'<-'} Sprawy portowania
+                ← Sprawy portowania
               </Button>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="neutral">{request.caseNumber}</Badge>
@@ -1635,6 +1645,9 @@ export function RequestDetailPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={handleCopyLink} variant="ghost" size="sm">
+                {copyLinkDone ? '✓ Skopiowano' : 'Kopiuj link'}
+              </Button>
               <ButtonLink to={ROUTES.REQUEST_NEW} variant="secondary">
                 + Nowa sprawa
               </ButtonLink>

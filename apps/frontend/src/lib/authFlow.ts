@@ -24,6 +24,34 @@ export function getDefaultAuthenticatedRoute(user: Pick<AuthUser, 'forcePassword
   return user.forcePasswordChange ? ROUTES.FORCE_PASSWORD_CHANGE : ROUTES.DASHBOARD
 }
 
+/**
+ * Resolves the post-login redirect destination.
+ *
+ * Priority:
+ * 1. forcePasswordChange → /force-password-change (security, always)
+ * 2. valid `from` URL → return-to-target (deeplink flow)
+ * 3. fallback → dashboard
+ *
+ * A `from` value is considered valid when it:
+ * - is a non-empty string
+ * - starts with `/` (internal path, not external)
+ * - is not the login route itself (avoids redirect loop)
+ */
+export function resolvePostLoginDestination(
+  user: Pick<AuthUser, 'forcePasswordChange'>,
+  from: string | undefined | null,
+): string {
+  if (user.forcePasswordChange) {
+    return ROUTES.FORCE_PASSWORD_CHANGE
+  }
+
+  if (from && from.startsWith('/') && from !== ROUTES.LOGIN) {
+    return from
+  }
+
+  return ROUTES.DASHBOARD
+}
+
 export function getProtectedRouteRedirect(params: {
   isAuthenticated: boolean
   user: AuthUser | null
