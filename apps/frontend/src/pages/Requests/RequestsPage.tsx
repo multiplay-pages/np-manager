@@ -1,18 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Badge, Button, ButtonLink, FilterChip, MetricCard, PageHeader, cx } from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
 import {
+  canManagePortingOwnership,
   formatAssigneeLabel,
   parseOwnershipFilter,
   type OwnershipFilter,
 } from '@/lib/portingOwnership'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import {
+  assignPortingRequestToMe,
   getPortingRequests,
   getPortingRequestsSummary,
 } from '@/services/portingRequests.api'
+import { useAuthStore } from '@/stores/auth.store'
 import {
   PORTING_CASE_STATUSES,
   PORTING_MODE_LABELS,
@@ -162,13 +165,43 @@ export function RequestRow({
   request,
   onClick,
   formatDate: formatDateValue,
+  currentUserId,
+  canAssign,
+  onAssignToMe,
 }: {
   request: PortingRequestListItemDto
   onClick: () => void
   formatDate: (value: string) => string
+  currentUserId: string | null
+  canAssign: boolean
+  onAssignToMe: (id: string) => Promise<void>
 }) {
   const ownerLabel = formatCommercialOwnerLabel(request.commercialOwnerSummary)
   const assigneeLabel = formatAssigneeLabel(request.assignedUserSummary)
+  const isAssignedToMe = request.assignedUserSummary?.id === currentUserId
+  const [isAssigning, setIsAssigning] = useState(false)
+  const [assignError, setAssignError] = useState<string | null>(null)
+  const [caseCopied, setCaseCopied] = useState(false)
+
+  async function handleAssignToMe(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    setIsAssigning(true)
+    setAssignError(null)
+    try {
+      await onAssignToMe(request.id)
+    } catch {
+      setAssignError('Nie udalo sie przypisac sprawy.')
+    } finally {
+      setIsAssigning(false)
+    }
+  }
+
+  function handleCopyCase(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    void navigator.clipboard.writeText(request.caseNumber)
+    setCaseCopied(true)
+    setTimeout(() => setCaseCopied(false), 2000)
+  }
 
   return (
     <tr
@@ -195,7 +228,12 @@ export function RequestRow({
         <StatusBadge status={request.statusInternal} />
       </td>
       <td className="px-5 py-4 align-top">
-        <div className="max-w-[220px] truncate text-sm font-medium text-ink-700">
+        <div
+          className={cx(
+            'max-w-[220px] truncate text-sm font-medium',
+            request.assignedUserSummary ? 'text-ink-700' : 'text-amber-700',
+          )}
+        >
           {assigneeLabel}
         </div>
         <div className="mt-1 text-xs text-ink-400">BOK</div>
@@ -214,6 +252,35 @@ export function RequestRow({
       <td className="px-5 py-4 align-top">
         <NotificationHealthBadge request={request} />
       </td>
+      <td
+        className="px-4 py-3 align-top"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex flex-col gap-1.5">
+          {canAssign && !isAssignedToMe && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleAssignToMe}
+              disabled={isAssigning}
+              data-testid={`assign-to-me-${request.id}`}
+            >
+              {isAssigning ? 'Przypisywanie...' : 'Przypisz do mnie'}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCopyCase}
+            data-testid={`copy-case-${request.id}`}
+          >
+            {caseCopied ? 'Skopiowano' : 'Kopiuj numer'}
+          </Button>
+          {assignError && (
+            <span className="text-xs text-red-600">{assignError}</span>
+          )}
+        </div>
+      </td>
     </tr>
   )
 }
@@ -223,6 +290,8 @@ export function RequestsPage() {
   const location = useLocation()
   const { operators } = useOperators()
   const [searchParams, setSearchParams] = useSearchParams()
+  const currentUser = useAuthStore((state) => state.user)
+  const canAssign = canManagePortingOwnership(currentUser?.role)
 
   const searchInput = searchParams.get('search') ?? ''
   const statusFilter = parseStatus(searchParams.get('status'))
@@ -323,6 +392,22 @@ export function RequestsPage() {
   useEffect(() => {
     void loadData()
   }, [loadData])
+
+  const handleAssignToMe = useCallback(
+    async (requestId: string) => {
+      const updated = await assignPortingRequestToMe(requestId)
+      setResult((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === requestId ? { ...item, assignedUserSummary: updated.assignedUser } : item,
+          ),
+        }
+      })
+    },
+    [],
+  )
 
   const { items = [], pagination } = result ?? {}
   const summaryCards = summary ? buildRequestsSummaryCards(summary, filters) : []
@@ -528,7 +613,7 @@ export function RequestsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
+            <table className="w-full min-w-[1280px] text-sm">
               <thead className="bg-ink-50 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
                 <tr>
                   <th className="px-5 py-3 text-left">Sprawa</th>
@@ -538,6 +623,7 @@ export function RequestsPage() {
                   <th className="px-5 py-3 text-left">Przypisanie</th>
                   <th className="px-5 py-3 text-left">Owner</th>
                   <th className="min-w-[130px] whitespace-nowrap px-5 py-3 text-left">Notyfikacje</th>
+                  <th className="min-w-[120px] whitespace-nowrap px-4 py-3 text-left">Akcje</th>
                 </tr>
               </thead>
               <tbody>
@@ -551,6 +637,9 @@ export function RequestsPage() {
                       })
                     }
                     formatDate={formatDate}
+                    currentUserId={currentUser?.id ?? null}
+                    canAssign={canAssign}
+                    onAssignToMe={handleAssignToMe}
                   />
                 ))}
               </tbody>

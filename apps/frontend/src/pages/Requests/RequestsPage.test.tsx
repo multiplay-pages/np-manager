@@ -26,6 +26,8 @@ function makeRequest(overrides: Partial<PortingRequestListItemDto> = {}): Portin
   }
 }
 
+const noop = async () => {}
+
 describe('RequestRow', () => {
   it('shows commercial owner and failure signal badge', () => {
     const html = renderToStaticMarkup(
@@ -47,6 +49,9 @@ describe('RequestRow', () => {
             })}
             onClick={() => undefined}
             formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
           />
         </tbody>
       </table>,
@@ -61,12 +66,175 @@ describe('RequestRow', () => {
     const html = renderToStaticMarkup(
       <table>
         <tbody>
-          <RequestRow request={makeRequest()} onClick={() => undefined} formatDate={() => '09.04.2026'} />
+          <RequestRow
+            request={makeRequest()}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
         </tbody>
       </table>,
     )
 
     expect(html).toContain('Brak opiekuna')
     expect(html).toContain('OK')
+  })
+
+  it('renders Kopiuj numer button for all users', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest()}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Kopiuj numer')
+  })
+
+  it('renders Przypisz do mnie for eligible user when not yet assigned', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({ assignedUserSummary: null })}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId="bok-1"
+            canAssign={true}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Przypisz do mnie')
+  })
+
+  it('hides Przypisz do mnie when already assigned to current user', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              assignedUserSummary: {
+                id: 'bok-1',
+                email: 'bok@np-manager.local',
+                displayName: 'BOK Uzytkownik',
+                role: 'BOK_CONSULTANT',
+              },
+            })}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId="bok-1"
+            canAssign={true}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).not.toContain('Przypisz do mnie')
+  })
+
+  it('hides Przypisz do mnie for user without assignment rights', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({ assignedUserSummary: null })}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId="sales-1"
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).not.toContain('Przypisz do mnie')
+  })
+
+  it('shows Przypisz do mnie for different user assigned (not mine)', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              assignedUserSummary: {
+                id: 'other-bok',
+                email: 'other@np-manager.local',
+                displayName: 'Inny BOK',
+                role: 'BOK_CONSULTANT',
+              },
+            })}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId="bok-1"
+            canAssign={true}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Przypisz do mnie')
+  })
+
+  it('shows amber styling for unassigned BOK', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({ assignedUserSummary: null })}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('text-amber-700')
+    expect(html).toContain('Nieprzypisana')
+  })
+
+  it('shows normal ink styling for assigned BOK', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              assignedUserSummary: {
+                id: 'bok-1',
+                email: 'bok@np-manager.local',
+                displayName: 'BOK Uzytkownik',
+                role: 'BOK_CONSULTANT',
+              },
+            })}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('text-ink-700')
+    expect(html).not.toContain('text-amber-700')
   })
 })
