@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Badge, Button, ButtonLink, FilterChip, MetricCard, PageHeader, cx } from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
@@ -220,6 +220,7 @@ export function RequestRow({
 
 export function RequestsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { operators } = useOperators()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -544,7 +545,11 @@ export function RequestsPage() {
                   <RequestRow
                     key={request.id}
                     request={request}
-                    onClick={() => void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.id))}
+                    onClick={() =>
+                      void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.caseNumber), {
+                        state: { fromList: true, listSearch: location.search },
+                      })
+                    }
                     formatDate={formatDate}
                   />
                 ))}

@@ -13,7 +13,7 @@ export const ROUTES = {
   // Sprawy portabilności
   REQUESTS: '/requests',
   REQUEST_NEW: '/requests/new',
-  REQUEST_DETAIL: '/requests/:id',
+  REQUEST_DETAIL: '/requests/:caseNumber',
 
   // Klienci
   CLIENTS: '/clients',
@@ -52,9 +52,9 @@ export const ROUTES = {
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES]
 
 /**
- * Generuje ścieżkę ze wstawionym parametrem ID.
- * Przykład: buildPath(ROUTES.REQUEST_DETAIL, '123') → '/requests/123'
+ * Generuje ścieżkę ze wstawionym parametrem.
+ * Przykład: buildPath(ROUTES.REQUEST_DETAIL, 'NP/2024/001') → '/requests/NP/2024/001'
  */
-export function buildPath(route: string, id: string): string {
-  return route.replace(':id', id)
+export function buildPath(route: string, param: string): string {
+  return route.replace(/:[^/]+/, param)
 }

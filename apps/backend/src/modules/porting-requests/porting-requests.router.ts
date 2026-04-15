@@ -23,6 +23,7 @@ import {
   getPortingRequestAssignmentHistory,
   getPortingRequestIntegrationEvents,
   getPortingRequest,
+  getPortingRequestByCaseNumber,
   listAssignablePortingRequestUsers,
   listCommercialOwnerCandidates,
   listPortingRequests,
@@ -386,6 +387,18 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
         request.headers['user-agent'],
       )
 
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
+    },
+  )
+
+  app.get<{ Params: { caseNumber: string } }>(
+    '/by-case-number/:caseNumber',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const portingRequest = await getPortingRequestByCaseNumber(
+        request.params.caseNumber,
+        request.user.role as UserRole,
+      )
       return reply.status(200).send({ success: true, data: { request: portingRequest } })
     },
   )

@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-14)
+## Aktualny stan projektu (2026-04-15)
 
 ### Stan prac / etapy
 
@@ -29,6 +29,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 2A.2 | Frontend redesign RequestDetailPage                              | DONE   |
 | Etap 2A.3 | Operacyjny UX polish po review                                  | DONE   |
 | Etap 2A.4 | Final micro-polish przed zamknieciem 2A                         | DONE   |
+| Etap 2B   | Routing/deeplinks/nawigacja lista-detail (canonical URL, UUID redirect, filtr po powrocie) | DONE |
 
 ---
 
@@ -261,10 +262,33 @@ Etap 2A.4:
   - focus po toggle pozostaje logicznie na headerze sekcji.
 - Skrocono naglowek kolumny notyfikacji na liscie do `Notyfikacje`.
 - Lekko wzmocniono mikro-linki w gornych kartach detail (`Akcje`, `Zmien`, `Historia`) bez robienia z nich duzych CTA.
-- Routing po `requestNumber` pozostaje osobnym follow-upem poza zakresem 2A.
+- Routing po `caseNumber` zrealizowany w Etapie 2B.
 
-Otwarte:
-- Po pozytywnym smoke tescie w przegladarce Etap 2A moze zostac zamkniety.
+### Etap 2B - routing/deeplinks/nawigacja lista-detail
+
+- Frontend:
+  - `ROUTES.REQUEST_DETAIL` zmieniony z `/requests/:id` na `/requests/:caseNumber` (canonical URL po biznesowym numerze sprawy).
+  - `buildPath` w `routes.ts` zgeneralizowany do `route.replace(/:[^/]+/, param)`.
+  - `RequestsPage`: klik w liste naviguje po `request.caseNumber` + przekazuje `location.state = { fromList: true, listSearch: location.search }`.
+  - `RequestDetailPage`:
+    - `useParams<{caseNumber}>()` zamiast `{id}`,
+    - `UUID_REGEX` detekcja: jesli URL jest UUID → `getPortingRequestById` + silent redirect na canonical `/requests/:caseNumber`,
+    - jesli URL jest caseNumber → `getPortingRequestByCaseNumber`,
+    - `internalId` / `const id = internalId` alias dla wstecznej kompatybilnosci z istniejacymi mutacjami,
+    - podzielony useEffect: Effect 1 reaguje na `caseNumber` (URL), Effect 2 na `internalId`,
+    - `backToList()` zwraca do listy z zachowanymi filterami z `location.state.listSearch`,
+    - `notFound` state i 404 UI z numerem sprawy.
+  - `portingRequests.api.ts`: nowa funkcja `getPortingRequestByCaseNumber` → `GET /porting-requests/by-case-number/:caseNumber`.
+- Backend:
+  - Nowy endpoint `GET /api/porting-requests/by-case-number/:caseNumber` zarejestrowany PRZED `/:id` (Fastify route tree).
+  - Nowa funkcja `getPortingRequestByCaseNumber(caseNumber, role)` w service — `findUnique({where:{caseNumber}})` + delegacja do `getPortingRequest(id, role)`.
+- Weryfikacja 2B:
+  - backend: 428 testow PASS,
+  - frontend: 157 testow PASS,
+  - `npx tsc --noEmit` PASS w obu appkach,
+  - runtime: `GET /api/porting-requests/by-case-number/FNP-20260409-921D05` → 200, invalid caseNumber → 404 biznesowy, UUID przez stary endpoint → 200, brak tokenu → 401,
+  - QA reczne 4/4 PASS (lista→detail po caseNumber, deeplink, UUID redirect, powrot z filtrem).
+- Stare UUID URL (`/requests/:uuid`) sa w pelni wstecznie kompatybilne — silent redirect do canonical.
 - Etap 2A nie oznacza jeszcze redesignu wszystkich ekranow; kolejne widoki powinny korzystac z `components/ui`.
 
 #### Konfiguracja transportu email
