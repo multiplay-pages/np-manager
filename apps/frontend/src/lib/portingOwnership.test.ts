@@ -1,49 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type {
-  PortingRequestAssignmentHistoryItemDto,
-  PortingRequestListItemDto,
-} from '@np-manager/shared'
+import type { PortingRequestAssignmentHistoryItemDto } from '@np-manager/shared'
 import {
   canManagePortingOwnership,
   canSelectAnyAssignee,
-  filterPortingRequestsByOwnership,
   formatAssigneeLabel,
   formatAssignmentHistoryHeadline,
   parseOwnershipFilter,
 } from './portingOwnership'
-
-function buildListItem(
-  id: string,
-  assignedUserId: string | null,
-  assignedDisplayName = 'Jan Kowalski',
-): PortingRequestListItemDto {
-  return {
-    id,
-    caseNumber: `SPR-${id}`,
-    clientId: 'client-1',
-    clientDisplayName: 'Klient testowy',
-    numberDisplay: '221234567',
-    donorOperatorId: 'operator-1',
-    donorOperatorName: 'Orange',
-    portingMode: 'DAY',
-    statusInternal: 'SUBMITTED',
-    assignedUserSummary: assignedUserId
-      ? {
-          id: assignedUserId,
-          email: `${assignedUserId}@np-manager.local`,
-          displayName: assignedDisplayName,
-          role: 'BOK_CONSULTANT',
-        }
-      : null,
-    commercialOwnerSummary: null,
-    hasNotificationFailures: false,
-    notificationHealthStatus: 'OK',
-    notificationFailureCount: 0,
-    notificationLastFailureAt: null,
-    notificationLastFailureOutcome: null,
-    createdAt: '2026-04-09T10:00:00.000Z',
-  }
-}
 
 describe('portingOwnership helpers', () => {
   it('formats assignee labels for assigned and unassigned cases', () => {
@@ -56,32 +19,6 @@ describe('portingOwnership helpers', () => {
       }),
     ).toBe('Jan Kowalski (user-1@np-manager.local)')
     expect(formatAssigneeLabel(null)).toBe('Nieprzypisana')
-  })
-
-  it('filters list to my requests', () => {
-    const items = [
-      buildListItem('1', 'user-1'),
-      buildListItem('2', 'user-2'),
-      buildListItem('3', null),
-    ]
-
-    const result = filterPortingRequestsByOwnership(items, 'MINE', 'user-1')
-
-    expect(result).toHaveLength(1)
-    expect(result[0]?.id).toBe('1')
-  })
-
-  it('filters list to unassigned requests', () => {
-    const items = [
-      buildListItem('1', 'user-1'),
-      buildListItem('2', null),
-      buildListItem('3', null),
-    ]
-
-    const result = filterPortingRequestsByOwnership(items, 'UNASSIGNED', 'user-1')
-
-    expect(result).toHaveLength(2)
-    expect(result.map((item) => item.id)).toEqual(['2', '3'])
   })
 
   it('builds readable assignment history headline', () => {

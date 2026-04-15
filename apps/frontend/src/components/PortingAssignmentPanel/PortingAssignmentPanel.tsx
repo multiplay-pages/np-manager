@@ -75,7 +75,7 @@ export function PortingAssignmentPanel({
   const isAnyAssignmentActionLoading = isAssigningToMe || isUpdatingAssignment || isUnassigning
 
   return (
-    <div className="card p-5" data-testid="porting-assignment-panel">
+    <div className="panel p-5" data-testid="porting-assignment-panel">
       <div className="mb-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Przypisanie</h2>
         <p className="mt-1 text-sm text-gray-500">Kto aktualnie prowadzi te sprawe.</p>

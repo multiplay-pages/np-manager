@@ -30,6 +30,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 2A.3 | Operacyjny UX polish po review                                  | DONE   |
 | Etap 2A.4 | Final micro-polish przed zamknieciem 2A                         | DONE   |
 | Etap 2B   | Routing/deeplinks/nawigacja lista-detail (canonical URL, UUID redirect, filtr po powrocie) | DONE |
+| Etap 3A   | Assignment closeout: visual polish PortingAssignmentPanel + usun martwy kod filterPortingRequestsByOwnership | DONE |
 
 ---
 
@@ -290,6 +291,22 @@ Etap 2A.4:
   - QA reczne 4/4 PASS (lista→detail po caseNumber, deeplink, UUID redirect, powrot z filtrem).
 - Stare UUID URL (`/requests/:uuid`) sa w pelni wstecznie kompatybilne — silent redirect do canonical.
 - Etap 2A nie oznacza jeszcze redesignu wszystkich ekranow; kolejne widoki powinny korzystac z `components/ui`.
+
+### Etap 3A - assignment / ownership closeout
+
+Wszystkie funkcje assignment zostaly zaimplementowane wczesniej (PR12C, PR12D). Etap 3A to wylacznie closeout: polish wizualny + usuniecie martwego kodu. Nie bylo nowych funkcji ani zmian backendu.
+
+Zmiany:
+- `PortingAssignmentPanel`: klasa `.card` zamieniona na `.panel` — spojnosci z `SectionCard` uzywana w sasiednich sekcjach `RequestDetailPage` (roznica: `shadow-sm` vs `shadow-panel`).
+- `portingOwnership.ts`: usunieto `filterPortingRequestsByOwnership` — funkcja stala sie martwym kodem po przeniesieniu filtrow ownership na backend w PR12D; nie byla uzywana produkcyjnie.
+- `portingOwnership.test.ts`: usunieto 2 testy i helper `buildListItem` ktore testowaly wylacznie usunieta funkcje.
+- `docs/PROJECT_CONTINUITY.md`: zaktualizowano o Etap 3A.
+
+Stan assignment po closeout:
+- Detail: `PortingAssignmentPanel` — aktualny opiekun, "Przypisz do mnie", zmiana assignee (ADMIN/BOK_CONSULTANT), zdejmij przypisanie, historia przypisan.
+- Lista: filtry `Moje sprawy` / `Nieprzypisane` — server-side, JWT-based, bez query manipulation.
+- RBAC: assign-to-self i reassign = ADMIN + BOK_CONSULTANT; historia = wszyscy zalogowani.
+- Weryfikacja 3A: frontend 155 testow PASS, tsc PASS w obu appkach.
 
 #### Konfiguracja transportu email
 
