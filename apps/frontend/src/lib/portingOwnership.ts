@@ -1,7 +1,6 @@
 import type {
   PortingRequestAssigneeSummaryDto,
   PortingRequestAssignmentHistoryItemDto,
-  PortingRequestListItemDto,
   UserRole,
 } from '@np-manager/shared'
 
@@ -13,26 +12,6 @@ export function parseOwnershipFilter(value: string | null): OwnershipFilter {
   }
 
   return 'ALL'
-}
-
-export function filterPortingRequestsByOwnership(
-  items: PortingRequestListItemDto[],
-  ownershipFilter: OwnershipFilter,
-  currentUserId: string | null | undefined,
-): PortingRequestListItemDto[] {
-  if (ownershipFilter === 'MINE') {
-    if (!currentUserId) {
-      return []
-    }
-
-    return items.filter((item) => item.assignedUserSummary?.id === currentUserId)
-  }
-
-  if (ownershipFilter === 'UNASSIGNED') {
-    return items.filter((item) => item.assignedUserSummary === null)
-  }
-
-  return items
 }
 
 export function formatAssigneeLabel(assignee: PortingRequestAssigneeSummaryDto | null): string {
