@@ -30,6 +30,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 2A.3 | Operacyjny UX polish po review                                  | DONE   |
 | Etap 2A.4 | Final micro-polish przed zamknieciem 2A                         | DONE   |
 | Etap 2B   | Routing/deeplinks/nawigacja lista-detail (canonical URL, UUID redirect, filtr po powrocie) | DONE |
+| Etap 2C   | Auth return-to-target, 404/error polish, copy-link — domkniecie Etapu 2                    | DONE |
 | Etap 3A   | Assignment closeout: visual polish PortingAssignmentPanel + usun martwy kod filterPortingRequestsByOwnership | DONE |
 
 ---
@@ -291,6 +292,32 @@ Etap 2A.4:
   - QA reczne 4/4 PASS (lista→detail po caseNumber, deeplink, UUID redirect, powrot z filtrem).
 - Stare UUID URL (`/requests/:uuid`) sa w pelni wstecznie kompatybilne — silent redirect do canonical.
 - Etap 2A nie oznacza jeszcze redesignu wszystkich ekranow; kolejne widoki powinny korzystac z `components/ui`.
+
+### Etap 2C - domkniecie UX po 2B
+
+- Auth return-to-target:
+  - `ProtectedRoute` w `router.tsx` przekazuje `state = { from: pathname+search }` przy redirect na `/login`.
+  - Nowa funkcja `resolvePostLoginDestination(user, from)` w `authFlow.ts` — priorytet: `forcePasswordChange` > `from` (internal) > dashboard.
+  - `LoginPage` czyta `from` z `location.state` i nawiguje tam po zalogowaniu.
+  - Reguly bezpieczenstwa: `from` musi startowac od `/`, nie moze byc `/login` (anty-loop), `forcePasswordChange` zawsze wygrywa.
+- 404 vs blad techniczny:
+  - `notFound` (404) i `error` (techniczny) były juz rozdzielone; doprecyzowano copy:
+    - 404: `"Nie znaleziono sprawy"` + `"Sprawa o numerze X nie istnieje lub zostala usunieta."`
+    - blad: `"Nie udalo sie zaladowac sprawy"` + tresc bledu lub fallback
+  - Oba stany maja przycisk `"Wróc do listy spraw"` (spojny tekst).
+- Drobny polish:
+  - Przycisk powrotu zmieniony z `{'<-'}` na poprawny znak `←`.
+  - Blad: zmieniono przycisk z `"Wróc do listy"` na `"Wróc do listy spraw"` (spojnosc z 404).
+- Copy-link:
+  - Przycisk `"Kopiuj link"` / `"✓ Skopiowano"` (2s reset) w naglowku detalu sprawy.
+  - Kopiuje canonical URL: `window.location.origin + /requests/:caseNumber`.
+  - Implementacja: `navigator.clipboard.writeText` + `useState<boolean>` z `setTimeout`.
+- Testy:
+  - `resolvePostLoginDestination` — 8 nowych testow jednostkowych w `authFlow.test.ts` (8 scenariuszy: brak `from`, null, valid path, query params, /login loop, external URL, forcePasswordChange override).
+  - Lacznie: 165/165 frontend PASS (bylo 157).
+  - `npx tsc --noEmit` PASS.
+
+**Etap 2 (2A + 2B + 2C) uznany za zamkniety. Wszystko nowe to Etap 3.**
 
 ### Etap 3A - assignment / ownership closeout
 

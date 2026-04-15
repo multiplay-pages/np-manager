@@ -37,7 +37,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   })
 
   if (redirectTo) {
-    return <Navigate to={redirectTo} replace />
+    // Preserve the original URL so LoginPage can redirect back after successful login.
+    // Only pass `from` when redirecting to /login (not to /force-password-change).
+    const state =
+      redirectTo === ROUTES.LOGIN
+        ? { from: location.pathname + location.search }
+        : undefined
+    return <Navigate to={redirectTo} state={state} replace />
   }
 
   return <>{children}</>

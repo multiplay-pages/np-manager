@@ -4,6 +4,7 @@ import {
   getForcePasswordChangeErrorMessage,
   getForcePasswordChangeRouteRedirect,
   getProtectedRouteRedirect,
+  resolvePostLoginDestination,
   validateForcePasswordChangeForm,
 } from './authFlow'
 
@@ -151,5 +152,48 @@ describe('authFlow helpers', () => {
     }
 
     expect(getForcePasswordChangeErrorMessage(error)).toBe('Obecne hasło jest nieprawidłowe.')
+  })
+})
+
+describe('resolvePostLoginDestination', () => {
+  const normalUser = { forcePasswordChange: false }
+  const lockedUser = { forcePasswordChange: true }
+
+  it('returns dashboard when no `from` is provided', () => {
+    expect(resolvePostLoginDestination(normalUser, undefined)).toBe('/')
+  })
+
+  it('returns dashboard when `from` is null', () => {
+    expect(resolvePostLoginDestination(normalUser, null)).toBe('/')
+  })
+
+  it('returns `from` when it is a valid internal path', () => {
+    expect(resolvePostLoginDestination(normalUser, '/requests/FNP-2026-001')).toBe(
+      '/requests/FNP-2026-001',
+    )
+  })
+
+  it('returns `from` preserving query params', () => {
+    expect(resolvePostLoginDestination(normalUser, '/requests?status=SUBMITTED')).toBe(
+      '/requests?status=SUBMITTED',
+    )
+  })
+
+  it('rejects `from` equal to /login (avoids redirect loop)', () => {
+    expect(resolvePostLoginDestination(normalUser, '/login')).toBe('/')
+  })
+
+  it('rejects `from` that does not start with / (external URL)', () => {
+    expect(resolvePostLoginDestination(normalUser, 'https://evil.com')).toBe('/')
+  })
+
+  it('forcePasswordChange always takes priority over valid `from`', () => {
+    expect(resolvePostLoginDestination(lockedUser, '/requests/FNP-2026-001')).toBe(
+      '/force-password-change',
+    )
+  })
+
+  it('forcePasswordChange takes priority even when `from` is absent', () => {
+    expect(resolvePostLoginDestination(lockedUser, undefined)).toBe('/force-password-change')
   })
 })
