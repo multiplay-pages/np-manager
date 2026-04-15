@@ -114,6 +114,17 @@ export async function getPortingRequestById(id: string): Promise<PortingRequestD
   return response.data.data.request
 }
 
+export async function getPortingRequestByCaseNumber(
+  caseNumber: string,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/by-case-number/${encodeURIComponent(caseNumber)}`)
+
+  return response.data.data.request
+}
+
 export async function createPortingRequest(
   data: CreatePortingRequestPayload,
 ): Promise<PortingRequestDetailDto> {

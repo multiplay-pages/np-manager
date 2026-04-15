@@ -1069,6 +1069,22 @@ export async function getPortingRequest(
   return toDetailDto(request, actorRole, communicationHistory)
 }
 
+export async function getPortingRequestByCaseNumber(
+  caseNumber: string,
+  actorRole: UserRole,
+): Promise<PortingRequestDetailDto> {
+  const requestStub = await prisma.portingRequest.findUnique({
+    where: { caseNumber },
+    select: { id: true },
+  })
+
+  if (!requestStub) {
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
+  }
+
+  return getPortingRequest(requestStub.id, actorRole)
+}
+
 export async function updatePortingRequestAssignment(
   requestId: string,
   body: UpdatePortingRequestAssignmentBody,
