@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ROUTES } from '@/constants/routes'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { buildPath, ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import { Badge, Button, ButtonLink, type BadgeTone, cx } from '@/components/ui'
 import {
@@ -13,6 +13,7 @@ import {
   getPortingRequestAssignmentHistory,
   getPortingCommunicationDeliveryAttempts,
   getPortingRequestById,
+  getPortingRequestByCaseNumber,
   getPortingRequestCaseHistory,
   getPortingRequestCommunicationHistory,
   getPortingRequestInternalNotificationAttempts,
@@ -455,13 +456,23 @@ function NotificationHealthPanel({ health }: { health: NotificationHealthDiagnos
   )
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function RequestDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { caseNumber } = useParams<{ caseNumber: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuthStore()
+
+  // UUID of the loaded request — used by all secondary API calls and mutations.
+  // Populated by loadRequest after the first successful fetch.
+  const [internalId, setInternalId] = useState<string>('')
+  // Alias so all existing mutations and secondary callbacks keep working unchanged.
+  const id = internalId
 
   const [request, setRequest] = useState<PortingRequestDetailDto | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [caseHistoryItems, setCaseHistoryItems] = useState<PortingRequestCaseHistoryItemDto[]>([])
@@ -664,13 +675,25 @@ export function RequestDetailPage() {
   }, [])
 
   const loadRequest = useCallback(async () => {
-    if (!id) return
+    if (!caseNumber) return
 
     setIsLoading(true)
     setError(null)
+    setNotFound(false)
 
     try {
-      const nextRequest = await getPortingRequestById(id)
+      let nextRequest: PortingRequestDetailDto
+
+      if (UUID_REGEX.test(caseNumber)) {
+        // Legacy UUID in URL — fetch by ID, then redirect to canonical caseNumber URL.
+        nextRequest = await getPortingRequestById(caseNumber)
+        navigate(buildPath(ROUTES.REQUEST_DETAIL, nextRequest.caseNumber), { replace: true })
+        return
+      } else {
+        nextRequest = await getPortingRequestByCaseNumber(caseNumber)
+      }
+
+      setInternalId(nextRequest.id)
       setRequest(nextRequest)
       setAssigneeDraft(nextRequest.assignedUser?.id ?? '')
       setCommercialOwnerDraft(nextRequest.commercialOwner?.id ?? '')
@@ -690,18 +713,19 @@ export function RequestDetailPage() {
           : null,
       )
     } catch (err) {
-      const detail =
-        axios.isAxiosError(err) && err.response
-          ? ` (HTTP ${err.response.status})`
-          : ''
-      setError(`Nie udalo sie zaladowac szczegolow sprawy portowania.${detail}`)
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        setNotFound(true)
+      } else {
+        const detail = axios.isAxiosError(err) && err.response ? ` (HTTP ${err.response.status})` : ''
+        setError(`Nie udało się załadować szczegółów sprawy portowania.${detail}`)
+      }
       if (import.meta.env.DEV) {
         console.error('[RequestDetailPage] loadRequest failed:', err)
       }
     } finally {
       setIsLoading(false)
     }
-  }, [id])
+  }, [caseNumber, navigate])
 
   const loadCaseHistory = useCallback(async () => {
     if (!id) return
@@ -998,15 +1022,25 @@ export function RequestDetailPage() {
     }
   }, [id, isAdmin])
 
+  // Effect 1: fires on URL change — resets UI state and triggers primary load.
   useEffect(() => {
+    setInternalId('')
+    setRequest(null)
+    setNotFound(false)
+    setError(null)
     resetCommunicationFeedback()
     setCommunicationPreview(null)
     setAssignmentFeedbackError(null)
     setAssignmentFeedbackSuccess(null)
 
-    if (!id) return
-
+    if (!caseNumber) return
     void loadRequest()
+  }, [caseNumber, loadRequest, resetCommunicationFeedback])
+
+  // Effect 2: fires once internalId is known — triggers all secondary data loads.
+  useEffect(() => {
+    if (!internalId) return
+
     void loadCaseHistory()
     void loadInternalNotificationHistory()
     void loadInternalNotificationAttempts()
@@ -1021,7 +1055,7 @@ export function RequestDetailPage() {
     void loadTechnicalPayloads()
     void loadXmlPreviews()
   }, [
-    id,
+    internalId,
     loadAssignableUsers,
     loadAssignmentHistory,
     loadCaseHistory,
@@ -1032,11 +1066,9 @@ export function RequestDetailPage() {
     loadCommunicationHistory,
     loadIntegrationEvents,
     loadProcessSnapshot,
-    loadRequest,
     loadTechnicalPayloads,
     loadXmlPreviews,
     refreshDraftPreviews,
-    resetCommunicationFeedback,
   ])
 
   useEffect(() => {
@@ -1520,7 +1552,29 @@ export function RequestDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24 text-sm font-medium text-ink-500">
-        Ladowanie szczegolow sprawy...
+        Ładowanie szczegółów sprawy...
+      </div>
+    )
+  }
+
+  const backToList = () => {
+    if (location.state?.fromList) {
+      void navigate(ROUTES.REQUESTS + (location.state.listSearch ?? ''))
+    } else {
+      void navigate(ROUTES.REQUESTS)
+    }
+  }
+
+  if (notFound) {
+    return (
+      <div className="panel p-10 text-center">
+        <p className="mb-1 text-base font-semibold text-ink-900">Sprawa nie istnieje</p>
+        <p className="mb-6 text-sm text-ink-500">
+          Nie znaleziono sprawy o numerze <span className="font-mono font-medium text-ink-700">{caseNumber}</span>.
+        </p>
+        <Button onClick={backToList} variant="secondary">
+          Wróć do listy spraw
+        </Button>
       </div>
     )
   }
@@ -1529,10 +1583,10 @@ export function RequestDetailPage() {
     return (
       <div className="panel p-8 text-center">
         <p className="mb-4 text-sm font-medium text-red-600">
-          {error ?? 'Sprawa nie zostala znaleziona.'}
+          {error ?? 'Nie udało się załadować sprawy.'}
         </p>
-        <Button onClick={() => void navigate(ROUTES.REQUESTS)} variant="secondary">
-          Wroc do listy
+        <Button onClick={backToList} variant="secondary">
+          Wróć do listy
         </Button>
       </div>
     )
@@ -1556,7 +1610,7 @@ export function RequestDetailPage() {
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
               <Button
-                onClick={() => void navigate(ROUTES.REQUESTS)}
+                onClick={backToList}
                 variant="ghost"
                 size="sm"
                 className="mb-3 -ml-2"
