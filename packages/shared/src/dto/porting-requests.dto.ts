@@ -110,6 +110,7 @@ export interface PortingRequestListItemDto {
   clientId: string
   clientDisplayName: string
   numberDisplay: string
+  confirmedPortDate: string | null
   donorOperatorId: string
   donorOperatorName: string
   portingMode: PortingMode

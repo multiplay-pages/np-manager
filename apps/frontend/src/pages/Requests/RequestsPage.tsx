@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Badge, Button, ButtonLink, FilterChip, MetricCard, PageHeader, cx } from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
@@ -63,6 +63,31 @@ const notificationHealthOptions: Array<{ id: NotificationHealthFilter; label: st
   { id: 'NO_FAILURES', label: 'Bez bledow' },
 ]
 
+const notificationQuickOptions: Array<{ id: 'ALL' | 'HAS_FAILURES'; label: string }> = [
+  { id: 'ALL', label: 'Wszystkie' },
+  { id: 'HAS_FAILURES', label: 'Bledy notyfikacji' },
+]
+
+const commercialOwnerFilterLabels: Record<CommercialOwnerFilter, string> = {
+  ALL: 'Wszystkie',
+  WITH_OWNER: 'Z opiekunem',
+  WITHOUT_OWNER: 'Bez opiekuna',
+  MINE: 'Moje handlowe',
+}
+
+const notificationHealthFilterLabels: Record<NotificationHealthFilter, string> = {
+  ALL: 'Wszystkie',
+  HAS_FAILURES: 'Bledy notyfikacji',
+  NO_FAILURES: 'Bez bledow',
+}
+
+interface ActiveFilterChip {
+  id: string
+  label: string
+  value: string
+  updates: Record<string, string | null>
+}
+
 function parseStatus(value: string | null): PortingCaseStatus | null {
   const valid = Object.values(PORTING_CASE_STATUSES) as PortingCaseStatus[]
   return value && valid.includes(value as PortingCaseStatus) ? (value as PortingCaseStatus) : null
@@ -109,7 +134,11 @@ function StatusBadge({ status }: { status: PortingCaseStatus }) {
   } as const
   const tone = toneByStatus[meta.tone]
 
-  return <Badge tone={tone}>{meta.label}</Badge>
+  return (
+    <Badge tone={tone} className="min-h-7 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em]">
+      {meta.label}
+    </Badge>
+  )
 }
 
 function NotificationHealthBadge({ request }: { request: PortingRequestListItemDto }) {
@@ -144,23 +173,6 @@ function NotificationHealthBadge({ request }: { request: PortingRequestListItemD
   )
 }
 
-function FilterGroup({
-  label,
-  children,
-}: {
-  label: string
-  children: ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">
-        {label}
-      </span>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </div>
-  )
-}
-
 export function RequestRow({
   request,
   onClick,
@@ -182,6 +194,9 @@ export function RequestRow({
   const [isAssigning, setIsAssigning] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
   const [caseCopied, setCaseCopied] = useState(false)
+  const portingDateLabel = request.confirmedPortDate
+    ? formatDateValue(request.confirmedPortDate)
+    : null
 
   async function handleAssignToMe(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
@@ -209,23 +224,40 @@ export function RequestRow({
       className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-brand-50/70"
     >
       <td className="px-5 py-4 align-top">
-        <div className="font-mono text-xs font-semibold text-ink-700">{request.caseNumber}</div>
-        <div className="mt-1 text-xs text-ink-400">{formatDateValue(request.createdAt)}</div>
-      </td>
-      <td className="px-5 py-4 align-top">
-        <div className="max-w-[240px] truncate text-sm font-semibold text-ink-900">
+        <div className="max-w-[220px] truncate font-mono text-base font-bold text-ink-900">
+          {request.numberDisplay}
+        </div>
+        <div className="mt-1 max-w-[220px] truncate text-sm font-semibold text-ink-800">
           {request.clientDisplayName}
         </div>
-        <div className="mt-1 font-mono text-xs text-ink-500">{request.numberDisplay}</div>
+        <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-ink-450">
+          <span className="font-mono font-semibold text-ink-550">{request.caseNumber}</span>
+          <span>Utworzono {formatDateValue(request.createdAt)}</span>
+        </div>
+      </td>
+      <td className="px-5 py-4 align-top">
+        <StatusBadge status={request.statusInternal} />
+      </td>
+      <td className="px-5 py-4 align-top">
+        {portingDateLabel ? (
+          <div className="flex flex-col gap-1">
+            <Badge tone="brand" className="w-fit font-mono text-xs font-semibold">
+              {portingDateLabel}
+            </Badge>
+            <span className="text-[11px] text-ink-450">Data portowania</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-ink-600">Nie wyznaczono</span>
+            <span className="text-[11px] text-ink-450">Data portowania</span>
+          </div>
+        )}
       </td>
       <td className="px-5 py-4 align-top">
         <div className="max-w-[180px] truncate text-sm text-ink-650">{request.donorOperatorName}</div>
         <div className="mt-1 text-xs font-semibold text-ink-400">
           {PORTING_MODE_LABELS[request.portingMode]}
         </div>
-      </td>
-      <td className="px-5 py-4 align-top">
-        <StatusBadge status={request.statusInternal} />
       </td>
       <td className="px-5 py-4 align-top">
         <div
@@ -411,6 +443,85 @@ export function RequestsPage() {
 
   const { items = [], pagination } = result ?? {}
   const summaryCards = summary ? buildRequestsSummaryCards(summary, filters) : []
+  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
+    const chips: ActiveFilterChip[] = []
+
+    if (searchInput) {
+      chips.push({
+        id: 'search',
+        label: 'Szukaj',
+        value: searchInput,
+        updates: { search: null, page: null },
+      })
+    }
+
+    if (statusFilter) {
+      chips.push({
+        id: 'status',
+        label: 'Status',
+        value: getPortingStatusMeta(statusFilter).label,
+        updates: { status: null, page: null },
+      })
+    }
+
+    if (portingModeFilter) {
+      chips.push({
+        id: 'portingMode',
+        label: 'Tryb',
+        value: PORTING_MODE_LABELS[portingModeFilter],
+        updates: { portingMode: null, page: null },
+      })
+    }
+
+    if (donorOperatorId) {
+      const donorLabel = operators.find((operator) => operator.id === donorOperatorId)?.name ?? donorOperatorId
+      chips.push({
+        id: 'donorOperatorId',
+        label: 'Dawca',
+        value: donorLabel,
+        updates: { donorOperatorId: null, page: null },
+      })
+    }
+
+    if (ownershipFilter !== 'ALL') {
+      const ownershipLabel = ownershipOptions.find((option) => option.id === ownershipFilter)?.label ?? ownershipFilter
+      chips.push({
+        id: 'ownership',
+        label: 'Przypisanie',
+        value: ownershipLabel,
+        updates: { ownership: null, page: null },
+      })
+    }
+
+    if (commercialOwnerFilter !== 'ALL') {
+      chips.push({
+        id: 'commercialOwnerFilter',
+        label: 'Opiekun',
+        value: commercialOwnerFilterLabels[commercialOwnerFilter],
+        updates: { commercialOwnerFilter: null, page: null },
+      })
+    }
+
+    if (notificationHealthFilter !== 'ALL') {
+      chips.push({
+        id: 'notificationHealthFilter',
+        label: 'Notyfikacje',
+        value: notificationHealthFilterLabels[notificationHealthFilter],
+        updates: { notificationHealthFilter: null, page: null },
+      })
+    }
+
+    return chips
+  }, [
+    commercialOwnerFilter,
+    donorOperatorId,
+    notificationHealthFilter,
+    operators,
+    ownershipFilter,
+    portingModeFilter,
+    searchInput,
+    statusFilter,
+  ])
 
   return (
     <div className="space-y-6">
@@ -450,25 +561,58 @@ export function RequestsPage() {
 
       <section className="panel overflow-hidden">
         <div className="border-b border-line px-5 py-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[260px] flex-1">
               <input
                 type="search"
                 value={localSearch}
                 onChange={(event) => handleSearchChange(event.target.value)}
-                className="input-field h-11 pl-10"
+                className="input-field h-10 pl-10"
                 placeholder="Szukaj po numerze sprawy, telefonie lub kliencie..."
               />
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-400">
                 S
               </span>
             </div>
+
+            <select
+              value={statusFilter ?? ''}
+              onChange={(event) => {
+                const nextStatus = event.target.value || null
+                setParam({ status: nextStatus, page: null })
+              }}
+              className="input-field h-10 min-w-[180px] lg:max-w-[220px]"
+            >
+              <option value="">Wszystkie statusy</option>
+              {(Object.values(PORTING_CASE_STATUSES) as PortingCaseStatus[]).map((status) => (
+                <option key={status} value={status}>
+                  {getPortingStatusMeta(status).label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={portingModeFilter ?? ''}
+              onChange={(event) => {
+                const nextMode = event.target.value || null
+                setParam({ portingMode: nextMode, page: null })
+              }}
+              className="input-field h-10 min-w-[170px] lg:max-w-[210px]"
+            >
+              <option value="">Wszystkie tryby</option>
+              {PORTING_MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {PORTING_MODE_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+
             <select
               value={donorOperatorId}
               onChange={(event) => {
                 setParam({ donorOperatorId: event.target.value || null, page: null })
               }}
-              className="input-field h-11 lg:max-w-[260px]"
+              className="input-field h-10 min-w-[190px] lg:max-w-[250px]"
             >
               <option value="">Wszyscy dawcy</option>
               {operators.map((operator) => (
@@ -477,97 +621,115 @@ export function RequestsPage() {
                 </option>
               ))}
             </select>
+
+            <select
+              value={commercialOwnerFilter}
+              onChange={(event) => {
+                const next = event.target.value as CommercialOwnerFilter
+                setParam({
+                  commercialOwnerFilter: next === 'ALL' ? null : next,
+                  page: null,
+                })
+              }}
+              className="input-field h-10 min-w-[170px] lg:max-w-[210px]"
+            >
+              {commercialOwnerOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  Opiekun: {option.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={notificationHealthFilter}
+              onChange={(event) => {
+                const next = event.target.value as NotificationHealthFilter
+                setParam({
+                  notificationHealthFilter: next === 'ALL' ? null : next,
+                  page: null,
+                })
+              }}
+              className="input-field h-10 min-w-[170px] lg:max-w-[220px]"
+            >
+              {notificationHealthOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  Notyfikacje: {option.label}
+                </option>
+              ))}
+            </select>
+
             {hasActiveFilters && (
-              <Button onClick={clearFilters} variant="ghost" className="h-11">
+              <Button onClick={clearFilters} variant="ghost" className="h-10">
                 Wyczysc filtry
               </Button>
             )}
           </div>
-        </div>
 
-        <div className="grid gap-5 px-5 py-5 xl:grid-cols-[1.15fr_0.85fr]">
-          <FilterGroup label="Status">
-            <FilterChip active={!statusFilter} onClick={() => setParam({ status: null, page: null })}>
-              Wszystkie
-            </FilterChip>
-            {(Object.values(PORTING_CASE_STATUSES) as PortingCaseStatus[]).map((status) => {
-              const meta = getPortingStatusMeta(status)
-              const isActive = statusFilter === status
-              return (
+          <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-line pt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+                Przypisanie BOK
+              </span>
+              {ownershipOptions.map((filter) => (
                 <FilterChip
-                  key={status}
-                  active={isActive}
-                  onClick={() => setParam({ status: isActive ? null : status, page: null })}
+                  key={filter.id}
+                  active={ownershipFilter === filter.id}
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => setParam({ ownership: filter.id === 'ALL' ? null : filter.id, page: null })}
                 >
-                  {meta.label}
+                  {filter.label}
                 </FilterChip>
-              )
-            })}
-          </FilterGroup>
+              ))}
+            </div>
 
-          <FilterGroup label="Tryb portowania">
-            <FilterChip
-              active={!portingModeFilter}
-              onClick={() => setParam({ portingMode: null, page: null })}
-            >
-              Wszystkie
-            </FilterChip>
-            {PORTING_MODES.map((mode) => {
-              const isActive = portingModeFilter === mode
-              return (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+                Opiekun / notyfikacje
+              </span>
+              {notificationQuickOptions.map((filter) => (
                 <FilterChip
-                  key={mode}
-                  active={isActive}
-                  onClick={() => setParam({ portingMode: isActive ? null : mode, page: null })}
+                  key={filter.id}
+                  active={
+                    filter.id === 'ALL'
+                      ? commercialOwnerFilter === 'ALL' && notificationHealthFilter === 'ALL'
+                      : commercialOwnerFilter === 'ALL' && notificationHealthFilter === filter.id
+                  }
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() =>
+                    setParam({
+                      commercialOwnerFilter: null,
+                      notificationHealthFilter: filter.id === 'ALL' ? null : filter.id,
+                      page: null,
+                    })
+                  }
                 >
-                  {PORTING_MODE_LABELS[mode]}
+                  {filter.label}
                 </FilterChip>
-              )
-            })}
-          </FilterGroup>
+              ))}
+            </div>
+          </div>
 
-          <FilterGroup label="Przypisanie BOK">
-            {ownershipOptions.map((filter) => (
-              <FilterChip
-                key={filter.id}
-                active={ownershipFilter === filter.id}
-                onClick={() => setParam({ ownership: filter.id === 'ALL' ? null : filter.id, page: null })}
-              >
-                {filter.label}
-              </FilterChip>
-            ))}
-          </FilterGroup>
-
-          <FilterGroup label="Opiekun i notyfikacje">
-            {commercialOwnerOptions.map((filter) => (
-              <FilterChip
-                key={filter.id}
-                active={commercialOwnerFilter === filter.id}
-                onClick={() =>
-                  setParam({
-                    commercialOwnerFilter: filter.id === 'ALL' ? null : filter.id,
-                    page: null,
-                  })
-                }
-              >
-                {filter.label}
-              </FilterChip>
-            ))}
-            {notificationHealthOptions.map((filter) => (
-              <FilterChip
-                key={filter.id}
-                active={notificationHealthFilter === filter.id}
-                onClick={() =>
-                  setParam({
-                    notificationHealthFilter: filter.id === 'ALL' ? null : filter.id,
-                    page: null,
-                  })
-                }
-              >
-                {filter.label}
-              </FilterChip>
-            ))}
-          </FilterGroup>
+          {activeFilterChips.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-3">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+                Aktywne filtry
+              </span>
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-ui border border-line-strong bg-surface px-2.5 py-1 text-xs text-ink-650 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+                  onClick={() => setParam(chip.updates)}
+                >
+                  <span className="font-semibold">{chip.label}:</span>
+                  <span>{chip.value}</span>
+                  <span aria-hidden className="text-ink-400">
+                    x
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -613,13 +775,13 @@ export function RequestsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1280px] text-sm">
+            <table className="w-full min-w-[1260px] text-sm">
               <thead className="bg-ink-50 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
                 <tr>
-                  <th className="px-5 py-3 text-left">Sprawa</th>
-                  <th className="px-5 py-3 text-left">Klient i numer</th>
-                  <th className="px-5 py-3 text-left">Operator / tryb</th>
+                  <th className="px-5 py-3 text-left">Numer i klient</th>
                   <th className="px-5 py-3 text-left">Status</th>
+                  <th className="px-5 py-3 text-left">Data przeniesienia</th>
+                  <th className="px-5 py-3 text-left">Operator / tryb</th>
                   <th className="px-5 py-3 text-left">Przypisanie</th>
                   <th className="px-5 py-3 text-left">Owner</th>
                   <th className="min-w-[130px] whitespace-nowrap px-5 py-3 text-left">Notyfikacje</th>

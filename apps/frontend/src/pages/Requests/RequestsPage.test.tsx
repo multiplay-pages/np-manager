@@ -10,6 +10,7 @@ function makeRequest(overrides: Partial<PortingRequestListItemDto> = {}): Portin
     clientId: 'client-1',
     clientDisplayName: 'Jan Kowalski',
     numberDisplay: '221234567',
+    confirmedPortDate: null,
     donorOperatorId: 'operator-1',
     donorOperatorName: 'Orange Polska',
     portingMode: 'DAY',
@@ -80,6 +81,8 @@ describe('RequestRow', () => {
 
     expect(html).toContain('Brak opiekuna')
     expect(html).toContain('OK')
+    expect(html).toContain('Nie wyznaczono')
+    expect(html).toContain('Data portowania')
   })
 
   it('renders Kopiuj numer button for all users', () => {

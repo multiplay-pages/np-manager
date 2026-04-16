@@ -33,6 +33,7 @@ function makeListRow(overrides: Record<string, unknown> = {}) {
     rangeStart: null,
     rangeEnd: null,
     numberRangeKind: 'SINGLE',
+    confirmedPortDate: null,
     portingMode: 'DAY',
     statusInternal: 'SUBMITTED',
     createdAt: new Date('2026-04-09T10:00:00.000Z'),
@@ -290,6 +291,25 @@ describe('listPortingRequests - commercial owner and notification health filters
 
     expect(result.items[0]?.commercialOwnerSummary?.id).toBe('sales-1')
     expect(result.items[0]?.hasNotificationFailures).toBe(true)
+  })
+
+  it('maps confirmed port date in list item DTO', async () => {
+    mockPortingRequestCount.mockResolvedValue(2)
+    mockPortingRequestFindMany.mockResolvedValue([
+      makeListRow({
+        id: 'with-date',
+        confirmedPortDate: new Date('2026-04-17T00:00:00.000Z'),
+      }),
+      makeListRow({
+        id: 'without-date',
+        confirmedPortDate: null,
+      }),
+    ])
+
+    const result = await listPortingRequests({ page: 1, pageSize: 20 }, CURRENT_USER_ID)
+
+    expect(result.items.find((item) => item.id === 'with-date')?.confirmedPortDate).toBe('2026-04-17')
+    expect(result.items.find((item) => item.id === 'without-date')?.confirmedPortDate).toBeNull()
   })
 })
 
