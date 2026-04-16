@@ -61,6 +61,7 @@ import {
   type PortingCommunicationPreviewDto,
   type PortingCommunicationSummaryDto,
   type InternalNotificationDeliveryAttemptDto,
+  type PortingCaseStatus,
   type PortingInternalNotificationHistoryItemDto,
   type PortingRequestAssignmentUserOptionDto,
   type PortingRequestCaseHistoryItemDto,
@@ -334,6 +335,128 @@ function DetailMetric({
 
 function scrollToSection(sectionId: string) {
   document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+const TERMINAL_CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
+
+const TERMINAL_CLOSED_LABELS: Partial<Record<PortingCaseStatus, string>> = {
+  PORTED: 'Numer przeniesiony pomyślnie.',
+  REJECTED: 'Sprawa odrzucona.',
+  CANCELLED: 'Sprawa anulowana.',
+}
+
+const STATUS_NEXT_STEP_DESCRIPTION: Partial<Record<PortingCaseStatus, string>> = {
+  DRAFT: 'Złóż sprawę do dalszej obsługi lub anuluj szkic.',
+  SUBMITTED: 'Sprawa oczekuje na weryfikację — potwierdź, odeślij do dawcy lub odrzuć.',
+  PENDING_DONOR: 'Oczekiwanie na odpowiedź operatora oddającego — po odpowiedzi potwierdź lub odrzuć.',
+  CONFIRMED: 'Sprawa potwierdzona — po realizacji portowania oznacz jako przeniesioną.',
+  ERROR: 'Zidentyfikuj przyczynę błędu i podjej działanie — anuluj lub skontaktuj się z przełożonym.',
+}
+
+function NextStepBanner({
+  status,
+  availableStatusActions,
+  canManageStatus,
+  onScrollToActions,
+}: {
+  status: PortingCaseStatus
+  availableStatusActions: PortingRequestStatusActionDto[]
+  canManageStatus: boolean
+  onScrollToActions: () => void
+}) {
+  const isTerminal = TERMINAL_CLOSED_STATUSES.includes(status)
+  const isError = status === 'ERROR'
+  const hasActions = availableStatusActions.length > 0
+
+  if (isTerminal) {
+    const tone = status === 'PORTED' ? 'emerald' : status === 'REJECTED' ? 'red' : 'neutral'
+    const colorClass =
+      tone === 'emerald'
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+        : tone === 'red'
+          ? 'border-red-200 bg-red-50 text-red-800'
+          : 'border-line bg-ink-50 text-ink-600'
+
+    return (
+      <div className={cx('rounded-panel border px-4 py-3', colorClass)}>
+        <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Stan sprawy</p>
+        <p className="mt-1 text-sm font-semibold">
+          {TERMINAL_CLOSED_LABELS[status] ?? 'Sprawa zakończona — brak dalszych kroków.'}
+        </p>
+        <p className="mt-0.5 text-xs opacity-70">Żadne akcje statusowe nie są dostępne.</p>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-panel border border-red-200 bg-red-50 px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Wymaga interwencji</p>
+        <p className="mt-1 text-sm font-semibold text-red-800">Sprawa ma status Błąd.</p>
+        <p className="mt-0.5 text-xs text-red-700">
+          {STATUS_NEXT_STEP_DESCRIPTION.ERROR}
+        </p>
+        {canManageStatus && hasActions && (
+          <button
+            type="button"
+            onClick={onScrollToActions}
+            className="mt-2 rounded-ui px-2 py-1 text-xs font-semibold text-red-800 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+          >
+            Przejdź do akcji →
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (!canManageStatus) {
+    return (
+      <div className="rounded-panel border border-line bg-surface px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">Tryb podglądu</p>
+        <p className="mt-1 text-sm text-ink-600">
+          Twoja rola pozwala tylko na podgląd sprawy. Akcje statusowe są niedostępne.
+        </p>
+      </div>
+    )
+  }
+
+  if (hasActions) {
+    return (
+      <div className="rounded-panel border border-brand-200 bg-brand-50 px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">Następny krok</p>
+        <p className="mt-1 text-sm font-medium text-ink-800">
+          {STATUS_NEXT_STEP_DESCRIPTION[status] ?? 'Wykonaj dostępną akcję, aby kontynuować obsługę sprawy.'}
+        </p>
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5">
+          {availableStatusActions.slice(0, 3).map((action) => (
+            <span key={`${action.actionId}-${action.targetStatus}`} className="text-xs text-brand-700">
+              • {action.label}
+            </span>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onScrollToActions}
+          className="mt-2 rounded-ui px-2 py-1 text-xs font-semibold text-brand-800 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        >
+          Przejdź do akcji →
+        </button>
+      </div>
+    )
+  }
+
+  // Active status, no actions available for this role
+  return (
+    <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Oczekuje na działanie</p>
+      <p className="mt-1 text-sm font-medium text-amber-800">
+        Sprawa aktywna — żadna akcja nie jest dostępna dla Twojej roli w tym statusie.
+      </p>
+      <p className="mt-0.5 text-xs text-amber-700">
+        Sprawa oczekuje na działanie uprawnionego operatora.
+      </p>
+    </div>
+  )
 }
 
 function getStatusTone(status: ReturnType<typeof getPortingStatusMeta>['tone']): BadgeTone {
@@ -1772,6 +1895,34 @@ export function RequestDetailPage() {
             </dl>
           </SectionCard>
 
+          <div id="communication-panel" className="scroll-mt-6">
+            <PortingCommunicationPanel
+              actions={availableCommunicationActions}
+              summary={communicationSummary}
+              items={communicationItems}
+              isLoadingHistory={isCommunicationLoading}
+              preview={communicationPreview}
+              feedbackError={communicationFeedbackError}
+              feedbackSuccess={communicationFeedbackSuccess}
+              previewingActionType={previewingCommunicationActionType}
+              creatingDraftActionType={creatingCommunicationActionType}
+              markingSentId={markingCommunicationId}
+              sendingId={sendingCommunicationId}
+              retryingId={retryingCommunicationId}
+              cancellingId={cancellingCommunicationId}
+              deliveryAttemptsByCommId={deliveryAttemptsByCommId}
+              loadingDeliveryAttemptsId={loadingDeliveryAttemptsId}
+              currentStatus={request.statusInternal}
+              onCreateDraft={(actionType) => void handleCreateCommunicationDraft(actionType)}
+              onPreviewDraft={(actionType) => void handlePreviewCommunicationDraft(actionType)}
+              onMarkAsSent={(communicationId) => void handleMarkCommunicationAsSent(communicationId)}
+              onSend={(communicationId) => void handleSendCommunication(communicationId)}
+              onRetry={(communicationId) => void handleRetryCommunication(communicationId)}
+              onCancel={(communicationId) => void handleCancelCommunication(communicationId)}
+              onLoadDeliveryAttempts={(communicationId) => void handleLoadDeliveryAttempts(communicationId)}
+            />
+          </div>
+
           <SectionCard
             id="notification-panel"
             title="Stan notyfikacji"
@@ -1803,34 +1954,6 @@ export function RequestDetailPage() {
               />
             </div>
           </SectionCard>
-
-          <div id="communication-panel" className="scroll-mt-6">
-            <PortingCommunicationPanel
-              actions={availableCommunicationActions}
-              summary={communicationSummary}
-              items={communicationItems}
-              isLoadingHistory={isCommunicationLoading}
-              preview={communicationPreview}
-              feedbackError={communicationFeedbackError}
-              feedbackSuccess={communicationFeedbackSuccess}
-              previewingActionType={previewingCommunicationActionType}
-              creatingDraftActionType={creatingCommunicationActionType}
-              markingSentId={markingCommunicationId}
-              sendingId={sendingCommunicationId}
-              retryingId={retryingCommunicationId}
-              cancellingId={cancellingCommunicationId}
-              deliveryAttemptsByCommId={deliveryAttemptsByCommId}
-              loadingDeliveryAttemptsId={loadingDeliveryAttemptsId}
-              currentStatus={request.statusInternal}
-              onCreateDraft={(actionType) => void handleCreateCommunicationDraft(actionType)}
-              onPreviewDraft={(actionType) => void handlePreviewCommunicationDraft(actionType)}
-              onMarkAsSent={(communicationId) => void handleMarkCommunicationAsSent(communicationId)}
-              onSend={(communicationId) => void handleSendCommunication(communicationId)}
-              onRetry={(communicationId) => void handleRetryCommunication(communicationId)}
-              onCancel={(communicationId) => void handleCancelCommunication(communicationId)}
-              onLoadDeliveryAttempts={(communicationId) => void handleLoadDeliveryAttempts(communicationId)}
-            />
-          </div>
 
           <SectionCard title="Historia operacyjna" description="Chronologia zmian statusu i zdarzen sprawy.">
             <PortingCaseHistory
@@ -2032,6 +2155,13 @@ export function RequestDetailPage() {
         </div>
 
         <div className="space-y-4">
+          <NextStepBanner
+            status={request.statusInternal}
+            availableStatusActions={availableStatusActions}
+            canManageStatus={canManageStatus}
+            onScrollToActions={() => scrollToSection('workflow-actions')}
+          />
+
           <div id="assignment-panel" className="scroll-mt-6">
             <PortingAssignmentPanel
               assignedUser={request.assignedUser}
@@ -2137,34 +2267,44 @@ export function RequestDetailPage() {
 
           <SectionCard
             id="workflow-actions"
-            title="Akcje workflow"
-            description="Dostepne przejscia wynikaja z aktualnego statusu sprawy i uprawnien operatora."
+            title="Zmień status"
+            description="Dostępne przejścia wynikają z aktualnego statusu sprawy i uprawnień operatora."
             compact
           >
             {canManageStatus ? (
               <div className="space-y-4">
                 {availableStatusActions.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {availableStatusActions.map((action) => (
-                      <button
-                        key={`${action.actionId}-${action.targetStatus}`}
-                        type="button"
-                        onClick={() => handleSelectStatusAction(action)}
-                        className={
-                          selectedStatusAction?.actionId === action.actionId &&
-                          selectedStatusAction.targetStatus === action.targetStatus
-                            ? 'btn-primary'
-                            : 'btn-secondary'
-                        }
-                        disabled={isUpdatingStatus || isExporting || isSyncing}
-                      >
-                        {action.label}
-                      </button>
-                    ))}
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {availableStatusActions.map((action) => (
+                        <button
+                          key={`${action.actionId}-${action.targetStatus}`}
+                          type="button"
+                          onClick={() => handleSelectStatusAction(action)}
+                          className={
+                            selectedStatusAction?.actionId === action.actionId &&
+                            selectedStatusAction.targetStatus === action.targetStatus
+                              ? 'btn-primary'
+                              : 'btn-secondary'
+                          }
+                          disabled={isUpdatingStatus || isExporting || isSyncing}
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : TERMINAL_CLOSED_STATUSES.includes(request.statusInternal) ? (
+                  <div className="rounded-panel border border-line bg-ink-50 px-4 py-3 text-sm text-ink-500">
+                    Sprawa zakończona — brak dostępnych akcji statusowych.
+                  </div>
+                ) : request.statusInternal === 'ERROR' ? (
+                  <div className="rounded-panel border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    Sprawa w stanie błędu — skontaktuj się z przełożonym lub skorzystaj z akcji zewnętrznych poniżej.
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                    Dla tego statusu nie ma dostepnych akcji.
+                  <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    Brak akcji dostępnych dla Twojej roli w tym statusie sprawy.
                   </div>
                 )}
 
