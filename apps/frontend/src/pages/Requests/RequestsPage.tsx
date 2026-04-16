@@ -534,7 +534,7 @@ export function RequestsPage() {
               {pagination.total} {pluralizeRequests(pagination.total)} w aktualnym widoku.
             </>
           ) : (
-            'Lista operacyjna spraw z filtrami ownership, statusu i zdrowia notyfikacji.'
+            'Lista operacyjna spraw z filtrami przypisania, statusu i zdrowia notyfikacji.'
           )
         }
         actions={
@@ -684,7 +684,7 @@ export function RequestsPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
-                Opiekun / notyfikacje
+                Opiekun handlowy i zdrowie notyfikacji
               </span>
               {notificationQuickOptions.map((filter) => (
                 <FilterChip
@@ -738,7 +738,7 @@ export function RequestsPage() {
           <div>
             <h2 className="text-sm font-semibold text-ink-900">Lista spraw</h2>
             <p className="mt-1 text-xs text-ink-500">
-              Status, opiekun i health notyfikacji sa widoczne bez wchodzenia w szczegoly.
+              Status, opiekun i zdrowie notyfikacji sa widoczne bez wchodzenia w szczegoly.
             </p>
           </div>
           {pagination && (
@@ -750,7 +750,7 @@ export function RequestsPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-sm font-medium text-ink-500">
-            Ladowanie listy...
+            Ladowanie listy spraw...
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -783,7 +783,7 @@ export function RequestsPage() {
                   <th className="px-5 py-3 text-left">Data przeniesienia</th>
                   <th className="px-5 py-3 text-left">Operator / tryb</th>
                   <th className="px-5 py-3 text-left">Przypisanie</th>
-                  <th className="px-5 py-3 text-left">Owner</th>
+                  <th className="px-5 py-3 text-left">Opiekun handlowy</th>
                   <th className="min-w-[130px] whitespace-nowrap px-5 py-3 text-left">Notyfikacje</th>
                   <th className="min-w-[120px] whitespace-nowrap px-4 py-3 text-left">Akcje</th>
                 </tr>
