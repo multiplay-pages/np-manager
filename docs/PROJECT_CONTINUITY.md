@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-15)
+## Aktualny stan projektu (2026-04-16)
 
 ### Stan prac / etapy
 
@@ -32,6 +32,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 2B   | Routing/deeplinks/nawigacja lista-detail (canonical URL, UUID redirect, filtr po powrocie) | DONE |
 | Etap 2C   | Auth return-to-target, 404/error polish, copy-link — domkniecie Etapu 2                    | DONE |
 | Etap 3A   | Assignment closeout: visual polish PortingAssignmentPanel + usun martwy kod filterPortingRequestsByOwnership | DONE |
+| Etap 4A   | NextStepBanner + workflow UX na detail page — prowadzenie operatora przez sprawe | DONE |
 
 ---
 
@@ -334,6 +335,35 @@ Stan assignment po closeout:
 - Lista: filtry `Moje sprawy` / `Nieprzypisane` — server-side, JWT-based, bez query manipulation.
 - RBAC: assign-to-self i reassign = ADMIN + BOK_CONSULTANT; historia = wszyscy zalogowani.
 - Weryfikacja 3A: frontend 155 testow PASS, tsc PASS w obu appkach.
+
+### Etap 4A - NextStepBanner + workflow UX na detail page
+
+Cel: uproscic codzienna obsluge sprawy przez operatora — bez nowych funkcji, tylko lepsze prowadzenie przez workflow.
+
+Zakres: wylacznie frontendowy, jeden plik — `RequestDetailPage.tsx`. Brak zmian backendu, DTO i testow (logika prosta, wynikajaca wprost z danych backendowych).
+
+Zmiany:
+- **`NextStepBanner`** (nowy lokalny komponent) — wyswietlany na gorze prawego sidebara:
+  - `PORTED/REJECTED/CANCELLED`: kolor tematyczny (emerald/red/neutral) + "Sprawa zakonczona"
+  - `ERROR`: czerwony banner "Wymaga interwencji" + opis + link do akcji
+  - brak uprawnien do statusu: neutralny "Tryb podgladu"
+  - aktywna sprawa + dostepne akcje: niebieski "Nastepny krok" z opisem per-status i lista akcji + link do panelu
+  - aktywna sprawa + brak akcji dla roli: pomaranczowy "Oczekuje na dzialanie uprawnionego operatora"
+- **Poprawione puste stany panelu "Zmien status"** (byl "Akcje workflow"):
+  - terminal: neutralny komunikat "sprawa zakonczona"
+  - ERROR: czerwony komunikat "wymaga interwencji"
+  - aktywna bez akcji: pomaranczowy "brak akcji dla Twojej roli"
+- **Przemianowanie panelu**: "Akcje workflow" → "Zmien status" (czytelniejsza semantyka)
+- **Przestawienie sekcji w lewej kolumnie**: `PortingCommunicationPanel` przed "Stan notyfikacji" (komunikacja = codzienna praca; notyfikacje = diagnostyka)
+
+Decyzje architektoniczne:
+- Backend juz zwraca `availableStatusActions` per (currentStatus, role) — frontend wnioskuje kontekst z pustej listy + `request.statusInternal`
+- `TERMINAL_CLOSED_STATUSES = ['REJECTED', 'CANCELLED', 'PORTED']` jako lokalna stala na froncie (odpowiednik `CLOSED_STATUSES` z backendu)
+- `STATUS_NEXT_STEP_DESCRIPTION` — slownik opisow per-status, pokrywa DRAFT/SUBMITTED/PENDING_DONOR/CONFIRMED/ERROR
+- Brak nowych testow — logika jest prosta funkcja danych backendu, bez edge-case do przetestowania
+- Brak zmian scroll-anchor ID (communication-panel, notification-panel, workflow-actions zachowane)
+
+Weryfikacja 4A: 170/170 frontend testow PASS, tsc PASS w obu appkach.
 
 #### Konfiguracja transportu email
 
