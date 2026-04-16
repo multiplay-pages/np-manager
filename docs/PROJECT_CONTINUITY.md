@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-15)
+## Aktualny stan projektu (2026-04-16)
 
 ### Stan prac / etapy
 
@@ -32,6 +32,10 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 2B   | Routing/deeplinks/nawigacja lista-detail (canonical URL, UUID redirect, filtr po powrocie) | DONE |
 | Etap 2C   | Auth return-to-target, 404/error polish, copy-link — domkniecie Etapu 2                    | DONE |
 | Etap 3A   | Assignment closeout: visual polish PortingAssignmentPanel + usun martwy kod filterPortingRequestsByOwnership | DONE |
+| Etap 3B   | Akcje z listy (operacyjny flow z poziomu RequestsPage)                                        | DONE |
+| Etap 3C   | Hierarchia kluczowych informacji na liscie + realna data portowania                           | DONE |
+| Etap 3D   | Kompaktowy panel filtrow operacyjnych (domkniety po QA)                                       | DONE |
+| Etap 3E   | Closeout Etapu 3: copy/UX cleanup + aktualizacja continuity                                    | DONE |
 
 ---
 
@@ -334,6 +338,28 @@ Stan assignment po closeout:
 - Lista: filtry `Moje sprawy` / `Nieprzypisane` — server-side, JWT-based, bez query manipulation.
 - RBAC: assign-to-self i reassign = ADMIN + BOK_CONSULTANT; historia = wszyscy zalogowani.
 - Weryfikacja 3A: frontend 155 testow PASS, tsc PASS w obu appkach.
+
+### Etap 3B / 3C / 3D / 3E - domkniecie Etapu 3
+
+- Etap 3B zostal zamkniety: kluczowe akcje operacyjne z listy sa dostepne i zgodne z istniejaca semantyka backendu.
+- Etap 3C zostal zamkniety: hierarchia informacji na liscie jest uporzadkowana, a data portowania opiera sie o realny termin operacyjny.
+- Etap 3D zostal zamkniety po QA: panel filtrow operacyjnych dziala funkcjonalnie bez potrzeby zmian backendu.
+- Etap 3E (ten change set) domyka Etap 3 minimalnym zakresem:
+  - poprawki copy i drobnych niespojnosci UX w `RequestsPage`,
+  - bez nowych funkcji i bez zmiany semantyki filtrow,
+  - bez zmian backendu.
+
+Poprawki copy/UX z 3E:
+- poprawiona literowka loadingu listy (`Ladowanie listy spraw...`),
+- doprecyzowany label grupy filtrow (`Opiekun handlowy i zdrowie notyfikacji`),
+- usuniete niespojne anglicyzmy (`health` -> `zdrowie`, `Owner` -> `Opiekun handlowy`),
+- doprecyzowany opis listy (spojnosc z terminologia przypisania).
+
+Etap 3 status:
+- **Etap 3 jest formalnie zamkniety (3A + 3B + 3C + 3D + 3E).**
+
+Polish follow-up (poza Etapem 3):
+- ewentualne dalsze zmniejszenie wizualnej gestosci panelu filtrow (strictly UI), bez zmiany zachowania i bez zmian backendowych.
 
 #### Konfiguracja transportu email
 
