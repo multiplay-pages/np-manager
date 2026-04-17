@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-16)
+## Aktualny stan projektu (2026-04-17)
 
 ### Stan prac / etapy
 
@@ -38,6 +38,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 3E   | Closeout Etapu 3: copy/UX cleanup + aktualizacja continuity                                    | DONE |
 | Etap 4A   | NextStepBanner + workflow UX na detail page — prowadzenie operatora przez sprawe | DONE |
 | Etap 4B.1 | System modes foundation — capabilities DTO + backend resolver/gating + frontend fail-closed gating + ADR | DONE |
+| Etap 4B.2 | Admin settings trybu systemu + runtime przelaczanie capabilities                               | DONE |
 
 ---
 
@@ -431,6 +432,44 @@ Decyzje architektoniczne:
 - **Bootstrap heurystyka**: preferujemy backward compat nad przewidywalność — istniejąca produkcja z historią PLI CBD startuje jako `PLI_CBD_INTEGRATED` bez ręcznej interwencji.
 
 Weryfikacja 4B.1: do uzupełnienia po uruchomieniu suitu testów.
+
+### Etap 4B.2 - admin settings trybu systemu
+
+Cel: dodano waski, bezpieczny slice administracyjny po foundation 4B.1, bez zmian w
+handlerach PLI CBD i bez zmian w Prisma schema.
+
+Backend:
+- nowe endpointy admin-only:
+  - `GET /api/admin/system-mode-settings`,
+  - `PUT /api/admin/system-mode-settings`.
+- endpointy czytaja/zapisuja tylko klucze:
+  - `system.mode`,
+  - `pli_cbd.enabled`,
+  - `pli_cbd.endpoint_url`,
+  - `pli_cbd.credentials_ref`,
+  - `pli_cbd.operator_code`.
+- zapis jest syntaktycznie walidowany:
+  - `endpointUrl`, jesli niepusty, musi byc poprawnym URL HTTP/HTTPS,
+  - `operatorCode` jest trimowany i zapisywany uppercase,
+  - niepelna konfiguracja PLI CBD jest dozwolona.
+- response zwraca raw settings, diagnostics (`configured`, `active`, `missingFields`) oraz
+  snapshot `capabilities`.
+- po kazdym zapisie backend invaliduje cache `system-capabilities`, zeby kolejne gate'y i
+  snapshot byly liczone z aktualnych `SystemSetting`.
+
+Frontend:
+- nowa osobna strona adminowa `/admin/system-mode-settings` i wpis w sidebarze `Tryb systemu`.
+- UI zawiera karte wyboru trybu systemu, sekcje konfiguracji PLI CBD oraz read-only panel
+  efektywnego stanu modulu.
+- po zapisie strona podstawia zwrocony snapshot do globalnego `systemCapabilities` store bez
+  twardego reloadu aplikacji.
+
+Inwarianty zachowane:
+- `STANDALONE` => modul PLI CBD niedostepny,
+- `PLI_CBD_INTEGRATED + enabled=false` => modul wylaczony, konfiguracja zachowana,
+- `PLI_CBD_INTEGRATED + enabled=true + niepelna konfiguracja` => zapis dozwolony,
+  capability pozostaje nieaktywna,
+- przelaczanie trybu nie czysci istniejacych `pli_cbd.*` settings.
 
 #### Konfiguracja transportu email
 

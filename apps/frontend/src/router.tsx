@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { LoginPage } from '@/pages/Login/LoginPage'
@@ -14,6 +15,7 @@ import { RequestNewPage } from '@/pages/Requests/RequestNewPage'
 import { RequestDetailPage } from '@/pages/Requests/RequestDetailPage'
 import { CommunicationTemplatesAdminPage } from '@/pages/Admin/CommunicationTemplatesAdminPage'
 import { AdminUsersPage } from '@/pages/Admin/AdminUsersPage'
+import { SystemModeSettingsPage } from '@/pages/Admin/SystemModeSettingsPage'
 import { PortingNotificationSettingsPage } from '@/pages/Admin/PortingNotificationSettingsPage'
 import { NotificationFallbackSettingsPage } from '@/pages/Admin/NotificationFallbackSettingsPage'
 import { NotificationFailureQueuePage } from '@/pages/Notifications/NotificationFailureQueuePage'
@@ -23,10 +25,26 @@ import {
   getProtectedRouteRedirect,
 } from '@/lib/authFlow'
 import { useAuthStore } from '@/stores/auth.store'
+import { useSystemCapabilitiesStore } from '@/stores/systemCapabilities.store'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isHydrated, user } = useAuthStore()
+  const { isAuthenticated, isHydrated, token, user } = useAuthStore()
+  const loadSystemCapabilities = useSystemCapabilitiesStore((state) => state.load)
+  const resetSystemCapabilities = useSystemCapabilitiesStore((state) => state.reset)
   const location = useLocation()
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return
+    }
+
+    if (isAuthenticated && token) {
+      void loadSystemCapabilities()
+      return
+    }
+
+    resetSystemCapabilities()
+  }, [isAuthenticated, isHydrated, loadSystemCapabilities, resetSystemCapabilities, token])
 
   if (!isHydrated) return null
 
@@ -219,6 +237,14 @@ export const router = createBrowserRouter([
         element: (
           <AdminOnlyRoute>
             <CommunicationTemplatesAdminPage />
+          </AdminOnlyRoute>
+        ),
+      },
+      {
+        path: ROUTES.ADMIN_SYSTEM_MODE_SETTINGS,
+        element: (
+          <AdminOnlyRoute>
+            <SystemModeSettingsPage />
           </AdminOnlyRoute>
         ),
       },

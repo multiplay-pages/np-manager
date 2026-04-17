@@ -16,6 +16,7 @@ interface SystemCapabilitiesState {
   status: 'idle' | 'loading' | 'ready' | 'error'
   error: string | null
   load: () => Promise<void>
+  setSnapshot: (capabilities: SystemCapabilitiesDto) => void
   reset: () => void
 }
 
@@ -37,6 +38,8 @@ export const useSystemCapabilitiesStore = create<SystemCapabilitiesState>((set, 
       set({ capabilities: null, status: 'error', error: message })
     }
   },
+
+  setSnapshot: (capabilities) => set({ capabilities, status: 'ready', error: null }),
 
   reset: () => set({ capabilities: null, status: 'idle', error: null }),
 }))

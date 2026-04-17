@@ -15,10 +15,14 @@ describe('runtime route diagnostics', () => {
         '/api/operators',
         '/api/porting-requests',
         '/api/admin',
+        '/api/system',
       ])
 
       expect(diagnostics.requiredRoutes).toEqual([
         { method: 'POST', url: '/api/auth/login', registered: true },
+        { method: 'GET', url: '/api/system/capabilities', registered: true },
+        { method: 'GET', url: '/api/admin/system-mode-settings', registered: true },
+        { method: 'PUT', url: '/api/admin/system-mode-settings', registered: true },
         { method: 'GET', url: '/api/porting-requests', registered: true },
         { method: 'GET', url: '/api/porting-requests/:id', registered: true },
         {
@@ -34,6 +38,8 @@ describe('runtime route diagnostics', () => {
       ])
 
       expect(diagnostics.routeTable).toContain('login (POST)')
+      expect(diagnostics.routeTable).toContain('system/capabilities (GET')
+      expect(diagnostics.routeTable).toContain('system-mode-settings')
       expect(diagnostics.routeTable).toContain('communication-template')
       expect(diagnostics.routeTable).toContain('porting-requests')
       expect(diagnostics.routeTable).toContain('preview (POST)')
