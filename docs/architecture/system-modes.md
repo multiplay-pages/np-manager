@@ -89,9 +89,11 @@ przy rozszerzeniu.
 
 ### Cache
 
-Resolver cache'uje snapshot na 30 sekund. Akceptowalne opóźnienie
-propagacji zmiany trybu — admin UI pojawi się w późniejszych slice'ach.
-Cache można jawnie unieważnić przez `invalidateSystemCapabilitiesCache()`.
+Resolver cache'uje snapshot na 30 sekund. Cache można jawnie unieważnić
+przez `invalidateSystemCapabilitiesCache()`. Od 4B.2 endpoint adminowy
+`PUT /api/admin/system-mode-settings` invaliduje cache po zapisie i zwraca
+świeży snapshot `capabilities`, który frontend podstawia do globalnego
+store bez twardego reloadu aplikacji.
 
 ### Bootstrap — heurystyka przy pierwszym starcie
 
@@ -144,13 +146,33 @@ W 4B.1 dostarczamy:
 - Zmiany w schemacie Prisma.
 - Feature flagi innych modułów niż PLI CBD.
 
+## Zakres 4B.2
+
+W 4B.2 dodajemy wąski panel administracyjny do zarządzania trybem systemu:
+
+1. Admin-only API `GET /api/admin/system-mode-settings` i
+   `PUT /api/admin/system-mode-settings`.
+2. Odczyt/zapis wyłącznie kluczy `system.mode` oraz `pli_cbd.*` używanych
+   przez capabilities resolver.
+3. Walidacja syntaktyczna: niepusty `endpoint_url` musi być URL HTTP/HTTPS,
+   `operator_code` jest trimowany i uppercasowany, a niepełna konfiguracja
+   pozostaje zapisywalna.
+4. Response zawiera raw settings, diagnostics (`configured`, `active`,
+   `missingFields`) oraz aktualny snapshot `capabilities`.
+5. Frontend ma osobną stronę `/admin/system-mode-settings`, wpis w sidebarze
+   i po zapisie odświeża globalny `systemCapabilities` store snapshotem z
+   backendu.
+
+4B.2 nadal nie zmienia handlerów PLI CBD, schematu Prisma ani nie czyści
+istniejących `pli_cbd.*` settings przy przełączaniu trybu.
+
 ## Ryzyka
 
 - **Heurystyka bootstrap na pustej bazie nowej produkcji** — mitigacja:
   po deploy można jawnie ustawić `system.mode` (SQL/skrypt/admin UI 4B.2).
-- **Cache 30s → opóźnienie po zmianie trybu** — akceptowalne, brak
-  admin UI w 4B.1. `invalidateSystemCapabilitiesCache()` udostępnione
-  dla przyszłego UI.
+- **Cache 30s → opóźnienie po zmianie trybu poza API 4B.2** — zmiany
+  wykonane przez admin endpoint propagują się od razu dzięki invalidacji.
+  Ręczne SQL/skrypty nadal mogą wymagać odczekania TTL albo restartu procesu.
 - **Capability leak przez bezpośredni HTTP** — backend zwraca 404,
   co nie ujawnia istnienia funkcji.
 - **Fail-closed frontend przy błędzie fetch** — przy chwilowym

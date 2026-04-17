@@ -46,6 +46,40 @@ async function readSystemSettingsMap(keys: readonly string[]): Promise<Map<strin
   return new Map(rows.map((row) => [row.key, row.value]))
 }
 
+export function buildSystemCapabilitiesFromSettings(
+  settings: Array<{ key: string; value: string }>,
+  resolvedAt = new Date(),
+): SystemCapabilitiesDto {
+  const values = new Map(settings.map((setting) => [setting.key, setting.value]))
+
+  const mode = parseMode(values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.SYSTEM_MODE))
+  const enabled = parseBoolean(values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_ENABLED))
+  const endpoint = values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_ENDPOINT_URL)?.trim() ?? ''
+  const credentialsRef =
+    values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_CREDENTIALS_REF)?.trim() ?? ''
+  const operatorCode =
+    values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_OPERATOR_CODE)?.trim() ?? ''
+
+  const configured = endpoint.length > 0 && credentialsRef.length > 0 && operatorCode.length > 0
+  const active = mode === 'PLI_CBD_INTEGRATED' && enabled && configured
+
+  return {
+    mode,
+    pliCbd: {
+      enabled,
+      configured,
+      active,
+      capabilities: {
+        export: active,
+        sync: active,
+        diagnostics: active,
+        externalActions: active,
+      },
+    },
+    resolvedAt: resolvedAt.toISOString(),
+  }
+}
+
 export async function resolveSystemCapabilities(options?: {
   bypassCache?: boolean
 }): Promise<SystemCapabilitiesDto> {
@@ -61,32 +95,9 @@ export async function resolveSystemCapabilities(options?: {
     SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_OPERATOR_CODE,
   ])
 
-  const mode = parseMode(values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.SYSTEM_MODE))
-  const enabled = parseBoolean(values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_ENABLED))
-  const endpoint = values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_ENDPOINT_URL)?.trim() ?? ''
-  const credentialsRef =
-    values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_CREDENTIALS_REF)?.trim() ?? ''
-  const operatorCode =
-    values.get(SYSTEM_CAPABILITIES_SETTING_KEYS.PLI_CBD_OPERATOR_CODE)?.trim() ?? ''
-
-  const configured = endpoint.length > 0 && credentialsRef.length > 0 && operatorCode.length > 0
-  const active = mode === 'PLI_CBD_INTEGRATED' && enabled && configured
-
-  const value: SystemCapabilitiesDto = {
-    mode,
-    pliCbd: {
-      enabled,
-      configured,
-      active,
-      capabilities: {
-        export: active,
-        sync: active,
-        diagnostics: active,
-        externalActions: active,
-      },
-    },
-    resolvedAt: new Date().toISOString(),
-  }
+  const value = buildSystemCapabilitiesFromSettings(
+    Array.from(values, ([key, value]) => ({ key, value })),
+  )
 
   cache = { value, expiresAt: Date.now() + CACHE_TTL_MS }
   return value

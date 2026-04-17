@@ -37,6 +37,7 @@ export const ROUTES = {
   ADMIN_USER_DETAIL: '/admin/users/:id',
   ADMIN_OPERATORS: '/admin/operators',
   ADMIN_COMMUNICATION_TEMPLATES: '/admin/communication-templates',
+  ADMIN_SYSTEM_MODE_SETTINGS: '/admin/system-mode-settings',
   ADMIN_PORTING_NOTIFICATION_SETTINGS: '/admin/porting-notification-settings',
   ADMIN_NOTIFICATION_FALLBACK_SETTINGS: '/admin/notification-fallback-settings',
   ADMIN_COMMUNICATION_TEMPLATE_NEW: '/admin/communication-templates/new',
