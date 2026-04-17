@@ -24,6 +24,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR19A-1 | NotificationOps foundation: first-class delivery attempts + dual-write | DONE   |
 | PR19A-2 | Request-level read layer dla internal notification attempts        | DONE   |
 | PR19B-1 | Backend retry eligibility + request-scoped retry endpoint          | DONE   |
+| PR19B-2 / Etap 5A | RequestDetail retry UI dla internal notification attempts | DONE |
 | PR20E | Full server-side operational status filters for global queue       | DONE   |
 | Etap 2A.1 | Frontend redesign foundation + app shell + RequestsPage          | DONE   |
 | Etap 2A.2 | Frontend redesign RequestDetailPage                              | DONE   |
@@ -207,6 +208,26 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - zewnetrzne I/O transportu nie jest trzymane w dlugiej transakcji DB,
   - eligibility jest sprawdzane przed transportem i ponownie w krotkiej transakcji zapisu,
   - w rzadkim wyscigu po wykonaniu transportu, ale przed zapisem, transakcja moze odrzucic retry jako juz nie-latest.
+
+### PR19B-2 / Etap 5A - retry action w UI dla internal notification attempts
+
+- Scope: frontend-first, waski slice na `RequestDetailPage` + `InternalNotificationAttemptsPanel`.
+- `InternalNotificationAttemptsPanel`:
+  - pokazuje akcje `Ponow` tylko dla rekordow `canRetry=true`,
+  - dla `canRetry=false` pokazuje czytelny powod blokady mapowany z `retryBlockedReasonCode`,
+  - nie pokazuje surowych backendowych reason-code jako jedynej tresci.
+- `RequestDetailPage`:
+  - podpina akcje retry do endpointu `POST /api/porting-requests/:id/internal-notification-attempts/:attemptId/retry`,
+  - po sukcesie pokazuje feedback operacyjny i odswieza listy attempts,
+  - po bledzie pokazuje czytelny feedback bez resetowania calego panelu.
+- Frontend respektuje backend source-of-truth:
+  - eligibility pochodzi z `canRetry` / `retryBlockedReasonCode`,
+  - brak lokalnego "silnika retry" i brak lokalnych reguly zastawiajacych backend.
+- Zakres celowo poza PR19B-2:
+  - brak zmian Prisma schema,
+  - brak zmian backend transport adapterow,
+  - brak zmian NOTE parsing,
+  - brak rozbudowy globalnego ops center i brak redesignu kolejki.
 
 ### PR15 - operacyjne raportowanie commercial owner i health notyfikacji
 
