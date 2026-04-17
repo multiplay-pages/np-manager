@@ -39,6 +39,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 4A   | NextStepBanner + workflow UX na detail page — prowadzenie operatora przez sprawe | DONE |
 | Etap 4B.1 | System modes foundation — capabilities DTO + backend resolver/gating + frontend fail-closed gating + ADR | DONE |
 | Etap 4B.2 | Admin settings trybu systemu + runtime przelaczanie capabilities                               | DONE |
+| Etap 4B.3 | Manual mode cleanup — capability-driven UI reduction dla STANDALONE                           | DONE |
 
 ---
 
@@ -470,6 +471,29 @@ Inwarianty zachowane:
 - `PLI_CBD_INTEGRATED + enabled=true + niepelna konfiguracja` => zapis dozwolony,
   capability pozostaje nieaktywna,
 - przelaczanie trybu nie czysci istniejacych `pli_cbd.*` settings.
+
+### Etap 4B.3 - manual mode cleanup / capability-driven UI reduction
+
+Cel: domknieto UX trybu manualnego po 4B.2. W `STANDALONE` operator ma widziec
+core procesu portowania, bez pojec i metadanych zwiazanych z PLI CBD.
+
+Zakres:
+- `RequestDetailPage` nadal uzywa capabilities jako jedynego zrodla prawdy dla
+  renderowania PLI CBD UI.
+- Integracyjna meta `Przekazano do systemu zewnetrznego` jest widoczna tylko,
+  gdy `pliCbd.active=true`; w manual mode nie pojawia sie w panelu `Meta`.
+- Empty state workflow dla statusu `ERROR` nie sugeruje akcji zewnetrznych, gdy
+  capability `externalActions` jest wylaczona.
+- Empty state `Historia sprawy` nie wspomina juz o operacjach PLI CBD jako
+  osobnej sekcji.
+- Sidebar admina ma mniej techniczny opis strony trybu systemu.
+
+Inwarianty:
+- brak zmian backend handlerow PLI CBD,
+- brak zmian Prisma schema,
+- brak zmian kontraktow shared/backend,
+- sekcje PLI CBD, Diagnostyka, external actions, export/sync, XML/payload i
+  historia integracji pozostaja ukryte fail-closed przez capabilities.
 
 #### Konfiguracja transportu email
 

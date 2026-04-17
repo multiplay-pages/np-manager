@@ -110,7 +110,7 @@ export function PortingCaseHistory({ items, isLoading, showHeader = true }: Port
       <div className={showHeader ? 'card p-5' : ''}>
         {showHeader && <HistoryHeader />}
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center text-sm leading-6 text-gray-600">
-          Brak wpisow w historii statusu tej sprawy. Komunikacja, powiadomienia i operacje PLI CBD sa pokazane w osobnych sekcjach.
+          Brak wpisow w historii statusu tej sprawy. Komunikacja i powiadomienia sa pokazane w osobnych sekcjach.
         </div>
       </div>
     )

@@ -64,6 +64,9 @@ describe('AppLayout admin navigation', () => {
 
     expect(html).toContain('Uzytkownicy')
     expect(html).toContain('Szablony komunikatow')
+    expect(html).toContain('Tryb systemu')
+    expect(html).toContain('Tryb pracy systemu')
+    expect(html).not.toContain('capabilities')
     expect(html).toContain('Powiadomienia portingu')
   })
 
