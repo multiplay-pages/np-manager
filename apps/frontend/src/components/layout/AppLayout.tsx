@@ -34,7 +34,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Uzytkownicy', description: 'Role i dostep', path: ROUTES.ADMIN_USERS, icon: 'U' },
   { label: 'Operatorzy', description: 'Administracja slownika', path: ROUTES.ADMIN_OPERATORS, icon: 'O' },
   { label: 'Szablony komunikatow', description: 'Tresci klienta', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
-  { label: 'Tryb systemu', description: 'PLI CBD i capabilities', path: ROUTES.ADMIN_SYSTEM_MODE_SETTINGS, icon: 'M' },
+  { label: 'Tryb systemu', description: 'Tryb pracy systemu', path: ROUTES.ADMIN_SYSTEM_MODE_SETTINGS, icon: 'M' },
   { label: 'Powiadomienia portingu', description: 'Routing zespolowy', path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS, icon: 'P' },
   { label: 'Fallback notyfikacji', description: 'Obsluga bledow', path: ROUTES.ADMIN_NOTIFICATION_FALLBACK_SETTINGS, icon: 'F' },
 ]

@@ -94,6 +94,10 @@ import {
   canManagePortingOwnership,
   canSelectAnyAssignee,
 } from '@/lib/portingOwnership'
+import {
+  getWorkflowErrorEmptyStateMessage,
+  shouldShowPliCbdOperationalMeta,
+} from './requestDetailCapabilities'
 
 const TECHNICAL_PAYLOAD_MESSAGE_TYPES = ['E03', 'E12', 'E18', 'E23'] as const
 
@@ -721,6 +725,7 @@ export function RequestDetailPage() {
   const canShowPliCbdSection =
     isAdmin && (canUsePliCbdDiagnostics || canUsePliCbdExport || canUsePliCbdSync)
   const canShowPliCbdDiagnostics = isAdmin && canUsePliCbdDiagnostics
+  const canShowPliCbdOperationalMeta = shouldShowPliCbdOperationalMeta(systemCapabilities)
   const canManageAssignment = useMemo(() => canManagePortingOwnership(user?.role), [user?.role])
   const canSelectAssignee = useMemo(() => canSelectAnyAssignee(user?.role), [user?.role])
   const canManageCommercialOwner = useMemo(
@@ -2329,7 +2334,7 @@ export function RequestDetailPage() {
                   </div>
                 ) : request.statusInternal === 'ERROR' ? (
                   <div className="rounded-panel border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    Sprawa w stanie błędu — skontaktuj się z przełożonym lub skorzystaj z akcji zewnętrznych poniżej.
+                    {getWorkflowErrorEmptyStateMessage(canUsePliCbdExternalActions)}
                   </div>
                 ) : (
                   <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
@@ -2447,10 +2452,12 @@ export function RequestDetailPage() {
               <Field label="Przypisanie BOK" value={assignedUserLabel} />
               <Field label="Utworzono" value={formatDateTime(request.createdAt)} />
               <Field label="Ostatnia zmiana" value={formatDateTime(request.updatedAt)} />
-              <Field
-                label="Przekazano do systemu zewnetrznego"
-                value={request.sentToExternalSystemAt ? formatDateTime(request.sentToExternalSystemAt) : null}
-              />
+              {canShowPliCbdOperationalMeta && (
+                <Field
+                  label="Przekazano do systemu zewnetrznego"
+                  value={request.sentToExternalSystemAt ? formatDateTime(request.sentToExternalSystemAt) : null}
+                />
+              )}
               <Field label="Kod odrzucenia" value={request.rejectionCode} mono />
               <WideField label="Powod odrzucenia" value={request.rejectionReason} />
             </dl>
