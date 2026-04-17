@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
+import { useSystemCapabilities } from '@/hooks/useSystemCapabilities'
 import { Badge, Button, ButtonLink, type BadgeTone, cx } from '@/components/ui'
 import {
   assignPortingRequestToMe,
@@ -712,6 +713,14 @@ export function RequestDetailPage() {
     [user?.role],
   )
   const isAdmin = useMemo(() => user?.role === 'ADMIN', [user?.role])
+  const { capabilities: systemCapabilities } = useSystemCapabilities()
+  const canUsePliCbdExport = systemCapabilities.pliCbd.capabilities.export
+  const canUsePliCbdSync = systemCapabilities.pliCbd.capabilities.sync
+  const canUsePliCbdDiagnostics = systemCapabilities.pliCbd.capabilities.diagnostics
+  const canUsePliCbdExternalActions = systemCapabilities.pliCbd.capabilities.externalActions
+  const canShowPliCbdSection =
+    isAdmin && (canUsePliCbdDiagnostics || canUsePliCbdExport || canUsePliCbdSync)
+  const canShowPliCbdDiagnostics = isAdmin && canUsePliCbdDiagnostics
   const canManageAssignment = useMemo(() => canManagePortingOwnership(user?.role), [user?.role])
   const canSelectAssignee = useMemo(() => canSelectAnyAssignee(user?.role), [user?.role])
   const canManageCommercialOwner = useMemo(
@@ -988,7 +997,7 @@ export function RequestDetailPage() {
   }, [loadCommunicationHistory, loadRequest])
 
   const loadProcessSnapshot = useCallback(async () => {
-    if (!id || !isAdmin) {
+    if (!id || !canShowPliCbdDiagnostics) {
       setProcessSnapshot(null)
       setIsProcessSnapshotLoading(false)
       return
@@ -1002,10 +1011,10 @@ export function RequestDetailPage() {
     } finally {
       setIsProcessSnapshotLoading(false)
     }
-  }, [id, isAdmin])
+  }, [canShowPliCbdDiagnostics, id])
 
   const loadE03Draft = useCallback(async () => {
-    if (!id || !isAdmin) {
+    if (!id || !canShowPliCbdDiagnostics) {
       setE03DraftResult(null)
       setIsE03DraftLoading(false)
       return
@@ -1019,10 +1028,10 @@ export function RequestDetailPage() {
     } finally {
       setIsE03DraftLoading(false)
     }
-  }, [id, isAdmin])
+  }, [canShowPliCbdDiagnostics, id])
 
   const loadE12Draft = useCallback(async () => {
-    if (!id || !isAdmin) {
+    if (!id || !canShowPliCbdDiagnostics) {
       setE12DraftResult(null)
       setIsE12DraftLoading(false)
       return
@@ -1036,10 +1045,10 @@ export function RequestDetailPage() {
     } finally {
       setIsE12DraftLoading(false)
     }
-  }, [id, isAdmin])
+  }, [canShowPliCbdDiagnostics, id])
 
   const loadE18Draft = useCallback(async () => {
-    if (!id || !isAdmin) {
+    if (!id || !canShowPliCbdDiagnostics) {
       setE18DraftResult(null)
       setIsE18DraftLoading(false)
       return
@@ -1053,17 +1062,17 @@ export function RequestDetailPage() {
     } finally {
       setIsE18DraftLoading(false)
     }
-  }, [id, isAdmin])
+  }, [canShowPliCbdDiagnostics, id])
 
   const refreshDraftPreviews = useCallback(() => {
-    if (!isAdmin) return
+    if (!canShowPliCbdDiagnostics) return
     void loadE03Draft()
     void loadE12Draft()
     void loadE18Draft()
-  }, [isAdmin, loadE03Draft, loadE12Draft, loadE18Draft])
+  }, [canShowPliCbdDiagnostics, loadE03Draft, loadE12Draft, loadE18Draft])
 
   const loadTechnicalPayloads = useCallback(async () => {
-    if (!id || !isAdmin) {
+    if (!id || !canShowPliCbdDiagnostics) {
       setTechnicalPayloadResults(createTechnicalPayloadResultsState())
       setTechnicalPayloadLoading(createTechnicalPayloadLoadingState(false))
       return
@@ -1093,10 +1102,10 @@ export function RequestDetailPage() {
 
     setTechnicalPayloadResults(nextResults)
     setTechnicalPayloadLoading(createTechnicalPayloadLoadingState(false))
-  }, [id, isAdmin])
+  }, [canShowPliCbdDiagnostics, id])
 
   const loadXmlPreviews = useCallback(async () => {
-    if (!id || !isAdmin) {
+    if (!id || !canShowPliCbdDiagnostics) {
       setXmlPreviewResults(createXmlPreviewResultsState())
       setXmlPreviewLoading(createXmlPreviewLoadingState(false))
       return
@@ -1126,10 +1135,10 @@ export function RequestDetailPage() {
 
     setXmlPreviewResults(nextResults)
     setXmlPreviewLoading(createXmlPreviewLoadingState(false))
-  }, [id, isAdmin])
+  }, [canShowPliCbdDiagnostics, id])
 
   const loadIntegrationEvents = useCallback(async () => {
-    if (!id || !isAdmin) {
+    if (!id || !canShowPliCbdDiagnostics) {
       setIntegrationEvents([])
       setIsIntegrationEventsLoading(false)
       return
@@ -1144,7 +1153,7 @@ export function RequestDetailPage() {
     } finally {
       setIsIntegrationEventsLoading(false)
     }
-  }, [id, isAdmin])
+  }, [canShowPliCbdDiagnostics, id])
 
   // Effect 1: fires on URL change — resets UI state and triggers primary load.
   useEffect(() => {
@@ -1365,7 +1374,7 @@ export function RequestDetailPage() {
       void loadInternalNotificationHistory()
       void loadInternalNotificationAttempts()
       void loadNotificationFailures()
-      if (isAdmin) {
+      if (canShowPliCbdDiagnostics) {
         void loadProcessSnapshot()
         refreshDraftPreviews()
         void loadTechnicalPayloads()
@@ -1538,7 +1547,7 @@ export function RequestDetailPage() {
   }
 
   const handleSubmitExternalAction = async () => {
-    if (!id || !selectedExternalAction || isSubmittingExternalAction) return
+    if (!id || !selectedExternalAction || !canUsePliCbdExternalActions || isSubmittingExternalAction) return
 
     setIsSubmittingExternalAction(true)
     setExternalActionError(null)
@@ -1559,7 +1568,7 @@ export function RequestDetailPage() {
       void loadCommunicationHistory()
       setCommunicationPreview(null)
 
-      if (isAdmin) {
+      if (canShowPliCbdDiagnostics) {
         void loadProcessSnapshot()
         refreshDraftPreviews()
         void loadTechnicalPayloads()
@@ -1584,7 +1593,7 @@ export function RequestDetailPage() {
   }
 
   const handleManualExport = async (messageType: PliCbdManualExportMessageType) => {
-    if (!id || !isAdmin || manualExportLoading[messageType]) return
+    if (!id || !isAdmin || !canUsePliCbdExport || manualExportLoading[messageType]) return
 
     setManualExportLoading((prev) => ({ ...prev, [messageType]: true }))
     setManualExportResults((prev) => ({ ...prev, [messageType]: null }))
@@ -1613,12 +1622,14 @@ export function RequestDetailPage() {
       }))
     } finally {
       setManualExportLoading((prev) => ({ ...prev, [messageType]: false }))
-      void loadIntegrationEvents()
+      if (canShowPliCbdDiagnostics) {
+        void loadIntegrationEvents()
+      }
     }
   }
 
   const handleExport = async () => {
-    if (!id || !isAdmin || isExporting) return
+    if (!id || !isAdmin || !canUsePliCbdExport || isExporting) return
 
     setIsExporting(true)
     setActionError(null)
@@ -1627,18 +1638,22 @@ export function RequestDetailPage() {
     try {
       setRequest(await exportPortingRequest(id))
       void loadCaseHistory()
-      void loadIntegrationEvents()
-      void loadProcessSnapshot()
-      refreshDraftPreviews()
-      void loadTechnicalPayloads()
-      void loadXmlPreviews()
+      if (canShowPliCbdDiagnostics) {
+        void loadIntegrationEvents()
+        void loadProcessSnapshot()
+        refreshDraftPreviews()
+        void loadTechnicalPayloads()
+        void loadXmlPreviews()
+      }
       setActionSuccess('Eksport do PLI CBD zostal wyzwolony pomyslnie.')
     } catch {
-      void loadIntegrationEvents()
-      void loadProcessSnapshot()
-      refreshDraftPreviews()
-      void loadTechnicalPayloads()
-      void loadXmlPreviews()
+      if (canShowPliCbdDiagnostics) {
+        void loadIntegrationEvents()
+        void loadProcessSnapshot()
+        refreshDraftPreviews()
+        void loadTechnicalPayloads()
+        void loadXmlPreviews()
+      }
       setActionError('Nie udalo sie uruchomic eksportu do PLI CBD.')
     } finally {
       setIsExporting(false)
@@ -1646,7 +1661,7 @@ export function RequestDetailPage() {
   }
 
   const handleSync = async () => {
-    if (!id || !isAdmin || isSyncing) return
+    if (!id || !isAdmin || !canUsePliCbdSync || isSyncing) return
 
     setIsSyncing(true)
     setActionError(null)
@@ -1655,18 +1670,22 @@ export function RequestDetailPage() {
     try {
       setRequest(await syncPortingRequest(id))
       void loadCaseHistory()
-      void loadIntegrationEvents()
-      void loadProcessSnapshot()
-      refreshDraftPreviews()
-      void loadTechnicalPayloads()
-      void loadXmlPreviews()
+      if (canShowPliCbdDiagnostics) {
+        void loadIntegrationEvents()
+        void loadProcessSnapshot()
+        refreshDraftPreviews()
+        void loadTechnicalPayloads()
+        void loadXmlPreviews()
+      }
       setActionSuccess('Synchronizacja z PLI CBD zakonczona pomyslnie.')
     } catch {
-      void loadIntegrationEvents()
-      void loadProcessSnapshot()
-      refreshDraftPreviews()
-      void loadTechnicalPayloads()
-      void loadXmlPreviews()
+      if (canShowPliCbdDiagnostics) {
+        void loadIntegrationEvents()
+        void loadProcessSnapshot()
+        refreshDraftPreviews()
+        void loadTechnicalPayloads()
+        void loadXmlPreviews()
+      }
       setActionError('Nie udalo sie uruchomic synchronizacji z PLI CBD.')
     } finally {
       setIsSyncing(false)
@@ -1963,7 +1982,7 @@ export function RequestDetailPage() {
             />
           </SectionCard>
 
-          {isAdmin && (
+          {canShowPliCbdSection && (
             <DisclosureCard
               id="pli-cbd-panel"
               title="PLI CBD"
@@ -1983,24 +2002,30 @@ export function RequestDetailPage() {
                   </dl>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleExport()}
-                    className="btn-secondary"
-                    disabled={isExporting || isSyncing}
-                  >
-                    {isExporting ? 'Eksportowanie...' : 'Manualny eksport'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleSync()}
-                    className="btn-secondary"
-                    disabled={isSyncing || isExporting || request.pliCbdExportStatus === 'NOT_EXPORTED'}
-                  >
-                    {isSyncing ? 'Synchronizowanie...' : 'Manualna synchronizacja'}
-                  </button>
-                </div>
+                {(canUsePliCbdExport || canUsePliCbdSync) && (
+                  <div className="flex flex-wrap gap-2">
+                    {canUsePliCbdExport && (
+                      <button
+                        type="button"
+                        onClick={() => void handleExport()}
+                        className="btn-secondary"
+                        disabled={isExporting || isSyncing}
+                      >
+                        {isExporting ? 'Eksportowanie...' : 'Manualny eksport'}
+                      </button>
+                    )}
+                    {canUsePliCbdSync && (
+                      <button
+                        type="button"
+                        onClick={() => void handleSync()}
+                        className="btn-secondary"
+                        disabled={isSyncing || isExporting || request.pliCbdExportStatus === 'NOT_EXPORTED'}
+                      >
+                        {isSyncing ? 'Synchronizowanie...' : 'Manualna synchronizacja'}
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {actionSuccess && (
                   <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -2014,12 +2039,14 @@ export function RequestDetailPage() {
                   </div>
                 )}
 
-                <PliCbdProcessSnapshot snapshot={processSnapshot} isLoading={isProcessSnapshotLoading} />
+                {canUsePliCbdDiagnostics && (
+                  <PliCbdProcessSnapshot snapshot={processSnapshot} isLoading={isProcessSnapshotLoading} />
+                )}
               </div>
             </DisclosureCard>
           )}
 
-          {isAdmin && (
+          {canShowPliCbdDiagnostics && (
             <DisclosureCard
               id="diagnostics-panel"
               title="Diagnostyka"
@@ -2030,33 +2057,34 @@ export function RequestDetailPage() {
                   Diagnostyka jest widoczna tylko dla administratora i sluzy do weryfikacji danych technicznych przed operacjami PLI CBD.
                 </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-800">Manualny eksport komunikatow PLI CBD</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Przygotowuje dane komunikatu, zapisuje historie integracji i pokazuje wynik operacji.
-                    </p>
-                  </div>
+                {canUsePliCbdExport && (
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800">Manualny eksport komunikatow PLI CBD</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Przygotowuje dane komunikatu, zapisuje historie integracji i pokazuje wynik operacji.
+                      </p>
+                    </div>
 
-                  {TECHNICAL_PAYLOAD_MESSAGE_TYPES.map((messageType) => {
-                    const result = manualExportResults[messageType]
-                    const isMessageLoading = manualExportLoading[messageType]
-                    return (
-                      <div
-                        key={messageType}
-                        className="space-y-2 rounded-lg border border-gray-200 bg-white px-4 py-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <span className="text-sm font-medium text-gray-800">Komunikat {messageType}</span>
-                          <button
-                            type="button"
-                            onClick={() => void handleManualExport(messageType)}
-                            className="btn-secondary"
-                            disabled={isMessageLoading}
-                          >
-                            {isMessageLoading ? 'Eksportowanie...' : `Eksportuj ${messageType}`}
-                          </button>
-                        </div>
+                    {TECHNICAL_PAYLOAD_MESSAGE_TYPES.map((messageType) => {
+                      const result = manualExportResults[messageType]
+                      const isMessageLoading = manualExportLoading[messageType]
+                      return (
+                        <div
+                          key={messageType}
+                          className="space-y-2 rounded-lg border border-gray-200 bg-white px-4 py-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <span className="text-sm font-medium text-gray-800">Komunikat {messageType}</span>
+                            <button
+                              type="button"
+                              onClick={() => void handleManualExport(messageType)}
+                              className="btn-secondary"
+                              disabled={isMessageLoading}
+                            >
+                              {isMessageLoading ? 'Eksportowanie...' : `Eksportuj ${messageType}`}
+                            </button>
+                          </div>
 
                         {result && (() => {
                           const { bannerClass, headline } = buildAdminTransportBanner(result)
@@ -2121,10 +2149,11 @@ export function RequestDetailPage() {
                             </div>
                           )
                         })()}
-                      </div>
-                    )
-                  })}
-                </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
 
                 <PliCbdE03DraftPreview result={e03DraftResult} isLoading={isE03DraftLoading} />
                 <PliCbdE12DraftPreview result={e12DraftResult} isLoading={isE12DraftLoading} />
@@ -2385,24 +2414,26 @@ export function RequestDetailPage() {
                   </div>
                 )}
 
-                <PortingExternalActionsPanel
-                  availableActions={availableExternalActions}
-                  selectedAction={selectedExternalAction}
-                  scheduledPortDate={externalScheduledPortDate}
-                  rejectionReason={externalRejectionReason}
-                  comment={externalActionComment}
-                  createDraft={externalCreateDraft}
-                  isSubmitting={isSubmittingExternalAction}
-                  successMessage={externalActionSuccess}
-                  errorMessage={externalActionError}
-                  onSelectAction={handleSelectExternalAction}
-                  onScheduledPortDateChange={setExternalScheduledPortDate}
-                  onRejectionReasonChange={setExternalRejectionReason}
-                  onCommentChange={setExternalActionComment}
-                  onCreateDraftChange={setExternalCreateDraft}
-                  onSubmit={() => void handleSubmitExternalAction()}
-                  onReset={resetExternalActionForm}
-                />
+                {canUsePliCbdExternalActions && (
+                  <PortingExternalActionsPanel
+                    availableActions={availableExternalActions}
+                    selectedAction={selectedExternalAction}
+                    scheduledPortDate={externalScheduledPortDate}
+                    rejectionReason={externalRejectionReason}
+                    comment={externalActionComment}
+                    createDraft={externalCreateDraft}
+                    isSubmitting={isSubmittingExternalAction}
+                    successMessage={externalActionSuccess}
+                    errorMessage={externalActionError}
+                    onSelectAction={handleSelectExternalAction}
+                    onScheduledPortDateChange={setExternalScheduledPortDate}
+                    onRejectionReasonChange={setExternalRejectionReason}
+                    onCommentChange={setExternalActionComment}
+                    onCreateDraftChange={setExternalCreateDraft}
+                    onSubmit={() => void handleSubmitExternalAction()}
+                    onReset={resetExternalActionForm}
+                  />
+                )}
               </div>
             ) : (
               <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">

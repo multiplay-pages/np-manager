@@ -33,6 +33,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 2C   | Auth return-to-target, 404/error polish, copy-link — domkniecie Etapu 2                    | DONE |
 | Etap 3A   | Assignment closeout: visual polish PortingAssignmentPanel + usun martwy kod filterPortingRequestsByOwnership | DONE |
 | Etap 4A   | NextStepBanner + workflow UX na detail page — prowadzenie operatora przez sprawe | DONE |
+| Etap 4B.1 | System modes foundation — capabilities DTO + backend resolver/gating + frontend fail-closed gating + ADR | DONE |
 
 ---
 
@@ -364,6 +365,46 @@ Decyzje architektoniczne:
 - Brak zmian scroll-anchor ID (communication-panel, notification-panel, workflow-actions zachowane)
 
 Weryfikacja 4A: 170/170 frontend testow PASS, tsc PASS w obu appkach.
+
+### Etap 4B.1 - System modes foundation (capabilities layer + gating)
+
+Cel: wprowadzic warstwe `SystemCapabilities` i rozdzielic core od opcjonalnego modulu PLI CBD bez zmian logiki PLI CBD, DTO spraw czy schematu Prisma.
+
+Pelna decyzja architektoniczna: `docs/architecture/system-modes.md` (ADR).
+
+Tryby systemu:
+- `STANDALONE` — manualna obsluga, moduly PLI CBD ukryte i niedostepne (404 `CAPABILITY_NOT_AVAILABLE`).
+- `PLI_CBD_INTEGRATED` — pelny workflow z modulem PLI CBD, o ile `pli_cbd.enabled=true` i konfiguracja jest kompletna. Przy enabled-ale-niegotowym → 503 `CAPABILITY_NOT_CONFIGURED`.
+
+Zakres 4B.1:
+- **`packages/shared`**: `SystemMode`, `SystemCapabilitiesDto`, `SYSTEM_CAPABILITIES_SETTING_KEYS`, `CAPABILITY_ERROR_CODES` (nowy DTO `system-capabilities.dto.ts` + re-export).
+- **Backend — moduł `system-capabilities`**:
+  - `system-capabilities.service.ts`: resolver `resolveSystemCapabilities()` z in-memory cache (30s TTL) i `invalidateSystemCapabilitiesCache()`.
+  - `system-capabilities.router.ts`: `GET /api/system/capabilities` (auth, bez restrykcji ról).
+  - `require-capability.hook.ts`: fabryka preHandlera `requireCapability(path)`; ścieżki: `pliCbd.active` oraz granularne `pliCbd.capabilities.{export|sync|diagnostics|externalActions}`.
+  - `system-capabilities.bootstrap.ts`: heurystyka przy starcie — jeśli `system.mode` nie istnieje, a jest co najmniej jedna `PortingRequest` z `pliCbdCaseId != null` → ustaw `PLI_CBD_INTEGRATED + enabled=true`; w przeciwnym razie `STANDALONE + enabled=false`. Idempotentne (`createMany + skipDuplicates`).
+  - Testy: `system-capabilities.service.test.ts`, `require-capability.hook.test.ts`, `system-capabilities.bootstrap.test.ts`.
+- **Backend — gating PLI CBD**: dopięcie `requireCapability(...)` do istniejących endpointów w `porting-requests.router.ts` (integration-events, pli-cbd-process, pli-cbd-drafts/e03|e12|e18|e23, pli-cbd-payloads, pli-cbd-xml, external-actions, pli-cbd-exports/manual, export, sync). Bez modyfikacji handlerów i bez zmian logiki PLI CBD.
+- **Backend — rejestracja**: `app.ts` — nowy prefix `/api/system`, rejestracja routera, `bootstrapSystemCapabilities(app.log)` w `main()` po `app.ready()`.
+- **Frontend**:
+  - `services/systemCapabilities.api.ts`: klient `fetchSystemCapabilities()`.
+  - `stores/systemCapabilities.store.ts`: Zustand store (`idle | loading | ready | error`).
+  - `hooks/useSystemCapabilities.ts`: fetch po zalogowaniu + fail-closed snapshot, gdy dane niedostępne lub fetch zwrócił błąd.
+  - `RequestDetailPage.tsx`: 3 gated sekcje — DisclosureCard `PLI CBD`, DisclosureCard `Diagnostyka`, `PortingExternalActionsPanel`. W trybie STANDALONE i bez aktywnego modułu sekcje są ukryte.
+- **Docs**: nowy `docs/architecture/system-modes.md` (ADR) + ten wpis w `PROJECT_CONTINUITY.md`.
+
+Co jest poza zakresem 4B.1 (4B.2+):
+- Admin UI do przełączania trybu i edycji `pli_cbd.*` — planowane w 4B.2.
+- Zmiany logiki PLI CBD (handlery, DTO, adaptery).
+- Zmiany schematu Prisma (4B.1 używa tylko nowych kluczy w tabeli `SystemSetting`).
+
+Decyzje architektoniczne:
+- **Fail-closed frontend**: przy braku odpowiedzi `GET /api/system/capabilities` sekcje gated pozostają ukryte, żeby nie pokazywać przypadkiem sekcji PLI CBD w trybie STANDALONE.
+- **Semantyka HTTP**: `STANDALONE` → 404 (ukrycie istnienia funkcji), `INTEGRATED + enabled + !configured` → 503 (kontrolowane zgłoszenie).
+- **Granularne capabilities**: `export | sync | diagnostics | externalActions` są w 4B.1 równe `pliCbd.active`, ale zachowujemy rozdzielenie, żeby w przyszłości wyłączać pojedyncze funkcje bez zmian API gating.
+- **Bootstrap heurystyka**: preferujemy backward compat nad przewidywalność — istniejąca produkcja z historią PLI CBD startuje jako `PLI_CBD_INTEGRATED` bez ręcznej interwencji.
+
+Weryfikacja 4B.1: do uzupełnienia po uruchomieniu suitu testów.
 
 #### Konfiguracja transportu email
 

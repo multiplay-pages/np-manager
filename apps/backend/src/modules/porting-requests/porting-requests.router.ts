@@ -67,6 +67,7 @@ import {
 } from '../pli-cbd/pli-cbd-technical-payload.service'
 import { buildXmlPreviewForPortingRequest } from '../pli-cbd/pli-cbd-xml-preview.service'
 import { triggerManualPliCbdExport } from '../pli-cbd/pli-cbd-export.service'
+import { requireCapability } from '../system-capabilities/require-capability.hook'
 import type { PliCbdManualExportMessageType } from '@np-manager/shared'
 
 export async function portingRequestsRouter(app: FastifyInstance): Promise<void> {
@@ -236,7 +237,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/integration-events',
-    { preHandler: [authenticate, authorize(pliCbdRoles)] },
+    { preHandler: [authenticate, authorize(pliCbdRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const result = await getPortingRequestIntegrationEvents(request.params.id)
       return reply.status(200).send({ success: true, data: result })
@@ -245,7 +246,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/pli-cbd-process',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(readRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const snapshot = await getPortingRequestProcessSnapshot(request.params.id)
       return reply.status(200).send({ success: true, data: snapshot })
@@ -254,7 +255,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/pli-cbd-drafts/e03',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(readRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const result = await buildE03DraftForPortingRequest(request.params.id)
       return reply.status(200).send({ success: true, data: result })
@@ -263,7 +264,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/pli-cbd-drafts/e12',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(readRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const result = await buildE12DraftForPortingRequest(request.params.id)
       return reply.status(200).send({ success: true, data: result })
@@ -272,7 +273,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/pli-cbd-drafts/e18',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(readRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const result = await buildE18DraftForPortingRequest(request.params.id)
       return reply.status(200).send({ success: true, data: result })
@@ -281,7 +282,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/pli-cbd-drafts/e23',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(readRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const result = await buildE23DraftForPortingRequest(request.params.id)
       return reply.status(200).send({ success: true, data: result })
@@ -290,7 +291,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string; messageType: string } }>(
     '/:id/pli-cbd-payloads/:messageType',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(readRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const normalizedMessageType = request.params.messageType.toUpperCase()
 
@@ -320,7 +321,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string; messageType: string } }>(
     '/:id/pli-cbd-xml/:messageType',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(readRoles), requireCapability('pliCbd.capabilities.diagnostics')] },
     async (request, reply) => {
       const normalizedMessageType = request.params.messageType.toUpperCase()
 
@@ -445,7 +446,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { id: string } }>(
     '/:id/external-actions',
-    { preHandler: [authenticate, authorize(externalActionRoles)] },
+    { preHandler: [authenticate, authorize(externalActionRoles), requireCapability('pliCbd.capabilities.externalActions')] },
     async (request, reply) => {
       const body = executePortingRequestExternalActionSchema.parse(request.body)
       const result = await executePortingRequestExternalAction(
@@ -574,7 +575,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { id: string; messageType: string } }>(
     '/:id/pli-cbd-exports/:messageType/manual',
-    { preHandler: [authenticate, authorize(pliCbdRoles)] },
+    { preHandler: [authenticate, authorize(pliCbdRoles), requireCapability('pliCbd.capabilities.export')] },
     async (request, reply) => {
       const normalizedMessageType = request.params.messageType.toUpperCase()
 
@@ -605,7 +606,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { id: string } }>(
     '/:id/export',
-    { preHandler: [authenticate, authorize(pliCbdRoles)] },
+    { preHandler: [authenticate, authorize(pliCbdRoles), requireCapability('pliCbd.capabilities.export')] },
     async (request, reply) => {
       const portingRequest = await exportPortingRequestToPliCbd(
         request.params.id,
@@ -629,7 +630,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { id: string } }>(
     '/:id/sync',
-    { preHandler: [authenticate, authorize(pliCbdRoles)] },
+    { preHandler: [authenticate, authorize(pliCbdRoles), requireCapability('pliCbd.capabilities.sync')] },
     async (request, reply) => {
       const portingRequest = await syncPortingRequestFromPliCbd(
         request.params.id,

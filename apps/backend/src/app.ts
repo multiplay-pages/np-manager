@@ -13,6 +13,8 @@ import { adminUsersRouter } from './modules/admin-users/admin-users.router'
 import { adminPortingNotificationSettingsRouter } from './modules/admin-settings/admin-porting-notification-settings.router'
 import { adminNotificationFallbackSettingsRouter } from './modules/admin-settings/admin-notification-fallback-settings.router'
 import { internalNotificationFailuresRouter } from './modules/porting-requests/internal-notification-failures.router'
+import { systemCapabilitiesRouter } from './modules/system-capabilities/system-capabilities.router'
+import { bootstrapSystemCapabilities } from './modules/system-capabilities/system-capabilities.bootstrap'
 import { errorHandler } from './shared/errors/error-handler'
 import { buildReadinessResult } from './shared/health/readiness'
 import type { FastifyInstance } from 'fastify'
@@ -24,6 +26,7 @@ const REGISTERED_API_PREFIXES = [
   '/api/operators',
   '/api/porting-requests',
   '/api/admin',
+  '/api/system',
 ] as const
 
 export const REQUIRED_RUNTIME_ROUTES = [
@@ -106,6 +109,7 @@ export async function buildApp() {
   await app.register(adminPortingNotificationSettingsRouter, { prefix: '/api/admin' })
   await app.register(adminNotificationFallbackSettingsRouter, { prefix: '/api/admin' })
   await app.register(internalNotificationFailuresRouter, { prefix: '/api/internal-notification-failures' })
+  await app.register(systemCapabilitiesRouter, { prefix: '/api/system' })
 
   app.get('/health', async () => {
     return {
@@ -158,6 +162,7 @@ async function main() {
 
   try {
     await app.ready()
+    await bootstrapSystemCapabilities(app.log)
     logStartupDiagnostics(app)
     await app.listen({ port: env.PORT, host: '0.0.0.0' })
     app.log.info(`NP-Manager backend uruchomiony na porcie ${env.PORT}`)
