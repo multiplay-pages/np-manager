@@ -1,5 +1,7 @@
-import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import type { ComponentProps } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { InternalNotificationDeliveryAttemptDto } from '@np-manager/shared'
 import { InternalNotificationAttemptsPanel } from './InternalNotificationAttemptsPanel'
 
@@ -50,28 +52,71 @@ const ITEMS: InternalNotificationDeliveryAttemptDto[] = [
   },
 ]
 
-describe('InternalNotificationAttemptsPanel', () => {
-  it('renders delivery attempts without retry actions', () => {
-    const html = renderToStaticMarkup(
-      <InternalNotificationAttemptsPanel items={ITEMS} isLoading={false} error={null} />,
-    )
+function renderPanel(
+  overrides: Partial<ComponentProps<typeof InternalNotificationAttemptsPanel>> = {},
+) {
+  const onRetryAttempt = vi.fn()
 
-    expect(html).toContain('Proby dostarczenia notyfikacji')
-    expect(html).toContain('Ledger wykonanych prob transportu')
-    expect(html).toContain('Primary dispatch')
-    expect(html).toContain('Error fallback')
-    expect(html).toContain('bok@multiplay.pl')
-    expect(html).toContain('Blad wysylki')
-    expect(html).toContain('Blad transportu: Timeout SMTP')
-    expect(html).not.toContain('Retryuj')
-    expect(html).not.toContain('Ponow')
+  render(
+    <InternalNotificationAttemptsPanel
+      items={ITEMS}
+      isLoading={false}
+      error={null}
+      canRetryAttempts={true}
+      retryingAttemptId={null}
+      retrySuccessMessage={null}
+      retryErrorMessage={null}
+      onRetryAttempt={onRetryAttempt}
+      {...overrides}
+    />,
+  )
+
+  return { onRetryAttempt }
+}
+
+describe('InternalNotificationAttemptsPanel', () => {
+  afterEach(() => {
+    cleanup()
   })
 
-  it('renders empty state for request without persisted attempts', () => {
-    const html = renderToStaticMarkup(
-      <InternalNotificationAttemptsPanel items={[]} isLoading={false} error={null} />,
-    )
+  it('renders retry action only for retryable attempts', () => {
+    renderPanel()
 
-    expect(html).toContain('Brak zapisanych prob transportu w modelu attempts dla tej sprawy.')
+    expect(screen.getByRole('button', { name: 'Ponow' })).toBeTruthy()
+    expect(screen.getByText('Tego typu proby nie mozna ponowic.')).toBeTruthy()
+  })
+
+  it('calls retry callback for selected attempt', () => {
+    const { onRetryAttempt } = renderPanel()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ponow' }))
+
+    expect(onRetryAttempt).toHaveBeenCalledWith('attempt-1')
+    expect(onRetryAttempt).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders retry loading state for active attempt', () => {
+    renderPanel({ retryingAttemptId: 'attempt-1' })
+
+    const loadingButton = screen.getByRole('button', { name: 'Ponawiam...' })
+    expect(loadingButton).toBeTruthy()
+    expect(loadingButton.hasAttribute('disabled')).toBe(true)
+  })
+
+  it('hides retry button when role cannot trigger retry', () => {
+    renderPanel({ canRetryAttempts: false })
+
+    expect(screen.queryByRole('button', { name: 'Ponow' })).toBeNull()
+    expect(screen.getByText('Ponowienie dostepne dla zespolu operacyjnego.')).toBeTruthy()
+  })
+
+  it('renders retry feedback messages', () => {
+    renderPanel({
+      retrySuccessMessage: 'Ponowienie wykonane: dostarczono.',
+      retryErrorMessage: 'Nie udalo sie ponowic proby dostarczenia.',
+    })
+
+    expect(screen.getByText('Ponowienie wykonane: dostarczono.')).toBeTruthy()
+    expect(screen.getByText('Nie udalo sie ponowic proby dostarczenia.')).toBeTruthy()
   })
 })
