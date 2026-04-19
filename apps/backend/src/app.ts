@@ -13,6 +13,7 @@ import { adminUsersRouter } from './modules/admin-users/admin-users.router'
 import { adminPortingNotificationSettingsRouter } from './modules/admin-settings/admin-porting-notification-settings.router'
 import { adminNotificationFallbackSettingsRouter } from './modules/admin-settings/admin-notification-fallback-settings.router'
 import { adminSystemModeSettingsRouter } from './modules/admin-settings/admin-system-mode-settings.router'
+import { internalNotificationAttemptsRouter } from './modules/porting-requests/internal-notification-attempts.router'
 import { internalNotificationFailuresRouter } from './modules/porting-requests/internal-notification-failures.router'
 import { systemCapabilitiesRouter } from './modules/system-capabilities/system-capabilities.router'
 import { bootstrapSystemCapabilities } from './modules/system-capabilities/system-capabilities.bootstrap'
@@ -27,6 +28,7 @@ const REGISTERED_API_PREFIXES = [
   '/api/operators',
   '/api/porting-requests',
   '/api/admin',
+  '/api/internal-notification-attempts',
   '/api/system',
 ] as const
 
@@ -35,6 +37,7 @@ export const REQUIRED_RUNTIME_ROUTES = [
   { method: 'GET', url: '/api/system/capabilities' },
   { method: 'GET', url: '/api/admin/system-mode-settings' },
   { method: 'PUT', url: '/api/admin/system-mode-settings' },
+  { method: 'GET', url: '/api/internal-notification-attempts' },
   { method: 'GET', url: '/api/porting-requests' },
   { method: 'GET', url: '/api/porting-requests/:id' },
   { method: 'POST', url: '/api/porting-requests/:id/communications/preview' },
@@ -113,6 +116,9 @@ export async function buildApp() {
   await app.register(adminPortingNotificationSettingsRouter, { prefix: '/api/admin' })
   await app.register(adminNotificationFallbackSettingsRouter, { prefix: '/api/admin' })
   await app.register(adminSystemModeSettingsRouter, { prefix: '/api/admin' })
+  await app.register(internalNotificationAttemptsRouter, {
+    prefix: '/api/internal-notification-attempts',
+  })
   await app.register(internalNotificationFailuresRouter, { prefix: '/api/internal-notification-failures' })
   await app.register(systemCapabilitiesRouter, { prefix: '/api/system' })
 

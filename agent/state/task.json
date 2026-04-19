@@ -1,4 +1,24 @@
 {
-  "task": "Dodaj prosty przycisk retry w InternalNotificationAttemptsPanel z wykorzystaniem istniejącego endpointu retry",
-  "status": "pending"
+  "id": "pr20a-global-internal-notification-attempts-read-api",
+  "title": "Dodaj globalny read endpoint dla internal notification attempts",
+  "goal": "Udostępnić backendowy operacyjny odczyt prób notyfikacji wewnętrznych do przyszłej globalnej listy UI.",
+  "scope": "backend",
+  "allowedAreas": ["backend", "shared"],
+  "forbiddenAreas": ["frontend"],
+  "constraints": [
+    "Implement only the minimal vertical slice required by the task",
+    "Do not introduce unrelated refactors",
+    "Do not add Prisma migrations unless explicitly required",
+    "Do not change auth or RBAC unless explicitly required",
+    "Do not modify existing retry semantics",
+    "Do not change notification transport adapters",
+    "Do not change NOTE parsing compatibility behavior"
+  ],
+  "definitionOfDone": [
+    "A new read endpoint for internal notification attempts list exists",
+    "Shared DTOs required by the endpoint are added or updated",
+    "Backend tests covering the new endpoint or service are added or updated",
+    "Type checks and builds pass",
+    "No unrelated files are modified"
+  ]
 }

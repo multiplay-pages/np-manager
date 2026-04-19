@@ -1,0 +1,16 @@
+{
+  "current_stage_id": 2,
+  "cycle": 1,
+  "max_cycles": 3,
+  "last_updated": "2026-04-19 00:00:00",
+  "history": [
+    {
+      "stage_id": 1,
+      "cycle": 1,
+      "decision": "OK",
+      "feedback": null,
+      "timestamp": "2026-04-19 00:00:00",
+      "_note": "Etap 1 oznaczony jako historycznie ukończony przed uruchomieniem tej wersji pipeline'u."
+    }
+  ]
+}
