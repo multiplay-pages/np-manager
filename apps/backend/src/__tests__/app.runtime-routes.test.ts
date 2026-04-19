@@ -15,6 +15,7 @@ describe('runtime route diagnostics', () => {
         '/api/operators',
         '/api/porting-requests',
         '/api/admin',
+        '/api/internal-notification-attempts',
         '/api/system',
       ])
 
@@ -23,6 +24,7 @@ describe('runtime route diagnostics', () => {
         { method: 'GET', url: '/api/system/capabilities', registered: true },
         { method: 'GET', url: '/api/admin/system-mode-settings', registered: true },
         { method: 'PUT', url: '/api/admin/system-mode-settings', registered: true },
+        { method: 'GET', url: '/api/internal-notification-attempts', registered: true },
         { method: 'GET', url: '/api/porting-requests', registered: true },
         { method: 'GET', url: '/api/porting-requests/:id', registered: true },
         {

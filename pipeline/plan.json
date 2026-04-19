@@ -1,0 +1,76 @@
+{
+  "project": "NP-Manager",
+  "mode": "frontend-only",
+
+  "_comment_forbidden": "Ścieżki których AI nie może modyfikować w trybie frontend-only. Dostosuj jeśli Twoje monorepo ma inną strukturę.",
+  "forbidden_paths": [
+    "apps/backend/",
+    "prisma/",
+    "packages/shared/",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock"
+  ],
+
+  "_comment_oversize": "Progi ostrzegawcze. Przekroczenie progu nie blokuje pracy, ale sygnalizuje reviewerowi, że zmiana mogła wyjść poza etap.",
+  "oversize_warning": {
+    "files": 15,
+    "lines": 1000
+  },
+
+  "_comment_validation": "Komendy uruchamiane po opcji [2]. Jeśli w repo nie ma danego workspace/skryptu, wynik zostanie oznaczony jako SKIPPED.",
+  "validation": [
+    {
+      "label": "Build shared (typy)",
+      "cmd": "npm run build -w packages/shared"
+    },
+    {
+      "label": "Testy shared",
+      "cmd": "npm run test -w packages/shared"
+    },
+    {
+      "label": "Testy backend",
+      "cmd": "npm run test -w apps/backend"
+    },
+    {
+      "label": "Testy frontend",
+      "cmd": "npm run test -w apps/frontend"
+    }
+  ],
+
+  "stages": [
+    {
+      "id": 1,
+      "name": "Retry UI w InternalNotificationAttemptsPanel",
+      "description": "Przycisk retry wywołujący istniejące API retry. Używa pól canRetry i retryBlockedReasonCode z backendu. Stan disabled gdy canRetry=false, czytelny komunikat dla zablokowanej próby, loading i feedback sukces/błąd.",
+      "scope": "frontend-only",
+      "files_hint": "apps/frontend/src/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel.tsx\napps/frontend/src/pages/Requests/RequestDetailPage.tsx",
+      "acceptance_criteria": [
+        "Przycisk retry lub równoważna akcja jest widoczna tylko tam, gdzie logika backendu na to pozwala",
+        "Stan disabled / komunikat zablokowania wynika z danych backendu, a nie z lokalnej logiki wymyślonej po stronie UI",
+        "Kliknięcie używa istniejącego endpointu retry bez tworzenia nowego API",
+        "Podczas requestu użytkownik widzi stan loading",
+        "Po sukcesie i błędzie użytkownik dostaje czytelny feedback"
+      ],
+      "allow_paths": [],
+      "done": true
+    },
+    {
+      "id": 2,
+      "name": "Auto-dismiss komunikatu sukcesu retry w RequestDetailPage",
+      "description": "Dodaj automatyczne znikanie komunikatu sukcesu po retry internal notification attempt. Komunikat sukcesu w RequestDetailPage powinien znikać sam po około 3 sekundach bez resetowania całego panelu i bez wpływu na komunikat błędu. Zachowaj obecny backend-driven flow: brak zmian w backendzie, brak nowego API, brak zmian w DTO. Jeśli komunikat błędu jest widoczny, nie ma być automatycznie czyszczony tym mechanizmem. Preferuj prosty useEffect + setTimeout z poprawnym cleanup.",
+      "scope": "frontend-only",
+      "files_hint": "apps/frontend/src/pages/Requests/RequestDetailPage.tsx\napps/frontend/src/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel.test.tsx (jeśli potrzebny test)",
+      "acceptance_criteria": [
+        "Komunikat sukcesu retry znika automatycznie po około 3 sekundach",
+        "Mechanizm auto-dismiss nie resetuje całego panelu ani listy attempts",
+        "Komunikat błędu nie jest automatycznie czyszczony tym samym mechanizmem",
+        "Rozwiązanie ma cleanup timera i nie tworzy wycieków po unmount lub zmianie komunikatu",
+        "Brak zmian w backendzie, packages/shared, prisma i package.json"
+      ],
+      "allow_paths": [],
+      "done": false
+    }
+  ]
+}

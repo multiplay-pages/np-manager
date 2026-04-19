@@ -1,0 +1,674 @@
+diff --git a/.claude/worktrees/dazzling-brahmagupta b/.claude/worktrees/dazzling-brahmagupta
+--- a/.claude/worktrees/dazzling-brahmagupta
++++ b/.claude/worktrees/dazzling-brahmagupta
+@@ -1 +1 @@
+-Subproject commit 48ae00bd2bee6ef6880a4f867b87f842d1bd2988
++Subproject commit 48ae00bd2bee6ef6880a4f867b87f842d1bd2988-dirty
+diff --git a/.claude/worktrees/exciting-colden b/.claude/worktrees/exciting-colden
+--- a/.claude/worktrees/exciting-colden
++++ b/.claude/worktrees/exciting-colden
+@@ -1 +1 @@
+-Subproject commit 3ecb1b7fd498c223e51c445370fc30316f03fff9
++Subproject commit 3ecb1b7fd498c223e51c445370fc30316f03fff9-dirty
+diff --git a/.claude/worktrees/funny-williamson-647695 b/.claude/worktrees/funny-williamson-647695
+--- a/.claude/worktrees/funny-williamson-647695
++++ b/.claude/worktrees/funny-williamson-647695
+@@ -1 +1 @@
+-Subproject commit fe2a900f3c4ea664a1ae7da138bfdb9a189159f5
++Subproject commit fe2a900f3c4ea664a1ae7da138bfdb9a189159f5-dirty
+diff --git a/.claude/worktrees/gallant-aryabhata b/.claude/worktrees/gallant-aryabhata
+--- a/.claude/worktrees/gallant-aryabhata
++++ b/.claude/worktrees/gallant-aryabhata
+@@ -1 +1 @@
+-Subproject commit 22bd5b2e355dcfb9f6ba0cfe132fda4485054fdd
++Subproject commit 22bd5b2e355dcfb9f6ba0cfe132fda4485054fdd-dirty
+diff --git a/.claude/worktrees/infallible-elbakyan b/.claude/worktrees/infallible-elbakyan
+--- a/.claude/worktrees/infallible-elbakyan
++++ b/.claude/worktrees/infallible-elbakyan
+@@ -1 +1 @@
+-Subproject commit fe4324d632288556208973a8f5250c1ea1850054
++Subproject commit fe4324d632288556208973a8f5250c1ea1850054-dirty
+diff --git a/agent/loops/run-task.js b/agent/loops/run-task.js
+index ce0347a..67bbb33 100644
+--- a/agent/loops/run-task.js
++++ b/agent/loops/run-task.js
+@@ -3,64 +3,191 @@ import fs from "fs";
+ 
+ const MAX_ITERATIONS = 3;
+ 
+-function runTests() {
++function readUtf8(path) {
++  return fs.readFileSync(path, "utf-8");
++}
++
++function runCommand(command) {
+   try {
+-    return execSync("npm test").toString();
+-  } catch (e) {
+-    return e.stdout.toString();
++    return execSync(command, {
++      encoding: "utf-8",
++      stdio: ["pipe", "pipe", "pipe"],
++    });
++  } catch (error) {
++    const stdout = error?.stdout?.toString?.() ?? "";
++    const stderr = error?.stderr?.toString?.() ?? "";
++    return `${stdout}\n${stderr}`.trim();
+   }
+ }
+ 
++function runTests() {
++  return runCommand("npm test");
++}
++
+ function getDiff() {
+-  return execSync("git diff").toString();
++  return runCommand("git diff");
++}
++
++function toBulletList(items) {
++  if (!Array.isArray(items) || items.length === 0) {
++    return "- brak";
++  }
++
++  return items.map((item) => `- ${item}`).join("\n");
++}
++
++function toCommaList(items) {
++  if (!Array.isArray(items) || items.length === 0) {
++    return "brak";
++  }
++
++  return items.join(", ");
++}
++
++function loadTask() {
++  const raw = readUtf8("agent/state/task.json");
++  const task = JSON.parse(raw);
++
++  const requiredFields = [
++    "id",
++    "title",
++    "goal",
++    "scope",
++    "allowedAreas",
++    "forbiddenAreas",
++    "constraints",
++    "definitionOfDone",
++  ];
++
++  for (const field of requiredFields) {
++    if (!(field in task)) {
++      throw new Error(`Brakuje pola "${field}" w agent/state/task.json`);
++    }
++  }
++
++  return task;
++}
++
++function buildTaskSummary(task) {
++  return [
++    `ID: ${task.id}`,
++    `TYTUŁ: ${task.title}`,
++    `CEL: ${task.goal}`,
++    `SCOPE: ${task.scope}`,
++    `DOZWOLONE OBSZARY: ${toCommaList(task.allowedAreas)}`,
++    `ZABRONIONE OBSZARY: ${toCommaList(task.forbiddenAreas)}`,
++    `OGRANICZENIA:\n${toBulletList(task.constraints)}`,
++    `DEFINITION OF DONE:\n${toBulletList(task.definitionOfDone)}`,
++  ].join("\n\n");
++}
++
++function renderTemplate(template, task, extraReplacements = {}) {
++  const replacements = {
++    "{{task}}": buildTaskSummary(task),
++    "{{taskId}}": task.id,
++    "{{taskTitle}}": task.title,
++    "{{taskGoal}}": task.goal,
++    "{{taskScope}}": task.scope,
++    "{{taskAllowedAreas}}": toCommaList(task.allowedAreas),
++    "{{taskForbiddenAreas}}": toCommaList(task.forbiddenAreas),
++    "{{taskConstraints}}": toBulletList(task.constraints),
++    "{{taskDefinitionOfDone}}": toBulletList(task.definitionOfDone),
++    "{{diff}}": "",
++    "{{tests}}": "",
++    ...extraReplacements,
++  };
++
++  let output = template;
++
++  for (const [key, value] of Object.entries(replacements)) {
++    output = output.split(key).join(value);
++  }
++
++  return output;
++}
++
++function extractFixPrompt(input) {
++  const marker = "PROMPT_DLA_CODEX:";
++  const markerIndex = input.indexOf(marker);
++
++  if (markerIndex === -1) {
++    return input.trim();
++  }
++
++  return input.slice(markerIndex + marker.length).trim();
++}
++
++function readSinglePaste() {
++  return new Promise((resolve) => {
++    process.stdin.once("data", (chunk) => {
++      resolve(chunk.toString());
++    });
++  });
+ }
+ 
+ (async () => {
+-  const task = JSON.parse(fs.readFileSync("agent/state/task.json")).task;
++  const task = loadTask();
+ 
+-  let currentPrompt = fs.readFileSync("agent/prompts/codex-task.md", "utf-8")
+-    .replace("{{task}}", task);
++  let currentPrompt = renderTemplate(
++    readUtf8("agent/prompts/codex-task.md"),
++    task
++  );
+ 
+   for (let i = 0; i < MAX_ITERATIONS; i++) {
+-    console.log(`\n🚀 ITERACJA ${i + 1}`);
+-
+-    console.log("\n👉 Wklej do Codex:\n");
++    console.log(`\n🚀 ITERACJA ${i + 1}/${MAX_ITERATIONS}`);
++    console.log("\n==================================================");
++    console.log("PROMPT DLA CODEX");
++    console.log("==================================================\n");
+     console.log(currentPrompt);
+ 
+-    await new Promise(r => process.stdin.once("data", r));
++    console.log("\n⏳ Po wklejeniu promptu do Codex wciśnij ENTER...");
++    await readSinglePaste();
+ 
+     const tests = runTests();
+     const diff = getDiff();
+ 
+-    // prompt dla Claude
+-    let reviewPrompt = fs.readFileSync("agent/prompts/claude-review.md", "utf-8")
+-      .replace("{{task}}", task)
+-      .replace("{{diff}}", diff)
+-      .replace("{{tests}}", tests);
++    const reviewPrompt = renderTemplate(
++      readUtf8("agent/prompts/claude-review.md"),
++      task,
++      {
++        "{{diff}}": diff || "(brak zmian w diff)",
++        "{{tests}}": tests || "(brak outputu testów)",
++      }
++    );
+ 
+-    console.log("\n👉 Wklej do Claude:\n");
++    console.log("\n==================================================");
++    console.log("PROMPT DLA CLAUDE REVIEW");
++    console.log("==================================================\n");
+     console.log(reviewPrompt);
+ 
+-    console.log("\n⏳ Wklej odpowiedź Claude i ENTER...");
+-    const input = await new Promise(resolve => {
+-      let data = "";
+-      process.stdin.on("data", chunk => {
+-        data += chunk.toString();
+-        if (data.includes("DECYZJA")) resolve(data);
+-      });
+-    });
++    console.log(
++      '\n⏳ Wklej CAŁĄ odpowiedź Claude jednym paste i naciśnij ENTER...'
++    );
++    const input = await readSinglePaste();
+ 
+-    if (input.includes("OK")) {
++    if (input.includes("DECYZJA: OK")) {
+       console.log("\n✅ Claude uznał zadanie za OK");
+-      break;
++      console.log("\n👉 FINALNY AUDYT → ChatGPT");
++      return;
+     }
+ 
+-    if (input.includes("FIX")) {
+-      const fixPrompt = input.split("FIX")[1];
+-      currentPrompt = fixPrompt;
+-      console.log("\n🔁 Poprawka wygenerowana");
++    if (input.includes("DECYZJA: FIX")) {
++      currentPrompt = extractFixPrompt(input);
++      console.log("\n🔁 Wczytano prompt naprawczy dla Codex");
++      continue;
+     }
++
++    console.log(
++      "\n⚠️ Nie wykryto jasnej decyzji 'DECYZJA: OK' ani 'DECYZJA: FIX'."
++    );
++    console.log("Traktuję odpowiedź jako FIX i przekazuję ją dalej do kolejnej iteracji.\n");
++    currentPrompt = extractFixPrompt(input);
+   }
+ 
+-  console.log("\n👉 FINALNY AUDYT → ChatGPT");
+-})();
+\ No newline at end of file
++  console.log("\n🛑 Osiągnięto maksymalną liczbę iteracji.");
++  console.log("👉 Zrób ręczny audyt końcowy w ChatGPT.");
++})().catch((error) => {
++  console.error("\n❌ Błąd działania pipeline:");
++  console.error(error);
++  process.exit(1);
++});
+\ No newline at end of file
+diff --git a/agent/prompts/audit.md b/agent/prompts/audit.md
+index 77e9927..f8262a7 100644
+--- a/agent/prompts/audit.md
++++ b/agent/prompts/audit.md
+@@ -2,27 +2,66 @@ Jesteś głównym architektem systemu NP-Manager.
+ 
+ Kontekst:
+ - system do zarządzania portowaniem (FNP)
+-- frontend musi być prosty i operacyjny
+ - backend jest źródłem prawdy
++- frontend ma być prosty i operacyjny
++- zakres zmiany wynika z task.json
+ 
+-Zadanie:
++DANE ZADANIA
++
++ID:
++{{taskId}}
++
++TYTUŁ:
++{{taskTitle}}
++
++CEL:
++{{taskGoal}}
++
++SCOPE:
++{{taskScope}}
++
++DOZWOLONE OBSZARY:
++{{taskAllowedAreas}}
++
++ZABRONIONE OBSZARY:
++{{taskForbiddenAreas}}
++
++OGRANICZENIA:
++{{taskConstraints}}
++
++DEFINITION OF DONE:
++{{taskDefinitionOfDone}}
++
++SKRÓT ZADANIA:
+ {{task}}
+ 
+-Zmiany w kodzie:
++ZMIANY W KODZIE:
+ {{diff}}
+ 
+-Wynik testów:
++WYNIK TESTÓW:
+ {{tests}}
+ 
+ Twoje zadanie:
+ 
+ 1. Oceń czy zmiana jest poprawna architektonicznie
+-2. Sprawdź czy nie ma regresji
+-3. Sprawdź czy UX nie został pogorszony
+-4. Wykryj potencjalne bugi
++2. Sprawdź czy scope taska nie został naruszony
++3. Sprawdź czy nie ma regresji
++4. Sprawdź czy UX nie został pogorszony
++5. Wykryj potencjalne bugi
++6. Oceń czy nie ma ukrytych zmian poza zakresem
++
++Odpowiedz w formacie:
++
++STATUS: OK / NOT OK
++
++MOCNE STRONY:
++- ...
++
++PROBLEMY:
++- ...
+ 
+-Odpowiedz:
++POPRAWKI:
++- ...
+ 
+-- STATUS: OK / NOT OK
+-- PROBLEMY:
+-- POPRAWKI:
+\ No newline at end of file
++WERDYKT:
++- krótka końcowa ocena
+\ No newline at end of file
+diff --git a/agent/prompts/claude-review.md b/agent/prompts/claude-review.md
+index 9a7711e..f779699 100644
+--- a/agent/prompts/claude-review.md
++++ b/agent/prompts/claude-review.md
+@@ -1,122 +1,147 @@
+ Jesteś lead developerem odpowiedzialnym za jakość zmian w NP-Manager.
+ 
+ Kontekst:
+-- zmiana dotyczy WYŁĄCZNIE frontend (apps/frontend/**)
++- system jest backend-driven
+ - backend jest source of truth
+-- retry opiera się o:
+-  - item.canRetry
+-  - retryBlockedReasonCode
+-  - istniejący endpoint retry
++- zakres zmian wynika z task.json, a nie z domysłów
++- review ma sprawdzić zarówno poprawność feature, jak i zgodność ze scope taska
+ 
+-Zadanie:
++DANE ZADANIA
++
++ID:
++{{taskId}}
++
++TYTUŁ:
++{{taskTitle}}
++
++CEL:
++{{taskGoal}}
++
++SCOPE:
++{{taskScope}}
++
++DOZWOLONE OBSZARY:
++{{taskAllowedAreas}}
++
++ZABRONIONE OBSZARY:
++{{taskForbiddenAreas}}
++
++OGRANICZENIA:
++{{taskConstraints}}
++
++DEFINITION OF DONE:
++{{taskDefinitionOfDone}}
++
++SKRÓT ZADANIA:
+ {{task}}
+ 
+-Zmiany w kodzie:
++ZMIANY W KODZIE:
+ {{diff}}
+ 
+-Wynik testów:
++WYNIK TESTÓW:
+ {{tests}}
+ 
+ ---
+ 
+ TWOJE ZADANIE
+ 
+-Przeprowadź twardą weryfikację w 4 krokach:
++Przeprowadź twardą weryfikację w 6 krokach.
+ 
+-KROK 1 — WYKONANIE FEATURE
++KROK 1 — ZGODNOŚĆ ZE SCOPE
+ Sprawdź czy:
+-- istnieje przycisk "Ponów"
+-- jest renderowany tylko gdy item.canRetry === true
+-- wywołuje onRetryAttempt(item.id)
++- zmiany mieszczą się w allowedAreas
++- forbiddenAreas nie zostały naruszone
++- nie ma ukrytego rozszerzenia zakresu
++- nie wykonano zbędnych zmian poza taskiem
+ 
+ Jeśli którykolwiek warunek NIE jest spełniony → FIX
+ 
+ ---
+ 
+-KROK 2 — UX / INTERAKCJA
++KROK 2 — WYKONANIE ZADANIA
+ Sprawdź czy:
+-- istnieje loading state ("Ponawiam...")
+-- przycisk jest disabled podczas retry
+-- użytkownik widzi:
+-  - success message
+-  - error message
+-- NIE ma resetu całego panelu
++- implementacja rzeczywiście realizuje goal
++- definitionOfDone jest spełnione
++- zmiana obejmuje minimalny potrzebny vertical slice
++- nie pominięto potrzebnej warstwy (np. backend/shared), jeśli task tego wymagał
+ 
+-Jeśli coś brakuje → FIX
++Jeśli coś jest niepełne → FIX
+ 
+ ---
+ 
+ KROK 3 — ARCHITEKTURA
+ Sprawdź czy:
+-- NIE zmieniono plików:
+-  - apps/backend/**
+-  - packages/shared/**
+-  - prisma/**
+-- NIE dodano lokalnej logiki retry (np. if/else zamiast backendu)
+-- użyto istniejącego endpointu retry
++- respektowany jest backend as source of truth
++- nie przeniesiono logiki tam, gdzie nie powinna być
++- nie dodano obejścia zamiast właściwej zmiany
++- kod jest spójny z architekturą NP-Manager
+ 
+-Jeśli naruszono którykolwiek punkt → FIX
++Jeśli jest problem architektoniczny → FIX
+ 
+ ---
+ 
+ KROK 4 — JAKOŚĆ ZMIAN
+ Sprawdź czy:
+-- zmiany są ograniczone tylko do potrzebnych plików
+-- NIE ma zmian typu:
+-  - package.json
+-  - config
+-  - inne niezwiązane pliki
+-- kod jest spójny z istniejącym stylem
++- zmieniono tylko potrzebne pliki
++- nie ma zbędnych zmian w package.json, configach, toolingach lub innych niezwiązanych plikach
++- kod jest spójny z istniejącym stylem repo
++- nie ma oczywistych regresji
+ 
+-Jeśli są zbędne zmiany → FIX
++Jeśli są zbędne lub ryzykowne zmiany → FIX
+ 
+ ---
+ 
+ KROK 5 — TESTY
+-- jeśli testy FAIL → FIX
+-- ignoruj "0 test files"
++Sprawdź czy:
++- testy są adekwatne do zakresu
++- wynik testów nie wskazuje realnego problemu
++- można odróżnić prawdziwy FAIL od znanych sytuacji typu "0 test files"
++
++Jeśli testy ujawniają problem → FIX
+ 
+ ---
+ 
+-ODPOWIEDŹ (OBOWIĄZKOWY FORMAT)
++KROK 6 — WERDYKT
++Jeśli masz jakiekolwiek istotne wątpliwości → wybierz FIX
++
++---
++
++ODPOWIEDŹ — OBOWIĄZKOWY FORMAT
+ 
+ DECYZJA: OK / FIX
+ 
+ UZASADNIENIE:
+ - krótko dlaczego
+ 
+-JEŚLI FIX:
+-
+-Zwróć GOTOWY PROMPT dla Codex:
+-
+-- bardzo konkretny
+-- wskazujący pliki
+-- bez ogólników
++PROBLEMY:
++- punktami, tylko jeśli istnieją
+ 
+-FORMAT:
++JEŚLI FIX:
+ 
+-Popraw w pliku:
+-<ścieżka>
++PROMPT_DLA_CODEX:
++Popraw dokładnie wskazane problemy.
++Trzymaj się scope:
++- dozwolone: {{taskAllowedAreas}}
++- zabronione: {{taskForbiddenAreas}}
+ 
+ Zrób:
+ - konkretna zmiana 1
+ - konkretna zmiana 2
++- konkretna zmiana 3
+ 
+ Nie zmieniaj:
+-- backend
+-- innych plików
++- żadnych plików poza allowedAreas
++- niczego poza zakresem taska
+ 
+----
++Zwróć:
++- pełny kod zmienionych plików
++- krótką listę zmian
++- krótkie uzasadnienie
+ 
+ JEŚLI OK:
+ 
+ Potwierdź:
+-- feature działa poprawnie
+-- UX jest kompletny
+-- brak regresji
++- task jest wykonany poprawnie
++- scope nie został naruszony
+ - brak nieautoryzowanych zmian
+-
+----
+-
+-ZASADA:
+-Jeśli masz jakiekolwiek wątpliwości → wybierz FIX
+\ No newline at end of file
++- brak oczywistych regresji
+\ No newline at end of file
+diff --git a/agent/prompts/codex-task.md b/agent/prompts/codex-task.md
+index fc14799..72b89c8 100644
+--- a/agent/prompts/codex-task.md
++++ b/agent/prompts/codex-task.md
+@@ -1,19 +1,63 @@
+-Jesteś Codex pracującym nad NP-Manager.
++Jesteś Codex pracującym nad projektem NP-Manager.
+ 
+-Zadanie:
++Kontekst projektu:
++- Stack: Fastify + Prisma + React + Zustand + Tailwind
++- Architektura: backend-driven, backend jest source of truth
++- System: FNP / NP-Manager
++- Nie wymyślaj lokalnej logiki w frontendzie, jeśli właściwe miejsce jest w backendzie
++
++DANE ZADANIA
++
++ID:
++{{taskId}}
++
++TYTUŁ:
++{{taskTitle}}
++
++CEL:
++{{taskGoal}}
++
++SCOPE:
++{{taskScope}}
++
++DOZWOLONE OBSZARY:
++{{taskAllowedAreas}}
++
++ZABRONIONE OBSZARY:
++{{taskForbiddenAreas}}
++
++OGRANICZENIA:
++{{taskConstraints}}
++
++DEFINITION OF DONE:
++{{taskDefinitionOfDone}}
++
++SKRÓT ZADANIA:
+ {{task}}
+ 
+-ZAKRES:
+-- apps/frontend/**
++TRYB PRACY
++
++1. Najpierw przeanalizuj zakres taska.
++2. Trzymaj się wyłącznie allowedAreas.
++3. Nie zmieniaj forbiddenAreas.
++4. Jeśli task dopuszcza backend lub shared i zmiana jest tam potrzebna, wykonaj ją tam zamiast robić obejście.
++5. Nie rób szerokiego refactoru.
++6. Nie zmieniaj migracji, auth, RBAC ani innych obszarów poza taskiem, jeśli task nie wymaga tego wprost.
++7. Zmieniaj tylko minimalny vertical slice potrzebny do realizacji zadania.
++
++WYMAGANY SPOSÓB ODPOWIEDZI
++
++Zwróć:
+ 
+-ZABRONIONE:
+-- backend
+-- prisma
+-- shared
++1. listę zmienionych plików
++2. krótką listę zmian
++3. pełny kod każdego zmienionego pliku
++4. krótkie uzasadnienie architektoniczne
++5. listę uruchomionych testów / komend walidacyjnych
+ 
+-Wymagania:
+-- użyj istniejącego API retry
+-- pokaż loading
+-- pokaż success/error
++WAŻNE
+ 
+-Zwróć pełny kod zmienionych plików.
+\ No newline at end of file
++- Nie zakładaj z góry, że task jest frontend-only.
++- Zakres wynika z task.json.
++- Jeśli czegoś nie trzeba zmieniać, nie dotykaj tego.
++- Nie modyfikuj plików poza zakresem tylko po to, żeby "posprzątać".
+\ No newline at end of file
+diff --git a/agent/state/task.json b/agent/state/task.json
+index b12aacf..98730d9 100644
+--- a/agent/state/task.json
++++ b/agent/state/task.json
+@@ -1,4 +1,24 @@
+ {
+-  "task": "Dodaj prosty przycisk retry w InternalNotificationAttemptsPanel z wykorzystaniem istniejącego endpointu retry",
+-  "status": "pending"
++  "id": "pr20a-global-internal-notification-attempts-read-api",
++  "title": "Dodaj globalny read endpoint dla internal notification attempts",
++  "goal": "Udostępnić backendowy operacyjny odczyt prób notyfikacji wewnętrznych do przyszłej globalnej listy UI.",
++  "scope": "backend",
++  "allowedAreas": ["backend", "shared"],
++  "forbiddenAreas": ["frontend"],
++  "constraints": [
++    "Implement only the minimal vertical slice required by the task",
++    "Do not introduce unrelated refactors",
++    "Do not add Prisma migrations unless explicitly required",
++    "Do not change auth or RBAC unless explicitly required",
++    "Do not modify existing retry semantics",
++    "Do not change notification transport adapters",
++    "Do not change NOTE parsing compatibility behavior"
++  ],
++  "definitionOfDone": [
++    "A new read endpoint for internal notification attempts list exists",
++    "Shared DTOs required by the endpoint are added or updated",
++    "Backend tests covering the new endpoint or service are added or updated",
++    "Type checks and builds pass",
++    "No unrelated files are modified"
++  ]
+ }
+\ No newline at end of file
