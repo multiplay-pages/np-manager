@@ -115,6 +115,109 @@ describe('getGlobalInternalNotificationAttempts', () => {
     expect(callArg.skip).toBe(20)
   })
 
+  it('filters by outcome', async () => {
+    mockAttemptFindMany.mockResolvedValue([])
+    mockAttemptCount.mockResolvedValue(0)
+
+    await getGlobalInternalNotificationAttempts({
+      outcome: 'FAILED',
+    })
+
+    const findManyWhere = mockAttemptFindMany.mock.calls[0]![0].where
+    const countWhere = mockAttemptCount.mock.calls[0]![0].where
+    expect(findManyWhere).toEqual({
+      outcome: 'FAILED',
+    })
+    expect(countWhere).toEqual(findManyWhere)
+  })
+
+  it('filters by channel', async () => {
+    mockAttemptFindMany.mockResolvedValue([])
+    mockAttemptCount.mockResolvedValue(0)
+
+    await getGlobalInternalNotificationAttempts({
+      channel: 'TEAMS',
+    })
+
+    const findManyWhere = mockAttemptFindMany.mock.calls[0]![0].where
+    const countWhere = mockAttemptCount.mock.calls[0]![0].where
+    expect(findManyWhere).toEqual({
+      channel: 'TEAMS',
+    })
+    expect(countWhere).toEqual(findManyWhere)
+  })
+
+  it('filters by outcome and channel together', async () => {
+    mockAttemptFindMany.mockResolvedValue([])
+    mockAttemptCount.mockResolvedValue(0)
+
+    await getGlobalInternalNotificationAttempts({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+    })
+
+    const findManyWhere = mockAttemptFindMany.mock.calls[0]![0].where
+    const countWhere = mockAttemptCount.mock.calls[0]![0].where
+    expect(findManyWhere).toEqual({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+    })
+    expect(countWhere).toEqual(findManyWhere)
+  })
+
+  it('filters retryableOnly after mapping without adding retry fields to Prisma where', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({ id: 'retryable', outcome: 'FAILED', retryCount: 0 }),
+      buildAttempt({ id: 'sent', outcome: 'SENT', retryCount: 0 }),
+      buildAttempt({ id: 'exhausted', outcome: 'FAILED', retryCount: 3 }),
+      buildAttempt({ id: 'fallback', outcome: 'FAILED', attemptOrigin: 'ERROR_FALLBACK' }),
+    ])
+
+    const result = await getGlobalInternalNotificationAttempts({ retryableOnly: true })
+
+    expect(mockAttemptFindMany.mock.calls[0]![0]).not.toHaveProperty('where')
+    expect(mockAttemptFindMany.mock.calls[0]![0]).not.toHaveProperty('take')
+    expect(mockAttemptFindMany.mock.calls[0]![0]).not.toHaveProperty('skip')
+    expect(mockAttemptCount).not.toHaveBeenCalled()
+    expect(result.items.map((item) => item.attemptId)).toEqual(['retryable'])
+  })
+
+  it('keeps outcome and channel in Prisma where when retryableOnly filters post-map', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({ id: 'retryable-teams', channel: 'TEAMS' }),
+      buildAttempt({ id: 'blocked-teams', channel: 'TEAMS', retryCount: 3 }),
+    ])
+
+    const result = await getGlobalInternalNotificationAttempts({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+      retryableOnly: true,
+    })
+
+    expect(mockAttemptFindMany.mock.calls[0]![0].where).toEqual({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+    })
+    expect(result.items.map((item) => item.attemptId)).toEqual(['retryable-teams'])
+  })
+
+  it('uses filtered retryableOnly total before pagination', async () => {
+    mockAttemptFindMany.mockResolvedValue([
+      buildAttempt({ id: 'retryable-1' }),
+      buildAttempt({ id: 'blocked', retryCount: 3 }),
+      buildAttempt({ id: 'retryable-2', retryCount: 1 }),
+    ])
+
+    const result = await getGlobalInternalNotificationAttempts({
+      retryableOnly: true,
+      limit: 1,
+      offset: 1,
+    })
+
+    expect(result.total).toBe(2)
+    expect(result.items.map((item) => item.attemptId)).toEqual(['retryable-2'])
+  })
+
   it('caps limit at 100', async () => {
     mockAttemptFindMany.mockResolvedValue([])
     mockAttemptCount.mockResolvedValue(0)

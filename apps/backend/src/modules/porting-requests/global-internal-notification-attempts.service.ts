@@ -1,4 +1,9 @@
 import type {
+  InternalNotificationAttemptChannel,
+  InternalNotificationAttemptOutcome,
+  Prisma,
+} from '@prisma/client'
+import type {
   GlobalInternalNotificationAttemptItemDto,
   GlobalInternalNotificationAttemptsResultDto,
 } from '@np-manager/shared'
@@ -9,6 +14,9 @@ const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
 
 export interface GlobalInternalNotificationAttemptsParams {
+  outcome?: string
+  channel?: string
+  retryableOnly?: boolean
   limit?: number
   offset?: number
 }
@@ -72,21 +80,56 @@ export async function getGlobalInternalNotificationAttempts(
 ): Promise<GlobalInternalNotificationAttemptsResultDto> {
   const limit = normalizeLimit(params.limit)
   const offset = normalizeOffset(params.offset)
+  const where = buildWhereClause(params)
+
+  if (params.retryableOnly === true) {
+    const records = await prisma.internalNotificationDeliveryAttempt.findMany({
+      ...(where ? { where } : {}),
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      select: globalAttemptSelect,
+    })
+
+    const filteredItems = records.map(mapToDto).filter((item) => item.canRetry)
+
+    return {
+      items: filteredItems.slice(offset, offset + limit),
+      total: filteredItems.length,
+    }
+  }
 
   const [records, total] = await Promise.all([
     prisma.internalNotificationDeliveryAttempt.findMany({
+      ...(where ? { where } : {}),
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       take: limit,
       skip: offset,
       select: globalAttemptSelect,
     }),
-    prisma.internalNotificationDeliveryAttempt.count(),
+    where
+      ? prisma.internalNotificationDeliveryAttempt.count({ where })
+      : prisma.internalNotificationDeliveryAttempt.count(),
   ])
 
   return {
     items: records.map(mapToDto),
     total,
   }
+}
+
+function buildWhereClause(
+  params: GlobalInternalNotificationAttemptsParams,
+): Prisma.InternalNotificationDeliveryAttemptWhereInput | undefined {
+  const base: Prisma.InternalNotificationDeliveryAttemptWhereInput = {}
+
+  if (params.outcome) {
+    base.outcome = params.outcome as InternalNotificationAttemptOutcome
+  }
+
+  if (params.channel) {
+    base.channel = params.channel as InternalNotificationAttemptChannel
+  }
+
+  return Object.keys(base).length > 0 ? base : undefined
 }
 
 function mapToDto(record: GlobalAttemptRecord): GlobalInternalNotificationAttemptItemDto {

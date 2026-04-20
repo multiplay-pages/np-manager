@@ -136,6 +136,14 @@ export interface GlobalInternalNotificationAttemptsResultDto {
   total: number
 }
 
+export interface GlobalInternalNotificationAttemptsQueryDto {
+  outcome?: InternalNotificationAttemptOutcomeDto
+  channel?: InternalNotificationAttemptChannelDto
+  retryableOnly?: boolean
+  limit?: number
+  offset?: number
+}
+
 export interface RetryInternalNotificationAttemptDto {
   reason?: string
 }
