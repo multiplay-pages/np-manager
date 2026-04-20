@@ -315,6 +315,65 @@ describe('InternalNotificationAttemptsPage', () => {
     expect(retryInternalNotificationAttemptMock).toHaveBeenCalledWith('request-1', 'attempt-1')
   })
 
+  it('clamps offset to last valid page when retryableOnly refresh shrinks total', async () => {
+    const pageTwoItem = makeAttempt({ attemptId: 'attempt-page-2' })
+
+    // initial page-1 load (will be triggered twice: first mount, then after clamp)
+    getGlobalInternalNotificationAttemptsMock
+      // mount (offset=0, no filters)
+      .mockResolvedValueOnce({ items: [makeAttempt()], total: 51 })
+      // after toggling retryableOnly -> offset=0, retryableOnly=true
+      .mockResolvedValueOnce({ items: [makeAttempt()], total: 51 })
+      // after clicking Nastepna -> offset=50, retryableOnly=true (only 1 retryable left)
+      .mockResolvedValueOnce({ items: [pageTwoItem], total: 51 })
+      // retry success refresh -> offset=50 but total shrank to 50 -> empty, triggers clamp
+      .mockResolvedValueOnce({ items: [], total: 50 })
+      // clamp-triggered refetch at offset=0
+      .mockResolvedValueOnce({ items: [makeAttempt()], total: 50 })
+
+    retryInternalNotificationAttemptMock.mockResolvedValueOnce({
+      retryAttempt: makeAttempt({ attemptId: 'attempt-retry-page-2', outcome: 'SENT' }),
+    })
+
+    renderPage()
+
+    await screen.findByRole('link', { name: 'FNP-20260411-ABC123' })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko mozliwe do ponowienia/ }))
+    await waitFor(() => {
+      expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
+        limit: 50,
+        offset: 0,
+        outcome: undefined,
+        channel: undefined,
+        retryableOnly: true,
+      })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nastepna' }))
+    await waitFor(() => {
+      expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
+        limit: 50,
+        offset: 50,
+        outcome: undefined,
+        channel: undefined,
+        retryableOnly: true,
+      })
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ponow' }))
+
+    await waitFor(() => {
+      expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
+        limit: 50,
+        offset: 0,
+        outcome: undefined,
+        channel: undefined,
+        retryableOnly: true,
+      })
+    })
+  })
+
   it('shows retry error feedback without clearing loaded attempts', async () => {
     retryInternalNotificationAttemptMock.mockRejectedValueOnce(new Error('API unavailable'))
 

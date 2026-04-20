@@ -255,6 +255,11 @@ export function InternalNotificationAttemptsPage() {
       })
       setItems(result.items)
       setTotal(result.total)
+      if (offset > 0 && offset >= result.total) {
+        const lastPageOffset =
+          Math.max(0, Math.ceil(result.total / PAGE_SIZE) - 1) * PAGE_SIZE
+        setOffset(lastPageOffset)
+      }
     } catch {
       setError('Nie udalo sie pobrac globalnej listy prob notyfikacji.')
     } finally {
