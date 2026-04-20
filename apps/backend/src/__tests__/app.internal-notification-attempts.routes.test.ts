@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockGetAttempts, mockRetryAttempt } = vi.hoisted(() => ({
+const {
+  mockGetAttempts,
+  mockRetryAttempt,
+  mockGetNotificationFailures,
+  mockGetGlobalAttempts,
+  mockGetGlobalFailureQueue,
+} = vi.hoisted(() => ({
   mockGetAttempts: vi.fn(),
   mockRetryAttempt: vi.fn(),
+  mockGetNotificationFailures: vi.fn(),
+  mockGetGlobalAttempts: vi.fn(),
+  mockGetGlobalFailureQueue: vi.fn(),
 }))
 
 vi.mock('../config/env', () => ({
@@ -86,7 +95,8 @@ vi.mock('../modules/porting-requests/porting-internal-notification-history.servi
 }))
 
 vi.mock('../modules/porting-requests/porting-notification-failure-history.service', () => ({
-  getPortingRequestNotificationFailures: vi.fn(),
+  getPortingRequestNotificationFailures: (...args: unknown[]) =>
+    mockGetNotificationFailures(...args),
 }))
 
 vi.mock('../modules/porting-requests/porting-internal-notification-attempts.service', () => ({
@@ -103,6 +113,14 @@ vi.mock('../modules/porting-requests/porting-internal-notification-attempts.serv
       this.retryBlockedReasonCode = retryBlockedReasonCode
     }
   },
+}))
+
+vi.mock('../modules/porting-requests/global-internal-notification-attempts.service', () => ({
+  getGlobalInternalNotificationAttempts: (...args: unknown[]) => mockGetGlobalAttempts(...args),
+}))
+
+vi.mock('../modules/porting-requests/global-notification-failure-queue.service', () => ({
+  getGlobalNotificationFailureQueue: (...args: unknown[]) => mockGetGlobalFailureQueue(...args),
 }))
 
 vi.mock('../modules/pli-cbd/fnp-process.service', () => ({
@@ -189,6 +207,132 @@ const RETRY_RESULT = {
   },
 }
 
+const GLOBAL_ATTEMPTS_RESULT = {
+  items: [],
+  total: 0,
+}
+
+const NOTIFICATION_FAILURES_RESULT = {
+  items: [
+    {
+      id: 'failure-1',
+      occurredAt: '2026-04-11T10:00:00.000Z',
+      outcome: 'FAILED',
+      channel: 'EMAIL',
+      message: 'Nie udalo sie wyslac notyfikacji przez e-mail.',
+      technicalDetailsPreview: 'Tryb: REAL | SMTP timeout',
+      isConfigurationIssue: false,
+      isDeliveryIssue: true,
+    },
+  ],
+}
+
+const GLOBAL_FAILURE_QUEUE_RESULT = {
+  items: [],
+  total: 0,
+}
+
+describe('GET /api/internal-notification-attempts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetGlobalAttempts.mockResolvedValue(GLOBAL_ATTEMPTS_RESULT)
+  })
+
+  it('returns 403 for a non-admin operational role', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'manager-1', role: 'MANAGER' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/internal-notification-attempts',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(mockGetGlobalAttempts).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns global attempts for ADMIN', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/internal-notification-attempts',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toMatchObject({ success: true, data: GLOBAL_ATTEMPTS_RESULT })
+      expect(mockGetGlobalAttempts).toHaveBeenCalledWith({
+        outcome: undefined,
+        channel: undefined,
+        retryableOnly: undefined,
+        limit: 50,
+        offset: 0,
+      })
+    } finally {
+      await app.close()
+    }
+  })
+})
+
+describe('GET /api/internal-notification-failures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetGlobalFailureQueue.mockResolvedValue(GLOBAL_FAILURE_QUEUE_RESULT)
+  })
+
+  it('returns 403 for a non-admin operational role', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'bok-1', role: 'BOK_CONSULTANT' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/internal-notification-failures',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(mockGetGlobalFailureQueue).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns global failure queue for ADMIN', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/internal-notification-failures',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toMatchObject({ success: true, data: GLOBAL_FAILURE_QUEUE_RESULT })
+      expect(mockGetGlobalFailureQueue).toHaveBeenCalledWith({
+        outcomes: ['FAILED', 'MISCONFIGURED'],
+        canRetry: undefined,
+        operationalStatus: undefined,
+        sort: 'newest',
+        limit: 50,
+        offset: 0,
+      })
+    } finally {
+      await app.close()
+    }
+  })
+})
+
 describe('GET /api/porting-requests/:id/internal-notification-attempts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -230,11 +374,29 @@ describe('GET /api/porting-requests/:id/internal-notification-attempts', () => {
     }
   })
 
-  it('returns request-level attempts for a read role and passes normalized limit', async () => {
+  it('returns 403 for a non-admin operational role', async () => {
     const app = await buildApp()
 
     try {
       const token = app.jwt.sign({ id: 'manager-1', role: 'MANAGER' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/porting-requests/request-1/internal-notification-attempts',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(mockGetAttempts).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns request-level attempts for ADMIN and passes normalized limit', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
       const response = await app.inject({
         method: 'GET',
         url: '/api/porting-requests/request-1/internal-notification-attempts?limit=5',
@@ -257,7 +419,7 @@ describe('GET /api/porting-requests/:id/internal-notification-attempts', () => {
     const app = await buildApp()
 
     try {
-      const token = app.jwt.sign({ id: 'auditor-1', role: 'AUDITOR' })
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
       const response = await app.inject({
         method: 'GET',
         url: '/api/porting-requests/request-empty/internal-notification-attempts',
@@ -293,6 +455,53 @@ describe('GET /api/porting-requests/:id/internal-notification-attempts', () => {
   })
 })
 
+describe('GET /api/porting-requests/:id/notification-failures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetNotificationFailures.mockResolvedValue(NOTIFICATION_FAILURES_RESULT)
+  })
+
+  it('returns failure history for ADMIN', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/porting-requests/request-1/notification-failures',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.json()).toMatchObject({
+        success: true,
+        data: NOTIFICATION_FAILURES_RESULT,
+      })
+      expect(mockGetNotificationFailures).toHaveBeenCalledWith('request-1')
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('returns 403 for a non-admin operational role', async () => {
+    const app = await buildApp()
+
+    try {
+      const token = app.jwt.sign({ id: 'manager-1', role: 'MANAGER' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/porting-requests/request-1/notification-failures',
+        headers: { authorization: `Bearer ${token}` },
+      })
+
+      expect(response.statusCode).toBe(403)
+      expect(mockGetNotificationFailures).not.toHaveBeenCalled()
+    } finally {
+      await app.close()
+    }
+  })
+})
+
 describe('POST /api/porting-requests/:id/internal-notification-attempts/:attemptId/retry', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -316,11 +525,11 @@ describe('POST /api/porting-requests/:id/internal-notification-attempts/:attempt
     }
   })
 
-  it('returns 403 for AUDITOR role', async () => {
+  it('returns 403 for a non-admin operational role', async () => {
     const app = await buildApp()
 
     try {
-      const token = app.jwt.sign({ id: 'auditor-1', role: 'AUDITOR' })
+      const token = app.jwt.sign({ id: 'manager-1', role: 'MANAGER' })
       const response = await app.inject({
         method: 'POST',
         url: '/api/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
@@ -339,7 +548,7 @@ describe('POST /api/porting-requests/:id/internal-notification-attempts/:attempt
     const app = await buildApp()
 
     try {
-      const token = app.jwt.sign({ id: 'manager-1', role: 'MANAGER' })
+      const token = app.jwt.sign({ id: 'admin-1', role: 'ADMIN' })
       const response = await app.inject({
         method: 'POST',
         url: '/api/porting-requests/request-1/internal-notification-attempts/attempt-1/retry',
@@ -357,7 +566,7 @@ describe('POST /api/porting-requests/:id/internal-notification-attempts/:attempt
         'request-1',
         'attempt-1',
         { reason: 'Ponawiam po poprawie SMTP' },
-        'manager-1',
+        'admin-1',
         expect.any(String),
         'lightMyRequest',
       )

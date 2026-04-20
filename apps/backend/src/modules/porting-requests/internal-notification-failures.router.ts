@@ -10,7 +10,7 @@ import {
   type GlobalFailureQueueSort,
 } from './global-notification-failure-queue.service'
 
-const globalFailureQueueRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
+const globalFailureQueueRoles: UserRole[] = ['ADMIN']
 
 export const globalFailureQueueQuerySchema = z.object({
   outcome: z

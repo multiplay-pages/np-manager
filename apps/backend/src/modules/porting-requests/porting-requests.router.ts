@@ -86,12 +86,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
   const commercialOwnerWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'MANAGER']
   const externalActionRoles: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
   const pliCbdRoles: UserRole[] = ['ADMIN']
-  const internalNotificationRetryRoles: UserRole[] = [
-    'ADMIN',
-    'BOK_CONSULTANT',
-    'BACK_OFFICE',
-    'MANAGER',
-  ]
+  const internalNotificationDiagnosticRoles: UserRole[] = ['ADMIN']
 
   app.get('/', { preHandler: [authenticate, authorize(readRoles)] }, async (request, reply) => {
     const query = portingRequestListQuerySchema.parse(request.query)
@@ -164,7 +159,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/internal-notification-attempts',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(internalNotificationDiagnosticRoles)] },
     async (request, reply) => {
       const query = internalNotificationAttemptsQuerySchema.parse(request.query)
       const result = await getPortingRequestInternalNotificationAttempts(
@@ -177,7 +172,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.post<{ Params: { id: string; attemptId: string } }>(
     '/:id/internal-notification-attempts/:attemptId/retry',
-    { preHandler: [authenticate, authorize(internalNotificationRetryRoles)] },
+    { preHandler: [authenticate, authorize(internalNotificationDiagnosticRoles)] },
     async (request, reply) => {
       const body = retryInternalNotificationAttemptSchema.parse(request.body ?? {})
 
@@ -210,7 +205,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
   app.get<{ Params: { id: string } }>(
     '/:id/notification-failures',
-    { preHandler: [authenticate, authorize(readRoles)] },
+    { preHandler: [authenticate, authorize(internalNotificationDiagnosticRoles)] },
     async (request, reply) => {
       const result = await getPortingRequestNotificationFailures(request.params.id)
       return reply.status(200).send({ success: true, data: result })
