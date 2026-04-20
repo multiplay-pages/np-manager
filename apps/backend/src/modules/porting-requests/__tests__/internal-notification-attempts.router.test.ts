@@ -47,6 +47,22 @@ describe('globalInternalNotificationAttemptsQuerySchema', () => {
     expect(result.retryableOnly).toBe(true)
   })
 
+  it('coerces retryableOnly=false to boolean false', () => {
+    const result = globalInternalNotificationAttemptsQuerySchema.parse({
+      retryableOnly: 'false',
+    })
+
+    expect(result.retryableOnly).toBe(false)
+  })
+
+  it('rejects unknown retryableOnly values', () => {
+    expect(() =>
+      globalInternalNotificationAttemptsQuerySchema.parse({
+        retryableOnly: 'not-a-boolean',
+      }),
+    ).toThrow()
+  })
+
   it('rejects unknown outcome values', () => {
     expect(() =>
       globalInternalNotificationAttemptsQuerySchema.parse({
