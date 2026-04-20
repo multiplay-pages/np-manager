@@ -22,4 +22,36 @@ describe('globalInternalNotificationAttemptsQuerySchema', () => {
       offset: 50,
     })
   })
+
+  it('accepts operational filters', () => {
+    const result = globalInternalNotificationAttemptsQuerySchema.parse({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+      retryableOnly: 'true',
+    })
+
+    expect(result).toEqual({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+      retryableOnly: true,
+      limit: 50,
+      offset: 0,
+    })
+  })
+
+  it('treats retryableOnly=false as no retryable-only filter', () => {
+    const result = globalInternalNotificationAttemptsQuerySchema.parse({
+      retryableOnly: 'false',
+    })
+
+    expect(result.retryableOnly).toBe(false)
+  })
+
+  it('rejects unknown outcome values', () => {
+    expect(() =>
+      globalInternalNotificationAttemptsQuerySchema.parse({
+        outcome: 'UNKNOWN',
+      }),
+    ).toThrow()
+  })
 })

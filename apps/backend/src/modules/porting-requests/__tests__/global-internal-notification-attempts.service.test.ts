@@ -115,6 +115,70 @@ describe('getGlobalInternalNotificationAttempts', () => {
     expect(callArg.skip).toBe(20)
   })
 
+  it('filters by outcome and channel', async () => {
+    mockAttemptFindMany.mockResolvedValue([])
+    mockAttemptCount.mockResolvedValue(0)
+
+    await getGlobalInternalNotificationAttempts({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+    })
+
+    const findManyWhere = mockAttemptFindMany.mock.calls[0]![0].where
+    const countWhere = mockAttemptCount.mock.calls[0]![0].where
+    expect(findManyWhere).toEqual({
+      outcome: 'FAILED',
+      channel: 'TEAMS',
+    })
+    expect(countWhere).toEqual(findManyWhere)
+  })
+
+  it('filters retryableOnly using the backend retry eligibility rules', async () => {
+    mockAttemptFindMany.mockResolvedValue([])
+    mockAttemptCount.mockResolvedValue(0)
+
+    await getGlobalInternalNotificationAttempts({ retryableOnly: true })
+
+    const whereArg = mockAttemptFindMany.mock.calls[0]![0].where
+    expect(whereArg).toEqual({
+      attemptOrigin: { in: ['PRIMARY', 'RETRY'] },
+      outcome: { in: ['FAILED', 'MISCONFIGURED'] },
+      isLatestForChain: true,
+      retryCount: { lt: 3 },
+    })
+  })
+
+  it('combines retryableOnly with explicit outcome filters without replacing them', async () => {
+    mockAttemptFindMany.mockResolvedValue([])
+    mockAttemptCount.mockResolvedValue(0)
+
+    await getGlobalInternalNotificationAttempts({
+      outcome: 'FAILED',
+      retryableOnly: true,
+    })
+
+    expect(mockAttemptFindMany.mock.calls[0]![0].where).toEqual({
+      AND: [
+        { outcome: 'FAILED' },
+        {
+          attemptOrigin: { in: ['PRIMARY', 'RETRY'] },
+          outcome: { in: ['FAILED', 'MISCONFIGURED'] },
+          isLatestForChain: true,
+          retryCount: { lt: 3 },
+        },
+      ],
+    })
+  })
+
+  it('does not add retry eligibility filter when retryableOnly=false', async () => {
+    mockAttemptFindMany.mockResolvedValue([])
+    mockAttemptCount.mockResolvedValue(0)
+
+    await getGlobalInternalNotificationAttempts({ retryableOnly: false })
+
+    expect(mockAttemptFindMany.mock.calls[0]![0]).not.toHaveProperty('where')
+  })
+
   it('caps limit at 100', async () => {
     mockAttemptFindMany.mockResolvedValue([])
     mockAttemptCount.mockResolvedValue(0)
