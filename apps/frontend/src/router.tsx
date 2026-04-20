@@ -181,11 +181,19 @@ export const router = createBrowserRouter([
       },
       {
         path: ROUTES.NOTIFICATION_ATTEMPTS,
-        element: <InternalNotificationAttemptsPage />,
+        element: (
+          <AdminOnlyRoute>
+            <InternalNotificationAttemptsPage />
+          </AdminOnlyRoute>
+        ),
       },
       {
         path: ROUTES.NOTIFICATION_FAILURES,
-        element: <NotificationFailureQueuePage />,
+        element: (
+          <AdminOnlyRoute>
+            <NotificationFailureQueuePage />
+          </AdminOnlyRoute>
+        ),
       },
       {
         path: ROUTES.TASKS,

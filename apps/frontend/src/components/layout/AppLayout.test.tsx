@@ -69,6 +69,9 @@ describe('AppLayout admin navigation', () => {
     expect(html).not.toContain('capabilities')
     expect(html).toContain('Powiadomienia portingu')
     expect(html).toContain('Proby notyfikacji')
+    expect(html).toContain('Diagnostyka dostarczen')
+    expect(html).toContain('Bledy notyfikacji')
+    expect(html).toContain('Kolejka diagnostyczna')
   })
 
   it('hides Users navigation link for non-admin', () => {
@@ -93,5 +96,7 @@ describe('AppLayout admin navigation', () => {
 
     expect(html).not.toContain('Uzytkownicy')
     expect(html).not.toContain('Administracja')
+    expect(html).not.toContain('Proby notyfikacji')
+    expect(html).not.toContain('Bledy notyfikacji')
   })
 })

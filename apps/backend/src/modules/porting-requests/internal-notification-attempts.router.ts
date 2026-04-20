@@ -9,7 +9,7 @@ import { authenticate } from '../../shared/middleware/authenticate'
 import { authorize } from '../../shared/middleware/authorize'
 import { getGlobalInternalNotificationAttempts } from './global-internal-notification-attempts.service'
 
-const globalAttemptsReadRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
+const globalAttemptsReadRoles: UserRole[] = ['ADMIN']
 
 const internalNotificationAttemptOutcomeValues = [
   'SENT',

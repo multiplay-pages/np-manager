@@ -20,20 +20,6 @@ const primaryNavItems: NavItem[] = [
   { label: 'Klienci', description: 'Kartoteka klientow', path: ROUTES.CLIENTS, icon: 'K' },
   { label: 'Zadania', description: 'Praca zespolu', path: ROUTES.TASKS, icon: 'Z' },
   { label: 'Raporty', description: 'Kontrola i wyniki', path: ROUTES.REPORTS, icon: 'R', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
-  {
-    label: 'Proby notyfikacji',
-    description: 'Ledger dostarczen',
-    path: ROUTES.NOTIFICATION_ATTEMPTS,
-    icon: 'N',
-    roles: ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'],
-  },
-  {
-    label: 'Bledy notyfikacji',
-    description: 'Kolejka interwencji',
-    path: ROUTES.NOTIFICATION_FAILURES,
-    icon: '!',
-    roles: ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'],
-  },
   { label: 'Operatorzy', description: 'Slownik operatorow', path: ROUTES.OPERATORS, icon: 'O' },
 ]
 
@@ -44,6 +30,8 @@ const adminNavItems: NavItem[] = [
   { label: 'Tryb systemu', description: 'Tryb pracy systemu', path: ROUTES.ADMIN_SYSTEM_MODE_SETTINGS, icon: 'M' },
   { label: 'Powiadomienia portingu', description: 'Routing zespolowy', path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS, icon: 'P' },
   { label: 'Fallback notyfikacji', description: 'Obsluga bledow', path: ROUTES.ADMIN_NOTIFICATION_FALLBACK_SETTINGS, icon: 'F' },
+  { label: 'Proby notyfikacji', description: 'Diagnostyka dostarczen', path: ROUTES.NOTIFICATION_ATTEMPTS, icon: 'N' },
+  { label: 'Bledy notyfikacji', description: 'Kolejka diagnostyczna', path: ROUTES.NOTIFICATION_FAILURES, icon: '!' },
 ]
 
 function SidebarLink({ item, sidebarCollapsed }: { item: NavItem; sidebarCollapsed: boolean }) {

@@ -110,7 +110,7 @@ export function NotificationFailureQueuePage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Kolejka błędów notyfikacji</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Globalna lista spraw z ostatnio nieudanymi próbami dostarczenia notyfikacji.
+          Administracyjna lista spraw z ostatnio nieudanymi próbami dostarczenia notyfikacji.
         </p>
       </div>
 

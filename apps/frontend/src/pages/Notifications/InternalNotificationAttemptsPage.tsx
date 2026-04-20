@@ -332,7 +332,7 @@ export function InternalNotificationAttemptsPage() {
             Globalna lista prob dostarczenia
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
-            Read-only ledger internal notification attempts dla zespolu operacyjnego.
+            Administracyjny ledger internal notification attempts i technicznej diagnostyki transportu.
           </p>
         </div>
       </div>
@@ -350,8 +350,8 @@ export function InternalNotificationAttemptsPage() {
         />
         <MetricCard
           title="Tryb widoku"
-          value="Read-only"
-          detail="Ledger z akcja ponowienia dla uprawnionego operatora"
+          value="Admin"
+          detail="Ledger z akcja ponowienia dla administratora"
         />
       </div>
 

@@ -727,8 +727,9 @@ export function RequestDetailPage() {
     () => ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(user?.role ?? ''),
     [user?.role],
   )
-  const canRetryInternalNotificationAttempts = canManageStatus
   const isAdmin = useMemo(() => user?.role === 'ADMIN', [user?.role])
+  const canUseInternalNotificationDiagnostics = isAdmin
+  const canRetryInternalNotificationAttempts = isAdmin
   const { capabilities: systemCapabilities } = useSystemCapabilities()
   const canUsePliCbdExport = systemCapabilities.pliCbd.capabilities.export
   const canUsePliCbdSync = systemCapabilities.pliCbd.capabilities.sync
@@ -911,7 +912,12 @@ export function RequestDetailPage() {
   }, [id])
 
   const loadInternalNotificationAttempts = useCallback(async () => {
-    if (!id) return
+    if (!id || !canUseInternalNotificationDiagnostics) {
+      setInternalNotificationAttemptItems([])
+      setInternalNotificationAttemptsError(null)
+      setIsInternalNotificationAttemptsLoading(false)
+      return
+    }
 
     setIsInternalNotificationAttemptsLoading(true)
     setInternalNotificationAttemptsError(null)
@@ -925,7 +931,7 @@ export function RequestDetailPage() {
     } finally {
       setIsInternalNotificationAttemptsLoading(false)
     }
-  }, [id])
+  }, [canUseInternalNotificationDiagnostics, id])
 
   const handleRetryInternalNotificationAttempt = useCallback(
     async (attemptId: string) => {
@@ -960,7 +966,12 @@ export function RequestDetailPage() {
   )
 
   const loadNotificationFailures = useCallback(async () => {
-    if (!id) return
+    if (!id || !canUseInternalNotificationDiagnostics) {
+      setNotificationFailureItems([])
+      setNotificationFailuresError(null)
+      setIsNotificationFailuresLoading(false)
+      return
+    }
 
     setIsNotificationFailuresLoading(true)
     setNotificationFailuresError(null)
@@ -974,7 +985,7 @@ export function RequestDetailPage() {
     } finally {
       setIsNotificationFailuresLoading(false)
     }
-  }, [id])
+  }, [canUseInternalNotificationDiagnostics, id])
 
   const loadAssignmentHistory = useCallback(async () => {
     if (!id) return
@@ -2002,15 +2013,16 @@ export function RequestDetailPage() {
             <div className="space-y-4">
               <NotificationHealthPanel health={request.notificationHealth} />
 
-              {(request.notificationHealth.failureCount > 0 ||
-                isNotificationFailuresLoading ||
-                notificationFailuresError) && (
-                <NotificationFailureHistoryPanel
-                  items={notificationFailureItems}
-                  isLoading={isNotificationFailuresLoading}
-                  error={notificationFailuresError}
-                />
-              )}
+              {canUseInternalNotificationDiagnostics &&
+                (request.notificationHealth.failureCount > 0 ||
+                  isNotificationFailuresLoading ||
+                  notificationFailuresError) && (
+                  <NotificationFailureHistoryPanel
+                    items={notificationFailureItems}
+                    isLoading={isNotificationFailuresLoading}
+                    error={notificationFailuresError}
+                  />
+                )}
 
               <PortingInternalNotificationsPanel
                 items={internalNotificationItems}
@@ -2018,16 +2030,18 @@ export function RequestDetailPage() {
                 error={internalNotificationError}
               />
 
-              <InternalNotificationAttemptsPanel
-                items={internalNotificationAttemptItems}
-                isLoading={isInternalNotificationAttemptsLoading}
-                error={internalNotificationAttemptsError}
-                canRetryAttempts={canRetryInternalNotificationAttempts}
-                retryingAttemptId={retryingInternalNotificationAttemptId}
-                retrySuccessMessage={internalNotificationAttemptsRetrySuccess}
-                retryErrorMessage={internalNotificationAttemptsRetryError}
-                onRetryAttempt={(attemptId) => void handleRetryInternalNotificationAttempt(attemptId)}
-              />
+              {canUseInternalNotificationDiagnostics && (
+                <InternalNotificationAttemptsPanel
+                  items={internalNotificationAttemptItems}
+                  isLoading={isInternalNotificationAttemptsLoading}
+                  error={internalNotificationAttemptsError}
+                  canRetryAttempts={canRetryInternalNotificationAttempts}
+                  retryingAttemptId={retryingInternalNotificationAttemptId}
+                  retrySuccessMessage={internalNotificationAttemptsRetrySuccess}
+                  retryErrorMessage={internalNotificationAttemptsRetryError}
+                  onRetryAttempt={(attemptId) => void handleRetryInternalNotificationAttempt(attemptId)}
+                />
+              )}
             </div>
           </SectionCard>
 
