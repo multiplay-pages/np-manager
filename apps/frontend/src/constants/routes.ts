@@ -43,6 +43,7 @@ export const ROUTES = {
   ADMIN_COMMUNICATION_TEMPLATE_NEW: '/admin/communication-templates/new',
   ADMIN_COMMUNICATION_TEMPLATE_DETAIL: '/admin/communication-templates/:id',
   ADMIN_COMMUNICATION_TEMPLATE_EDIT: '/admin/communication-templates/:id/edit',
+  NOTIFICATION_ATTEMPTS: '/notifications/attempts',
   NOTIFICATION_FAILURES: '/notifications/failures',
 
   ADMIN_DOCUMENT_TYPES: '/admin/document-types',

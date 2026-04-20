@@ -21,6 +21,13 @@ const primaryNavItems: NavItem[] = [
   { label: 'Zadania', description: 'Praca zespolu', path: ROUTES.TASKS, icon: 'Z' },
   { label: 'Raporty', description: 'Kontrola i wyniki', path: ROUTES.REPORTS, icon: 'R', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
   {
+    label: 'Proby notyfikacji',
+    description: 'Ledger dostarczen',
+    path: ROUTES.NOTIFICATION_ATTEMPTS,
+    icon: 'N',
+    roles: ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'],
+  },
+  {
     label: 'Bledy notyfikacji',
     description: 'Kolejka interwencji',
     path: ROUTES.NOTIFICATION_FAILURES,
