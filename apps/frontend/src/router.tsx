@@ -18,6 +18,7 @@ import { AdminUsersPage } from '@/pages/Admin/AdminUsersPage'
 import { SystemModeSettingsPage } from '@/pages/Admin/SystemModeSettingsPage'
 import { PortingNotificationSettingsPage } from '@/pages/Admin/PortingNotificationSettingsPage'
 import { NotificationFallbackSettingsPage } from '@/pages/Admin/NotificationFallbackSettingsPage'
+import { InternalNotificationAttemptsPage } from '@/pages/Notifications/InternalNotificationAttemptsPage'
 import { NotificationFailureQueuePage } from '@/pages/Notifications/NotificationFailureQueuePage'
 import {
   getDefaultAuthenticatedRoute,
@@ -177,6 +178,10 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.REQUEST_DETAIL,
         element: <RequestDetailPage />,
+      },
+      {
+        path: ROUTES.NOTIFICATION_ATTEMPTS,
+        element: <InternalNotificationAttemptsPage />,
       },
       {
         path: ROUTES.NOTIFICATION_FAILURES,

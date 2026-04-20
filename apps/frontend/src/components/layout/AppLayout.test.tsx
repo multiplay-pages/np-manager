@@ -68,6 +68,7 @@ describe('AppLayout admin navigation', () => {
     expect(html).toContain('Tryb pracy systemu')
     expect(html).not.toContain('capabilities')
     expect(html).toContain('Powiadomienia portingu')
+    expect(html).toContain('Proby notyfikacji')
   })
 
   it('hides Users navigation link for non-admin', () => {
