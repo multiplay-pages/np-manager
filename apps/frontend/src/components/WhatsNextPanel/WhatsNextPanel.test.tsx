@@ -214,4 +214,33 @@ describe('WhatsNextPanel', () => {
     expect(blocker).toBeDefined()
     expect(getTextContent(blocker)).toContain('podgląd')
   })
+
+  it('does not attribute missing ERROR actions to user role', () => {
+    // Backend workflow defines no transitions from ERROR for any role, so the
+    // panel must not mislead operators into thinking it is a permissions gap.
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'ERROR' as PortingCaseStatus,
+        availableStatusActions: [],
+        canManageStatus: true,
+      }),
+    )
+    const blocker = findByTestId(tree, 'whats-next-blocker')
+    expect(blocker).toBeUndefined()
+    const text = getTextContent(tree)
+    expect(text).not.toContain('dla Twojej roli')
+    expect(text).toContain('błędu')
+  })
+
+  it('does not show role-gap blocker while waiting on donor', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'PENDING_DONOR' as PortingCaseStatus,
+        availableStatusActions: [],
+        canManageStatus: true,
+      }),
+    )
+    const blocker = findByTestId(tree, 'whats-next-blocker')
+    expect(blocker).toBeUndefined()
+  })
 })

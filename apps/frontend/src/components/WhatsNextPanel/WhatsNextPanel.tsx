@@ -33,6 +33,12 @@ interface PrimaryAction {
 
 const TERMINAL_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
 
+// Statuses where a missing status action can be truthfully attributed to the
+// current user's role — i.e. some role in the workflow has a transition from
+// this status. Excludes PENDING_DONOR (waiting on donor) and ERROR (backend
+// workflow defines no transitions from ERROR for any role).
+const ROLE_GATED_STATUSES: PortingCaseStatus[] = ['DRAFT', 'SUBMITTED', 'CONFIRMED']
+
 const TERMINAL_COPY: Partial<Record<PortingCaseStatus, { headline: string; body: string }>> = {
   PORTED: {
     headline: 'Numer został przeniesiony.',
@@ -186,15 +192,15 @@ function buildBlocker({
     }
   }
 
-  if (canManageStatus && availableStatusActions.length === 0 && status !== 'PENDING_DONOR') {
-    return {
-      text: 'Brak dostępnych akcji statusowych dla Twojej roli — sprawa czeka na uprawnionego operatora.',
-    }
-  }
-
   if (!canManageStatus) {
     return {
       text: 'Twoja rola pozwala tylko na podgląd sprawy — akcje statusowe są niedostępne.',
+    }
+  }
+
+  if (availableStatusActions.length === 0 && ROLE_GATED_STATUSES.includes(status)) {
+    return {
+      text: 'Brak dostępnych akcji statusowych dla Twojej roli — sprawa czeka na uprawnionego operatora.',
     }
   }
 
