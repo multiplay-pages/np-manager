@@ -1,0 +1,217 @@
+import { isValidElement, type ReactElement, type ReactNode } from 'react'
+import { describe, expect, it, vi } from 'vitest'
+import type {
+  NotificationHealthDiagnosticsDto,
+  PortingCaseStatus,
+  PortingRequestAssigneeSummaryDto,
+  PortingRequestCommunicationActionDto,
+  PortingRequestStatusActionDto,
+} from '@np-manager/shared'
+import { WhatsNextPanel, type WhatsNextPanelProps } from './WhatsNextPanel'
+
+function collectElements(node: ReactNode): ReactElement[] {
+  const elements: ReactElement[] = []
+  const visit = (value: ReactNode) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+    if (!isValidElement(value)) return
+    elements.push(value)
+    visit((value.props as { children?: ReactNode }).children)
+  }
+  visit(node)
+  return elements
+}
+
+function getTextContent(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(getTextContent).join('')
+  if (!isValidElement(node)) return ''
+  return getTextContent((node.props as { children?: ReactNode }).children)
+}
+
+function findAllButtons(tree: ReactNode): ReactElement[] {
+  return collectElements(tree).filter((el) => el.type === 'button')
+}
+
+function findByTestId(tree: ReactNode, testId: string): ReactElement | undefined {
+  return collectElements(tree).find(
+    (el) => (el.props as { 'data-testid'?: string })['data-testid'] === testId,
+  )
+}
+
+const HEALTHY_NOTIFICATIONS: NotificationHealthDiagnosticsDto = {
+  status: 'OK',
+  failureCount: 0,
+  failedCount: 0,
+  misconfiguredCount: 0,
+  lastFailureAt: null,
+  lastFailureOutcome: null,
+}
+
+const ASSIGNEE: PortingRequestAssigneeSummaryDto = {
+  id: 'u1',
+  email: 'a@x',
+  displayName: 'Anna BOK',
+  role: 'BOK_CONSULTANT',
+}
+
+const STATUS_ACTION: PortingRequestStatusActionDto = {
+  actionId: 'CONFIRM',
+  label: 'Potwierdź portowanie',
+  targetStatus: 'CONFIRMED',
+  requiresReason: false,
+  requiresComment: false,
+  reasonLabel: null,
+  commentLabel: null,
+  description: 'Potwierdza sprawę.',
+}
+
+const COMM_ACTION: PortingRequestCommunicationActionDto = {
+  type: 'CLIENT_CONFIRMATION',
+  label: 'Wyślij notyfikację',
+  description: 'Notyfikacja do klienta.',
+  canPreview: true,
+  canCreateDraft: true,
+  canMarkSent: false,
+  disabled: false,
+  disabledReason: null,
+  existingDraftId: null,
+  existingDraftInfo: null,
+  allowsMultipleDrafts: false,
+}
+
+function makeProps(overrides: Partial<WhatsNextPanelProps> = {}): WhatsNextPanelProps {
+  return {
+    status: 'SUBMITTED',
+    availableStatusActions: [STATUS_ACTION],
+    availableCommunicationActions: [],
+    assignedUser: ASSIGNEE,
+    notificationHealth: HEALTHY_NOTIFICATIONS,
+    canManageStatus: true,
+    canManageAssignment: true,
+    onScrollToStatusActions: vi.fn(),
+    onScrollToCommunication: vi.fn(),
+    onScrollToAssignment: vi.fn(),
+    onScrollToNotifications: vi.fn(),
+    ...overrides,
+  }
+}
+
+describe('WhatsNextPanel', () => {
+  it('renders header, current state in plain language, and next step', () => {
+    const tree = WhatsNextPanel(makeProps({ status: 'SUBMITTED' }))
+    const text = getTextContent(tree)
+    expect(text).toContain('Co dalej ze sprawą?')
+    expect(text).toContain('Sprawa: Złożona')
+    expect(text).toContain('Najbliższy krok')
+    expect(text).toContain('potwierdź')
+  })
+
+  it('shows prioritized status action as primary button, wires scroll callback', () => {
+    const onScrollToStatusActions = vi.fn()
+    const tree = WhatsNextPanel(
+      makeProps({ onScrollToStatusActions, availableCommunicationActions: [COMM_ACTION] }),
+    )
+    const buttons = findAllButtons(tree)
+    const statusButton = buttons.find((b) =>
+      getTextContent((b.props as { children?: ReactNode }).children).includes(
+        'Potwierdź portowanie',
+      ),
+    )
+    expect(statusButton).toBeDefined()
+    expect((statusButton!.props as { className?: string }).className).toContain('btn-primary')
+    ;(statusButton!.props as { onClick?: () => void }).onClick?.()
+    expect(onScrollToStatusActions).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers a communication action when status actions are absent', () => {
+    const onScrollToCommunication = vi.fn()
+    const tree = WhatsNextPanel(
+      makeProps({
+        availableStatusActions: [],
+        availableCommunicationActions: [COMM_ACTION],
+        onScrollToCommunication,
+      }),
+    )
+    const buttons = findAllButtons(tree)
+    const commButton = buttons.find((b) =>
+      getTextContent((b.props as { children?: ReactNode }).children).includes(
+        'Wyślij notyfikację',
+      ),
+    )
+    expect(commButton).toBeDefined()
+    ;(commButton!.props as { onClick?: () => void }).onClick?.()
+    expect(onScrollToCommunication).toHaveBeenCalledTimes(1)
+  })
+
+  it('filters out disabled communication actions', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        availableStatusActions: [],
+        availableCommunicationActions: [
+          { ...COMM_ACTION, disabled: true, disabledReason: 'Brak uprawnień' },
+        ],
+      }),
+    )
+    const actionsBox = findByTestId(tree, 'whats-next-actions')
+    expect(actionsBox).toBeUndefined()
+  })
+
+  it('shows assignment blocker when request is unassigned', () => {
+    const onScrollToAssignment = vi.fn()
+    const tree = WhatsNextPanel(
+      makeProps({ assignedUser: null, onScrollToAssignment }),
+    )
+    const blocker = findByTestId(tree, 'whats-next-blocker')
+    expect(blocker).toBeDefined()
+    expect(getTextContent(blocker)).toContain('nie ma przypisanego operatora BOK')
+    const blockerButton = findAllButtons(blocker).find((b) =>
+      getTextContent((b.props as { children?: ReactNode }).children).includes(
+        'Przypisz operatora',
+      ),
+    )
+    expect(blockerButton).toBeDefined()
+    ;(blockerButton!.props as { onClick?: () => void }).onClick?.()
+    expect(onScrollToAssignment).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows notification blocker when health is degraded', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        notificationHealth: {
+          status: 'FAILED',
+          failureCount: 2,
+          failedCount: 2,
+          misconfiguredCount: 0,
+          lastFailureAt: '2026-04-20T10:00:00Z',
+          lastFailureOutcome: 'FAILED',
+        },
+      }),
+    )
+    const blocker = findByTestId(tree, 'whats-next-blocker')
+    expect(blocker).toBeDefined()
+    expect(getTextContent(blocker)).toContain('notyfikacji')
+  })
+
+  it('hides next step and actions for terminal statuses', () => {
+    const tree = WhatsNextPanel(
+      makeProps({ status: 'PORTED' as PortingCaseStatus, availableStatusActions: [] }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('Numer został przeniesiony')
+    expect(text).not.toContain('Najbliższy krok')
+    expect(findByTestId(tree, 'whats-next-actions')).toBeUndefined()
+    expect(findByTestId(tree, 'whats-next-blocker')).toBeUndefined()
+  })
+
+  it('shows view-only note when user cannot manage status', () => {
+    const tree = WhatsNextPanel(
+      makeProps({ canManageStatus: false, availableStatusActions: [] }),
+    )
+    const blocker = findByTestId(tree, 'whats-next-blocker')
+    expect(blocker).toBeDefined()
+    expect(getTextContent(blocker)).toContain('podgląd')
+  })
+})
