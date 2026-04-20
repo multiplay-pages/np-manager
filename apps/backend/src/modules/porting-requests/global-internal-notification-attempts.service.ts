@@ -1,9 +1,11 @@
-import type { Prisma } from '@prisma/client'
+import type {
+  InternalNotificationAttemptChannel,
+  InternalNotificationAttemptOutcome,
+  Prisma,
+} from '@prisma/client'
 import type {
   GlobalInternalNotificationAttemptItemDto,
-  GlobalInternalNotificationAttemptsQueryDto,
   GlobalInternalNotificationAttemptsResultDto,
-  InternalNotificationAttemptOutcomeDto,
 } from '@np-manager/shared'
 import { prisma } from '../../config/database'
 import { resolveInternalNotificationRetryEligibility } from './porting-internal-notification-retry-eligibility.helper'
@@ -11,7 +13,13 @@ import { resolveInternalNotificationRetryEligibility } from './porting-internal-
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
 
-export type GlobalInternalNotificationAttemptsParams = GlobalInternalNotificationAttemptsQueryDto
+export interface GlobalInternalNotificationAttemptsParams {
+  outcome?: string
+  channel?: string
+  retryableOnly?: boolean
+  limit?: number
+  offset?: number
+}
 
 type GlobalAttemptRecord = {
   id: string
@@ -74,6 +82,21 @@ export async function getGlobalInternalNotificationAttempts(
   const offset = normalizeOffset(params.offset)
   const where = buildWhereClause(params)
 
+  if (params.retryableOnly === true) {
+    const records = await prisma.internalNotificationDeliveryAttempt.findMany({
+      ...(where ? { where } : {}),
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      select: globalAttemptSelect,
+    })
+
+    const filteredItems = records.map(mapToDto).filter((item) => item.canRetry)
+
+    return {
+      items: filteredItems.slice(offset, offset + limit),
+      total: filteredItems.length,
+    }
+  }
+
   const [records, total] = await Promise.all([
     prisma.internalNotificationDeliveryAttempt.findMany({
       ...(where ? { where } : {}),
@@ -99,33 +122,14 @@ function buildWhereClause(
   const base: Prisma.InternalNotificationDeliveryAttemptWhereInput = {}
 
   if (params.outcome) {
-    base.outcome = params.outcome
+    base.outcome = params.outcome as InternalNotificationAttemptOutcome
   }
 
   if (params.channel) {
-    base.channel = params.channel
+    base.channel = params.channel as InternalNotificationAttemptChannel
   }
 
-  if (params.retryableOnly !== true) {
-    return Object.keys(base).length > 0 ? base : undefined
-  }
-
-  const retryableWhere: Prisma.InternalNotificationDeliveryAttemptWhereInput = {
-    attemptOrigin: { in: ['PRIMARY', 'RETRY'] },
-    outcome: {
-      in: ['FAILED', 'MISCONFIGURED'] satisfies InternalNotificationAttemptOutcomeDto[],
-    },
-    isLatestForChain: true,
-    retryCount: { lt: 3 },
-  }
-
-  if (Object.keys(base).length === 0) {
-    return retryableWhere
-  }
-
-  return {
-    AND: [base, retryableWhere],
-  }
+  return Object.keys(base).length > 0 ? base : undefined
 }
 
 function mapToDto(record: GlobalAttemptRecord): GlobalInternalNotificationAttemptItemDto {

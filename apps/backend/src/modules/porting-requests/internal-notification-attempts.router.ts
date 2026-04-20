@@ -31,13 +31,7 @@ const internalNotificationAttemptChannelValues = ['EMAIL', 'TEAMS'] as const sat
 export const globalInternalNotificationAttemptsQuerySchema = z.object({
   outcome: z.enum(internalNotificationAttemptOutcomeValues).optional(),
   channel: z.enum(internalNotificationAttemptChannelValues).optional(),
-  retryableOnly: z
-    .enum(['true', 'false'])
-    .optional()
-    .transform((val) => {
-      if (val === undefined) return undefined
-      return val === 'true'
-    }),
+  retryableOnly: z.coerce.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 })
