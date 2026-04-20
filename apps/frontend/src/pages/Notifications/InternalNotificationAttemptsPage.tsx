@@ -215,10 +215,24 @@ function AttemptsTable({
   )
 }
 
+const OUTCOME_FILTER_OPTIONS: InternalNotificationAttemptOutcomeDto[] = [
+  'SENT',
+  'STUBBED',
+  'DISABLED',
+  'MISCONFIGURED',
+  'FAILED',
+  'SKIPPED',
+]
+
+const CHANNEL_FILTER_OPTIONS: InternalNotificationAttemptChannelDto[] = ['EMAIL', 'TEAMS']
+
 export function InternalNotificationAttemptsPage() {
   const [items, setItems] = useState<GlobalInternalNotificationAttemptItemDto[]>([])
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
+  const [outcomeFilter, setOutcomeFilter] = useState<InternalNotificationAttemptOutcomeDto | ''>('')
+  const [channelFilter, setChannelFilter] = useState<InternalNotificationAttemptChannelDto | ''>('')
+  const [retryableOnly, setRetryableOnly] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryingAttemptIds, setRetryingAttemptIds] = useState<string[]>([])
@@ -235,6 +249,9 @@ export function InternalNotificationAttemptsPage() {
       const result = await getGlobalInternalNotificationAttempts({
         limit: PAGE_SIZE,
         offset,
+        outcome: outcomeFilter || undefined,
+        channel: channelFilter || undefined,
+        retryableOnly: retryableOnly || undefined,
       })
       setItems(result.items)
       setTotal(result.total)
@@ -245,7 +262,7 @@ export function InternalNotificationAttemptsPage() {
         setIsLoading(false)
       }
     }
-  }, [offset])
+  }, [offset, outcomeFilter, channelFilter, retryableOnly])
 
   useEffect(() => {
     void loadAttempts()
@@ -255,6 +272,29 @@ export function InternalNotificationAttemptsPage() {
   const hasNextPage = offset + PAGE_SIZE < total
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const hasActiveFilters = outcomeFilter !== '' || channelFilter !== '' || retryableOnly
+
+  function handleOutcomeChange(value: string) {
+    setOutcomeFilter((value as InternalNotificationAttemptOutcomeDto | '') ?? '')
+    setOffset(0)
+  }
+
+  function handleChannelChange(value: string) {
+    setChannelFilter((value as InternalNotificationAttemptChannelDto | '') ?? '')
+    setOffset(0)
+  }
+
+  function handleRetryableOnlyChange(value: boolean) {
+    setRetryableOnly(value)
+    setOffset(0)
+  }
+
+  function handleClearFilters() {
+    setOutcomeFilter('')
+    setChannelFilter('')
+    setRetryableOnly(false)
+    setOffset(0)
+  }
 
   async function handleRetryAttempt(item: GlobalInternalNotificationAttemptItemDto) {
     if (retryingAttemptIds.includes(item.attemptId)) {
@@ -308,6 +348,66 @@ export function InternalNotificationAttemptsPage() {
           value="Read-only"
           detail="Ledger z akcja ponowienia dla uprawnionego operatora"
         />
+      </div>
+
+      <div className="rounded-panel border border-line bg-surface p-4 shadow-soft">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase text-ink-500">
+            Wynik
+            <select
+              value={outcomeFilter}
+              onChange={(event) => handleOutcomeChange(event.target.value)}
+              className="input-field h-10 min-w-[180px]"
+              aria-label="Filtr wynik"
+            >
+              <option value="">Wszystkie wyniki</option>
+              {OUTCOME_FILTER_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {getOutcomeLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase text-ink-500">
+            Kanal
+            <select
+              value={channelFilter}
+              onChange={(event) => handleChannelChange(event.target.value)}
+              className="input-field h-10 min-w-[160px]"
+              aria-label="Filtr kanal"
+            >
+              <option value="">Wszystkie kanaly</option>
+              {CHANNEL_FILTER_OPTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {getChannelLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex h-10 items-center gap-2 pb-0 text-sm text-ink-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-500"
+              checked={retryableOnly}
+              onChange={(event) => handleRetryableOnlyChange(event.target.checked)}
+            />
+            Tylko mozliwe do ponowienia
+          </label>
+
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              onClick={handleClearFilters}
+              variant="ghost"
+              size="sm"
+              className="h-10"
+            >
+              Wyczysc filtry
+            </Button>
+          )}
+        </div>
       </div>
 
       {retrySuccessMessage && (

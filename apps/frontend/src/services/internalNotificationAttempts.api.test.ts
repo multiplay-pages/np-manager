@@ -36,4 +36,39 @@ describe('internalNotificationAttempts.api', () => {
 
     expect(getMock).toHaveBeenCalledWith('/internal-notification-attempts?limit=50&offset=0')
   })
+
+  it('adds outcome, channel and retryableOnly query params when provided', async () => {
+    await getGlobalInternalNotificationAttempts({
+      limit: 50,
+      offset: 0,
+      outcome: 'FAILED',
+      channel: 'EMAIL',
+      retryableOnly: true,
+    })
+
+    expect(getMock).toHaveBeenCalledWith(
+      '/internal-notification-attempts?limit=50&offset=0&outcome=FAILED&channel=EMAIL&retryableOnly=true',
+    )
+  })
+
+  it('omits retryableOnly param when false', async () => {
+    await getGlobalInternalNotificationAttempts({
+      limit: 50,
+      offset: 0,
+      retryableOnly: false,
+    })
+
+    expect(getMock).toHaveBeenCalledWith('/internal-notification-attempts?limit=50&offset=0')
+  })
+
+  it('omits filter params when outcome or channel are undefined', async () => {
+    await getGlobalInternalNotificationAttempts({
+      limit: 50,
+      offset: 0,
+      outcome: undefined,
+      channel: undefined,
+    })
+
+    expect(getMock).toHaveBeenCalledWith('/internal-notification-attempts?limit=50&offset=0')
+  })
 })
