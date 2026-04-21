@@ -8,6 +8,7 @@ import {
   hasActiveRequestsFilters,
   parseCommercialOwnerFilter,
   parseNotificationHealthFilter,
+  parseQuickWorkFilter,
   type RequestsOperationalFilterState,
 } from './requestsOperational'
 
@@ -20,6 +21,7 @@ function makeFilters(
     portingModeFilter: null as PortingMode | null,
     donorOperatorId: '',
     ownershipFilter: 'ALL',
+    quickWorkFilter: 'ALL',
     commercialOwnerFilter: 'ALL',
     notificationHealthFilter: 'ALL',
     page: 1,
@@ -39,6 +41,14 @@ describe('requestsOperational helpers', () => {
     expect(parseNotificationHealthFilter(null)).toBe('ALL')
   })
 
+  it('parses quick work filter from explicit param or legacy ownership fallback', () => {
+    expect(parseQuickWorkFilter('URGENT', 'ALL')).toBe('URGENT')
+    expect(parseQuickWorkFilter(null, 'MINE')).toBe('MINE')
+    expect(parseQuickWorkFilter(null, 'UNASSIGNED')).toBe('UNASSIGNED')
+    expect(parseQuickWorkFilter(null, 'ALL')).toBe('ALL')
+    expect(parseQuickWorkFilter('unknown', 'ALL')).toBe('ALL')
+  })
+
   it('builds backend list query with operational filters and pagination', () => {
     const query = buildListQueryFromFilters(
       makeFilters({
@@ -47,6 +57,7 @@ describe('requestsOperational helpers', () => {
         portingModeFilter: 'DAY',
         donorOperatorId: 'operator-1',
         ownershipFilter: 'MINE',
+        quickWorkFilter: 'MINE',
         commercialOwnerFilter: 'WITHOUT_OWNER',
         notificationHealthFilter: 'HAS_FAILURES',
         page: 3,
@@ -59,6 +70,7 @@ describe('requestsOperational helpers', () => {
       portingMode: 'DAY',
       donorOperatorId: 'operator-1',
       ownership: 'MINE',
+      quickWorkFilter: undefined,
       commercialOwnerFilter: 'WITHOUT_OWNER',
       notificationHealthFilter: 'HAS_FAILURES',
       page: 3,
@@ -66,12 +78,34 @@ describe('requestsOperational helpers', () => {
     })
   })
 
-  it('builds summary query without commercial owner/notification filters', () => {
+  it('maps date-based quick work filters to dedicated backend query param', () => {
+    const query = buildListQueryFromFilters(
+      makeFilters({
+        quickWorkFilter: 'URGENT',
+      }),
+    )
+
+    expect(query).toEqual({
+      search: undefined,
+      status: undefined,
+      portingMode: undefined,
+      donorOperatorId: undefined,
+      ownership: undefined,
+      quickWorkFilter: 'URGENT',
+      commercialOwnerFilter: undefined,
+      notificationHealthFilter: undefined,
+      page: 1,
+      pageSize: 20,
+    })
+  })
+
+  it('builds summary query without date-based quick filter and operational cards filters', () => {
     const query = buildSummaryQueryFromFilters(
       makeFilters({
         searchInput: 'FNP',
         statusFilter: 'SUBMITTED',
         ownershipFilter: 'MINE',
+        quickWorkFilter: 'URGENT',
         commercialOwnerFilter: 'MINE',
         notificationHealthFilter: 'HAS_FAILURES',
       }),
@@ -82,6 +116,7 @@ describe('requestsOperational helpers', () => {
       status: 'SUBMITTED',
       ownership: 'MINE',
     })
+    expect(query).not.toHaveProperty('quickWorkFilter')
     expect(query).not.toHaveProperty('commercialOwnerFilter')
     expect(query).not.toHaveProperty('notificationHealthFilter')
   })
@@ -121,6 +156,7 @@ describe('requestsOperational helpers', () => {
 
   it('detects active filters for operational view state', () => {
     expect(hasActiveRequestsFilters(makeFilters())).toBe(false)
+    expect(hasActiveRequestsFilters(makeFilters({ quickWorkFilter: 'NO_DATE' }))).toBe(true)
     expect(hasActiveRequestsFilters(makeFilters({ notificationHealthFilter: 'HAS_FAILURES' }))).toBe(
       true,
     )

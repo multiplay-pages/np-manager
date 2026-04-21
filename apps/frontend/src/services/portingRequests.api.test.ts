@@ -42,6 +42,7 @@ describe('portingRequests.api assignment flow', () => {
       status: 'SUBMITTED',
       portingMode: 'DAY',
       donorOperatorId: 'operator-1',
+      quickWorkFilter: 'URGENT',
       commercialOwnerFilter: 'WITH_OWNER',
       notificationHealthFilter: 'HAS_FAILURES',
       page: 2,
@@ -49,8 +50,18 @@ describe('portingRequests.api assignment flow', () => {
     })
 
     expect(getMock).toHaveBeenCalledWith(
-      '/porting-requests?search=abc&status=SUBMITTED&portingMode=DAY&donorOperatorId=operator-1&commercialOwnerFilter=WITH_OWNER&notificationHealthFilter=HAS_FAILURES&page=2&pageSize=10',
+      '/porting-requests?search=abc&status=SUBMITTED&portingMode=DAY&donorOperatorId=operator-1&quickWorkFilter=URGENT&commercialOwnerFilter=WITH_OWNER&notificationHealthFilter=HAS_FAILURES&page=2&pageSize=10',
     )
+  })
+
+  it('omits quick work filter from summary query string', async () => {
+    await getPortingRequestsSummary({
+      search: 'abc',
+      status: 'SUBMITTED',
+    })
+
+    const calledUrl = getMock.mock.calls[0]?.[0] as string
+    expect(calledUrl).not.toContain('quickWorkFilter=')
   })
 
   it('includes ownership=MINE in query string when filter is MINE', async () => {

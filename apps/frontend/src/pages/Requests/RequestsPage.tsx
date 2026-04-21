@@ -40,16 +40,12 @@ import {
   hasActiveRequestsFilters,
   parseCommercialOwnerFilter,
   parseNotificationHealthFilter,
+  parseQuickWorkFilter,
+  type RequestsQuickWorkFilter,
 } from './requestsOperational'
 
 const PAGE_SIZE = 20
 const PORTING_MODES: PortingMode[] = ['DAY', 'END', 'EOP']
-
-const ownershipOptions: Array<{ id: OwnershipFilter; label: string }> = [
-  { id: 'ALL', label: 'Wszystkie' },
-  { id: 'MINE', label: 'Moje sprawy' },
-  { id: 'UNASSIGNED', label: 'Nieprzypisane' },
-]
 
 const commercialOwnerOptions: Array<{ id: CommercialOwnerFilter; label: string }> = [
   { id: 'ALL', label: 'Wszystkie' },
@@ -69,11 +65,29 @@ const notificationQuickOptions: Array<{ id: 'ALL' | 'HAS_FAILURES'; label: strin
   { id: 'HAS_FAILURES', label: 'Bledy notyfikacji' },
 ]
 
+const quickWorkFilterOptions: Array<{ id: RequestsQuickWorkFilter; label: string }> = [
+  { id: 'ALL', label: 'Wszystkie' },
+  { id: 'MINE', label: 'Moje' },
+  { id: 'UNASSIGNED', label: 'Nieprzypisane' },
+  { id: 'URGENT', label: 'Pilne' },
+  { id: 'NO_DATE', label: 'Bez daty' },
+  { id: 'NEEDS_ACTION_TODAY', label: 'Wymaga reakcji dzis' },
+]
+
 const commercialOwnerFilterLabels: Record<CommercialOwnerFilter, string> = {
   ALL: 'Wszystkie',
   WITH_OWNER: 'Z opiekunem',
   WITHOUT_OWNER: 'Bez opiekuna',
   MINE: 'Moje handlowe',
+}
+
+const quickWorkFilterLabels: Record<RequestsQuickWorkFilter, string> = {
+  ALL: 'Wszystkie',
+  MINE: 'Moje',
+  UNASSIGNED: 'Nieprzypisane',
+  URGENT: 'Pilne',
+  NO_DATE: 'Bez daty',
+  NEEDS_ACTION_TODAY: 'Wymaga reakcji dzis',
 }
 
 const notificationHealthFilterLabels: Record<NotificationHealthFilter, string> = {
@@ -352,7 +366,17 @@ export function RequestsPage() {
   const statusFilter = parseStatus(searchParams.get('status'))
   const portingModeFilter = parsePortingMode(searchParams.get('portingMode'))
   const donorOperatorId = searchParams.get('donorOperatorId') ?? ''
-  const ownershipFilter = parseOwnershipFilter(searchParams.get('ownership'))
+  const legacyOwnershipFilter = parseOwnershipFilter(searchParams.get('ownership'))
+  const quickWorkFilterParam = searchParams.get('quickWorkFilter')
+  const quickWorkFilter = parseQuickWorkFilter(quickWorkFilterParam, legacyOwnershipFilter)
+  const ownershipFilter: OwnershipFilter =
+    quickWorkFilterParam !== null
+      ? quickWorkFilter === 'MINE'
+        ? 'MINE'
+        : quickWorkFilter === 'UNASSIGNED'
+          ? 'UNASSIGNED'
+          : 'ALL'
+      : legacyOwnershipFilter
   const commercialOwnerFilter = parseCommercialOwnerFilter(searchParams.get('commercialOwnerFilter'))
   const notificationHealthFilter = parseNotificationHealthFilter(
     searchParams.get('notificationHealthFilter'),
@@ -366,6 +390,7 @@ export function RequestsPage() {
       portingModeFilter,
       donorOperatorId,
       ownershipFilter,
+      quickWorkFilter,
       commercialOwnerFilter,
       notificationHealthFilter,
       page,
@@ -376,6 +401,7 @@ export function RequestsPage() {
       donorOperatorId,
       notificationHealthFilter,
       ownershipFilter,
+      quickWorkFilter,
       page,
       portingModeFilter,
       searchInput,
@@ -402,6 +428,17 @@ export function RequestsPage() {
       setSearchParams((prev) => applyQueryParamUpdates(prev, updates))
     },
     [setSearchParams],
+  )
+
+  const setQuickWorkFilter = useCallback(
+    (next: RequestsQuickWorkFilter) => {
+      setParam({
+        quickWorkFilter: next === 'ALL' ? null : next,
+        ownership: null,
+        page: null,
+      })
+    },
+    [setParam],
   )
 
   const hasActiveFilters = hasActiveRequestsFilters(filters)
@@ -506,13 +543,12 @@ export function RequestsPage() {
       })
     }
 
-    if (ownershipFilter !== 'ALL') {
-      const ownershipLabel = ownershipOptions.find((option) => option.id === ownershipFilter)?.label ?? ownershipFilter
+    if (quickWorkFilter !== 'ALL') {
       chips.push({
-        id: 'ownership',
-        label: 'Przypisanie',
-        value: ownershipLabel,
-        updates: { ownership: null, page: null },
+        id: 'quickWorkFilter',
+        label: 'Kolejka',
+        value: quickWorkFilterLabels[quickWorkFilter],
+        updates: { quickWorkFilter: null, ownership: null, page: null },
       })
     }
 
@@ -540,8 +576,8 @@ export function RequestsPage() {
     donorOperatorId,
     notificationHealthFilter,
     operators,
-    ownershipFilter,
     portingModeFilter,
+    quickWorkFilter,
     searchInput,
     statusFilter,
   ])
@@ -581,6 +617,25 @@ export function RequestsPage() {
           ))}
         </div>
       )}
+
+      <section role="region" aria-label="Szybkie filtry pracy" className="panel px-5 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+            Szybka kolejka pracy
+          </span>
+          {quickWorkFilterOptions.map((filter) => (
+            <FilterChip
+              key={filter.id}
+              active={quickWorkFilter === filter.id}
+              aria-pressed={quickWorkFilter === filter.id}
+              className="h-8 px-3 text-xs"
+              onClick={() => setQuickWorkFilter(filter.id)}
+            >
+              {filter.label}
+            </FilterChip>
+          ))}
+        </div>
+      </section>
 
       <section className="panel overflow-hidden">
         <div className="border-b border-line px-5 py-4">
@@ -689,22 +744,6 @@ export function RequestsPage() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-line pt-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
-                Przypisanie BOK
-              </span>
-              {ownershipOptions.map((filter) => (
-                <FilterChip
-                  key={filter.id}
-                  active={ownershipFilter === filter.id}
-                  className="h-7 px-2.5 text-[11px]"
-                  onClick={() => setParam({ ownership: filter.id === 'ALL' ? null : filter.id, page: null })}
-                >
-                  {filter.label}
-                </FilterChip>
-              ))}
-            </div>
-
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
                 Opiekun handlowy i zdrowie notyfikacji
