@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getPortingUrgency, calculateDaysDiff } from './portingUrgency'
+import { calculateDaysDiff, getPortingUrgency } from './portingUrgency'
 
 // NOW = wtorek 2026-04-21, godz. 11:00 Warsaw (09:00 UTC)
-// ISO week: pon 2026-04-20 – ndz 2026-04-26
+// ISO week: pon 2026-04-20 - ndz 2026-04-26
 const NOW = new Date('2026-04-21T09:00:00.000Z')
 
 describe('calculateDaysDiff', () => {
@@ -35,77 +35,69 @@ describe('calculateDaysDiff', () => {
   })
 
   it('rejects out-of-range month/day fallback values as null (not normalized)', () => {
-    // These all fail new Date() and hit the regex fallback.
-    // Without the round-trip check they would be silently normalized by Date.UTC.
-    expect(calculateDaysDiff('2026-13-40', NOW)).toBeNull()    // month 13
-    expect(calculateDaysDiff('2026-02-31foo', NOW)).toBeNull() // day 31 in Feb (suffix breaks new Date)
-    expect(calculateDaysDiff('2026-00-01', NOW)).toBeNull()    // month 0
-    expect(calculateDaysDiff('2026-01-00', NOW)).toBeNull()    // day 0
+    expect(calculateDaysDiff('2026-13-40', NOW)).toBeNull()
+    expect(calculateDaysDiff('2026-02-31foo', NOW)).toBeNull()
+    expect(calculateDaysDiff('2026-00-01', NOW)).toBeNull()
+    expect(calculateDaysDiff('2026-01-00', NOW)).toBeNull()
   })
 })
 
 describe('getPortingUrgency', () => {
   it('NONE when no date', () => {
-    const u = getPortingUrgency(null, NOW)
-    expect(u.level).toBe('NONE')
-    expect(u.label).toBe('Brak daty')
-    expect(u.tone).toBe('neutral')
-    expect(u.emphasized).toBe(false)
+    const urgency = getPortingUrgency(null, NOW)
+    expect(urgency.level).toBe('NONE')
+    expect(urgency.label).toBe('Brak daty')
+    expect(urgency.tone).toBe('neutral')
+    expect(urgency.emphasized).toBe(false)
   })
 
-  it('TODAY — czerwony i emfaza', () => {
-    const u = getPortingUrgency('2026-04-21', NOW)
-    expect(u.level).toBe('TODAY')
-    expect(u.label).toBe('Dziś')
-    expect(u.tone).toBe('red')
-    expect(u.emphasized).toBe(true)
+  it('TODAY uses red emphasis', () => {
+    const urgency = getPortingUrgency('2026-04-21', NOW)
+    expect(urgency.level).toBe('TODAY')
+    expect(urgency.label).toBe('Dzis')
+    expect(urgency.tone).toBe('red')
+    expect(urgency.emphasized).toBe(true)
   })
 
-  it('TOMORROW — amber, bez emfazy', () => {
-    const u = getPortingUrgency('2026-04-22', NOW)
-    expect(u.level).toBe('TOMORROW')
-    expect(u.label).toBe('Jutro')
-    expect(u.tone).toBe('amber')
-    expect(u.emphasized).toBe(false)
+  it('TOMORROW uses amber without emphasis', () => {
+    const urgency = getPortingUrgency('2026-04-22', NOW)
+    expect(urgency.level).toBe('TOMORROW')
+    expect(urgency.label).toBe('Jutro')
+    expect(urgency.tone).toBe('amber')
+    expect(urgency.emphasized).toBe(false)
   })
 
-  it('THIS_WEEK — ten sam tydzień ISO (pon–ndz), po jutrze', () => {
-    // czwartek (diff=2)
+  it('THIS_WEEK covers the current ISO week after tomorrow', () => {
     expect(getPortingUrgency('2026-04-23', NOW).level).toBe('THIS_WEEK')
-    // sobota (diff=4)
     expect(getPortingUrgency('2026-04-25', NOW).level).toBe('THIS_WEEK')
-    // niedziela = ostatni dzień bieżącego tygodnia ISO (diff=5)
     expect(getPortingUrgency('2026-04-26', NOW).level).toBe('THIS_WEEK')
 
-    const u = getPortingUrgency('2026-04-25', NOW)
-    expect(u.label).toBe('W tym tygodniu')
-    expect(u.tone).toBe('amber')
-    expect(u.emphasized).toBe(false)
+    const urgency = getPortingUrgency('2026-04-25', NOW)
+    expect(urgency.label).toBe('W tym tygodniu')
+    expect(urgency.tone).toBe('amber')
+    expect(urgency.emphasized).toBe(false)
   })
 
-  it('LATER — następny poniedziałek to już inny tydzień ISO', () => {
-    // poniedziałek następnego tygodnia (diff=6) — nie „W tym tygodniu"
+  it('LATER starts with the next ISO week', () => {
     expect(getPortingUrgency('2026-04-27', NOW).level).toBe('LATER')
-    // wtorek następnego tygodnia (diff=7) — stary kod błędnie dawał THIS_WEEK
     expect(getPortingUrgency('2026-04-28', NOW).level).toBe('LATER')
-    // dalej
     expect(getPortingUrgency('2026-04-30', NOW).level).toBe('LATER')
 
-    const u = getPortingUrgency('2026-04-27', NOW)
-    expect(u.label).toBe('Później')
-    expect(u.emphasized).toBe(false)
+    const urgency = getPortingUrgency('2026-04-27', NOW)
+    expect(urgency.label).toBe('Pozniej')
+    expect(urgency.emphasized).toBe(false)
   })
 
-  it('OVERDUE — czerwony i emfaza', () => {
-    const u = getPortingUrgency('2026-04-20', NOW)
-    expect(u.level).toBe('OVERDUE')
-    expect(u.label).toContain('Po terminie')
-    expect(u.label).toContain('1 dzień')
-    expect(u.tone).toBe('red')
-    expect(u.emphasized).toBe(true)
+  it('OVERDUE uses red emphasis and day count', () => {
+    const urgency = getPortingUrgency('2026-04-20', NOW)
+    expect(urgency.level).toBe('OVERDUE')
+    expect(urgency.label).toContain('Po terminie')
+    expect(urgency.label).toContain('1 dzien')
+    expect(urgency.tone).toBe('red')
+    expect(urgency.emphasized).toBe(true)
   })
 
-  it('OVERDUE — odmiana liczby dni', () => {
+  it('OVERDUE pluralizes multi-day offsets', () => {
     expect(getPortingUrgency('2026-04-18', NOW).label).toContain('3 dni')
     expect(getPortingUrgency('2026-04-14', NOW).label).toContain('7 dni')
   })

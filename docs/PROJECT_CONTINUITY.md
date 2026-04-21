@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-17)
+## Aktualny stan projektu (2026-04-21)
 
 ### Stan prac / etapy
 
@@ -41,6 +41,9 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 4B.1 | System modes foundation — capabilities DTO + backend resolver/gating + frontend fail-closed gating + ADR | DONE |
 | Etap 4B.2 | Admin settings trybu systemu + runtime przelaczanie capabilities                               | DONE |
 | Etap 4B.3 | Manual mode cleanup — capability-driven UI reduction dla STANDALONE                           | DONE |
+| PR48 | "Co dalej ze sprawa?" panel na `RequestDetailPage` | DONE |
+| PR49 | Markery pilnosci/dat na liscie i w detailu | DONE |
+| PR50A | Quick work filters na `RequestsPage` | DONE |
 
 ---
 
@@ -516,6 +519,48 @@ Inwarianty:
 - sekcje PLI CBD, Diagnostyka, external actions, export/sync, XML/payload i
   historia integracji pozostaja ukryte fail-closed przez capabilities.
 
+### PR48 - "Co dalej ze sprawa?" panel
+
+- `RequestDetailPage` pokazuje operatorowi kompaktowy panel kolejnego kroku
+  oparty o backendowe `availableStatusActions`.
+- Frontend nie tworzy drugiej interpretacji workflow; detail dalej respektuje
+  capabilities i faktyczny stan sprawy jako source of truth.
+
+### PR49 / PR50A - semantyka pilnosci i quick work filters
+
+- Kanoniczna semantyka dat/pilnosci zostala skonsolidowana w
+  `packages/shared/src/porting-urgency.ts`.
+- Frontendowe markery z PR49 i backendowe filtrowanie listy z PR50A uzywaja
+  tej samej logiki opartej o strefe `Europe/Warsaw`.
+- Diagnostyka notyfikacji pozostaje ADMIN-only; PR50A nie dotyka tej logiki.
+
+PR49:
+- lista i detail pokazuja wspolny status pilnosci dla `confirmedPortDate`
+  (`NONE | OVERDUE | TODAY | TOMORROW | THIS_WEEK | LATER`).
+
+PR50A:
+- `RequestsPage` dostal kompaktowy pasek szybkich filtrow pracy:
+  `Wszystkie`, `Moje`, `Nieprzypisane`, `Pilne`, `Bez daty`,
+  `Wymaga reakcji dzis`.
+- V1 wspiera jeden aktywny quick filter naraz.
+- Filtr jest synchronizowany z URL, a jego zmiana resetuje paginacje do strony
+  1.
+- `Wszystkie` czysci stan quick filtra w query string.
+- Implementacja pozostala waskim vertical slicem, ale wymagala minimalnego
+  wsparcia backendu, bo lista jest paginowana i server-driven:
+  - query DTO listy dostal pojedynczy parametr `quickWorkFilter`,
+  - backend obsluguje tylko brakujace semantyki:
+    `URGENT | NO_DATE | NEEDS_ACTION_TODAY`,
+  - `Moje` i `Nieprzypisane` dalej reuzywaja istniejace semantyki
+    `ownership=MINE | UNASSIGNED`.
+
+Ostateczna semantyka quick filtrow:
+- `Urgent`: `confirmedPortDate < start of next ISO week`, czyli poziomy
+  `OVERDUE | TODAY | TOMORROW | THIS_WEEK`.
+- `No date`: `confirmedPortDate === null`.
+- `Needs action today`: `confirmedPortDate < start of tomorrow`, czyli poziomy
+  `OVERDUE | TODAY`.
+
 #### Konfiguracja transportu email
 
 ```env
@@ -594,6 +639,7 @@ packages/shared/src/
   constants/index.ts
   dto/porting-requests.dto.ts
   dto/porting-internal-notifications.dto.ts # historia + DTO attempts (PR19A-2)
+  porting-urgency.ts                        # single source of truth dla semantyki dat/pilnosci (PR49/PR50A)
 
 apps/frontend/src/
   components/ui/                 # Etap 2A frontend foundation

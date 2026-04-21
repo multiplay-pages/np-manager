@@ -5,6 +5,7 @@ import type {
   PortingMode,
   PortingRequestListQueryDto,
   PortingRequestOperationalSummaryDto,
+  PortingRequestQuickWorkFilter,
   PortingRequestSummaryQueryDto,
 } from '@np-manager/shared'
 import type { OwnershipFilter } from '@/lib/portingOwnership'
@@ -22,12 +23,28 @@ const NOTIFICATION_HEALTH_FILTERS: NotificationHealthFilter[] = [
   'NO_FAILURES',
 ]
 
+export type RequestsQuickWorkFilter =
+  | 'ALL'
+  | 'MINE'
+  | 'UNASSIGNED'
+  | PortingRequestQuickWorkFilter
+
+const QUICK_WORK_FILTERS: RequestsQuickWorkFilter[] = [
+  'ALL',
+  'MINE',
+  'UNASSIGNED',
+  'URGENT',
+  'NO_DATE',
+  'NEEDS_ACTION_TODAY',
+]
+
 export interface RequestsOperationalFilterState {
   searchInput: string
   statusFilter: PortingCaseStatus | null
   portingModeFilter: PortingMode | null
   donorOperatorId: string
   ownershipFilter: OwnershipFilter
+  quickWorkFilter: RequestsQuickWorkFilter
   commercialOwnerFilter: CommercialOwnerFilter
   notificationHealthFilter: NotificationHealthFilter
   page: number
@@ -58,6 +75,35 @@ export function parseNotificationHealthFilter(value: string | null): Notificatio
   return 'ALL'
 }
 
+export function parseQuickWorkFilter(
+  value: string | null,
+  legacyOwnershipFilter: OwnershipFilter = 'ALL',
+): RequestsQuickWorkFilter {
+  if (value && QUICK_WORK_FILTERS.includes(value as RequestsQuickWorkFilter)) {
+    return value as RequestsQuickWorkFilter
+  }
+
+  if (legacyOwnershipFilter === 'MINE' || legacyOwnershipFilter === 'UNASSIGNED') {
+    return legacyOwnershipFilter
+  }
+
+  return 'ALL'
+}
+
+function toQueryQuickWorkFilter(
+  quickWorkFilter: RequestsQuickWorkFilter,
+): PortingRequestQuickWorkFilter | undefined {
+  if (
+    quickWorkFilter === 'URGENT' ||
+    quickWorkFilter === 'NO_DATE' ||
+    quickWorkFilter === 'NEEDS_ACTION_TODAY'
+  ) {
+    return quickWorkFilter
+  }
+
+  return undefined
+}
+
 export function buildListQueryFromFilters(
   filters: RequestsOperationalFilterState,
 ): PortingRequestListQueryDto {
@@ -67,6 +113,7 @@ export function buildListQueryFromFilters(
     portingMode: filters.portingModeFilter ?? undefined,
     donorOperatorId: filters.donorOperatorId || undefined,
     ownership: filters.ownershipFilter !== 'ALL' ? filters.ownershipFilter : undefined,
+    quickWorkFilter: toQueryQuickWorkFilter(filters.quickWorkFilter),
     commercialOwnerFilter:
       filters.commercialOwnerFilter !== 'ALL' ? filters.commercialOwnerFilter : undefined,
     notificationHealthFilter:
@@ -96,7 +143,7 @@ export function hasActiveRequestsFilters(filters: RequestsOperationalFilterState
     !!filters.statusFilter ||
     !!filters.portingModeFilter ||
     !!filters.donorOperatorId ||
-    filters.ownershipFilter !== 'ALL' ||
+    filters.quickWorkFilter !== 'ALL' ||
     filters.commercialOwnerFilter !== 'ALL' ||
     filters.notificationHealthFilter !== 'ALL'
   )

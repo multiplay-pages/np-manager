@@ -58,15 +58,22 @@ function appendListFiltersToQuery(
     portingMode?: string
     donorOperatorId?: string
     ownership?: string
+    quickWorkFilter?: string
     commercialOwnerFilter?: string
     notificationHealthFilter?: string
   },
+  options: {
+    includeQuickWorkFilter?: boolean
+  } = {},
 ): void {
   if (params.search) query.set('search', params.search)
   if (params.status) query.set('status', params.status)
   if (params.portingMode) query.set('portingMode', params.portingMode)
   if (params.donorOperatorId) query.set('donorOperatorId', params.donorOperatorId)
   if (params.ownership && params.ownership !== 'ALL') query.set('ownership', params.ownership)
+  if (options.includeQuickWorkFilter && params.quickWorkFilter) {
+    query.set('quickWorkFilter', params.quickWorkFilter)
+  }
   if (params.commercialOwnerFilter && params.commercialOwnerFilter !== 'ALL') {
     query.set('commercialOwnerFilter', params.commercialOwnerFilter)
   }
@@ -79,7 +86,7 @@ export async function getPortingRequests(
   params: GetPortingRequestsParams = {},
 ): Promise<PortingRequestListResultDto> {
   const query = new URLSearchParams()
-  appendListFiltersToQuery(query, params)
+  appendListFiltersToQuery(query, params, { includeQuickWorkFilter: true })
   if (params.page) query.set('page', String(params.page))
   if (params.pageSize) query.set('pageSize', String(params.pageSize))
 

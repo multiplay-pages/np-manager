@@ -20,6 +20,7 @@ import type {
   PortingRequestOperationalSummaryDto,
 } from '@np-manager/shared'
 import {
+  getPortingUrgencyDateBoundaries,
   PORTING_CASE_STATUS_LABELS,
 } from '@np-manager/shared'
 import type {
@@ -333,6 +334,34 @@ function toDateOnlyString(value: Date | null | undefined): string | null {
 function toDateOnlyValue(value?: string): Date | undefined {
   if (!value) return undefined
   return new Date(`${value}T00:00:00.000Z`)
+}
+
+function buildQuickWorkFilterWhere(
+  quickWorkFilter: PortingRequestListQuery['quickWorkFilter'],
+): Prisma.PortingRequestWhereInput | null {
+  if (!quickWorkFilter) {
+    return null
+  }
+
+  if (quickWorkFilter === 'NO_DATE') {
+    return { confirmedPortDate: null }
+  }
+
+  const boundaries = getPortingUrgencyDateBoundaries()
+  const dueBefore =
+    quickWorkFilter === 'NEEDS_ACTION_TODAY'
+      ? toDateOnlyValue(boundaries.tomorrowYmd)
+      : toDateOnlyValue(boundaries.nextIsoWeekStartYmd)
+
+  if (!dueBefore) {
+    return null
+  }
+
+  return {
+    confirmedPortDate: {
+      lt: dueBefore,
+    },
+  }
 }
 
 function formatExternalActionDate(value: string | null): string | null {
@@ -948,6 +977,13 @@ function buildPortingRequestListWhere(
     where.assignedUserId = currentUserId
   } else if (query.ownership === 'UNASSIGNED') {
     where.assignedUserId = null
+  }
+
+  const quickWorkFilterWhere = buildQuickWorkFilterWhere(
+    'quickWorkFilter' in query ? query.quickWorkFilter : undefined,
+  )
+  if (quickWorkFilterWhere) {
+    Object.assign(where, quickWorkFilterWhere)
   }
 
   if (!options.ignoreCommercialOwnerFilter) {

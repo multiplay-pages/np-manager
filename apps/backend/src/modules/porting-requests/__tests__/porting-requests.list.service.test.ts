@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   mockPortingRequestFindMany,
@@ -310,6 +310,64 @@ describe('listPortingRequests - commercial owner and notification health filters
 
     expect(result.items.find((item) => item.id === 'with-date')?.confirmedPortDate).toBe('2026-04-17')
     expect(result.items.find((item) => item.id === 'without-date')?.confirmedPortDate).toBeNull()
+  })
+})
+
+describe('listPortingRequests - quick work filters', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-21T09:00:00.000Z'))
+
+    mockPrismaTransaction.mockImplementation(async (arg: unknown) => {
+      if (Array.isArray(arg)) return Promise.all(arg)
+      return undefined
+    })
+
+    mockPortingRequestCount.mockResolvedValue(0)
+    mockPortingRequestFindMany.mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('NO_DATE - filters to requests without confirmed port date', async () => {
+    await listPortingRequests(
+      { quickWorkFilter: 'NO_DATE', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const countWhere = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    expect(countWhere).toMatchObject({ confirmedPortDate: null })
+  })
+
+  it('NEEDS_ACTION_TODAY - filters to today or overdue cases using Warsaw day boundary', async () => {
+    await listPortingRequests(
+      { quickWorkFilter: 'NEEDS_ACTION_TODAY', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const countWhere = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: { confirmedPortDate?: unknown } }).where
+    expect(countWhere).toMatchObject({
+      confirmedPortDate: {
+        lt: new Date('2026-04-22T00:00:00.000Z'),
+      },
+    })
+  })
+
+  it('URGENT - filters to overdue and current-week cases using PR49 semantics', async () => {
+    await listPortingRequests(
+      { quickWorkFilter: 'URGENT', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const countWhere = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: { confirmedPortDate?: unknown } }).where
+    expect(countWhere).toMatchObject({
+      confirmedPortDate: {
+        lt: new Date('2026-04-27T00:00:00.000Z'),
+      },
+    })
   })
 })
 
