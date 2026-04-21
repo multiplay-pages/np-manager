@@ -10,6 +10,7 @@ import {
   type OwnershipFilter,
 } from '@/lib/portingOwnership'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
+import { getPortingUrgency } from '@/lib/portingUrgency'
 import {
   assignPortingRequestToMe,
   getPortingRequests,
@@ -197,6 +198,8 @@ export function RequestRow({
   const portingDateLabel = request.confirmedPortDate
     ? formatDateValue(request.confirmedPortDate)
     : null
+  const urgency = getPortingUrgency(request.confirmedPortDate)
+  const showUrgencyBadge = urgency.level !== 'LATER' && urgency.level !== 'NONE'
 
   async function handleAssignToMe(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
@@ -241,13 +244,33 @@ export function RequestRow({
       <td className="px-5 py-4 align-top">
         {portingDateLabel ? (
           <div className="flex flex-col gap-1">
-            <Badge tone="brand" className="w-fit font-mono text-xs font-semibold">
+            <Badge
+              tone={urgency.emphasized ? urgency.tone : 'brand'}
+              className={cx(
+                'w-fit font-mono text-xs font-semibold',
+                urgency.emphasized && 'ring-2',
+              )}
+            >
               {portingDateLabel}
             </Badge>
+            {showUrgencyBadge && (
+              <Badge
+                tone={urgency.tone}
+                className={cx(
+                  'w-fit text-[11px] font-semibold uppercase tracking-[0.04em]',
+                  urgency.emphasized && 'ring-2',
+                )}
+              >
+                {urgency.label}
+              </Badge>
+            )}
             <span className="text-[11px] text-ink-450">Data portowania</span>
           </div>
         ) : (
           <div className="flex flex-col gap-1">
+            <Badge tone="neutral" className="w-fit text-[11px] font-semibold uppercase tracking-[0.04em]">
+              Brak daty
+            </Badge>
             <span className="text-sm font-semibold text-ink-600">Nie wyznaczono</span>
             <span className="text-[11px] text-ink-450">Data portowania</span>
           </div>

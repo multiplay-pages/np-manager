@@ -214,6 +214,45 @@ describe('RequestRow', () => {
     expect(html).toContain('Nieprzypisana')
   })
 
+  it('shows urgency badge for overdue date (past date is always OVERDUE)', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({ confirmedPortDate: '2020-01-01T00:00:00.000Z' })}
+            onClick={() => undefined}
+            formatDate={() => '01.01.2020'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Po terminie')
+  })
+
+  it('shows "Brak daty" hint when confirmedPortDate is missing', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({ confirmedPortDate: null })}
+            onClick={() => undefined}
+            formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Brak daty')
+    expect(html).toContain('Nie wyznaczono')
+  })
+
   it('shows normal ink styling for assigned BOK', () => {
     const html = renderToStaticMarkup(
       <table>
