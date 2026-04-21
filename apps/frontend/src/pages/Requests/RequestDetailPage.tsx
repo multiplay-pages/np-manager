@@ -92,6 +92,7 @@ import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
 import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
+import { getPortingUrgency } from '@/lib/portingUrgency'
 import {
   getInternalNotificationRetryErrorMessage,
   getInternalNotificationRetrySuccessMessage,
@@ -1689,6 +1690,7 @@ export function RequestDetailPage() {
   }
 
   const statusMeta = getPortingStatusMeta(request.statusInternal)
+  const urgency = getPortingUrgency(request.confirmedPortDate)
   const assignedUserLabel = request.assignedUser
     ? `${request.assignedUser.displayName} (${request.assignedUser.email})`
     : 'Nieprzypisana'
@@ -1717,6 +1719,13 @@ export function RequestDetailPage() {
                 <Badge tone="neutral">{request.caseNumber}</Badge>
                 <Badge tone={getStatusTone(statusMeta.tone)}>{statusMeta.label}</Badge>
                 <Badge tone="brand">{PORTING_MODE_LABELS[request.portingMode]}</Badge>
+                <Badge
+                  tone={urgency.tone}
+                  className={urgency.emphasized ? 'ring-2' : undefined}
+                  aria-label={`Pilnosc sprawy: ${urgency.label}`}
+                >
+                  Pilnosc: {urgency.label}
+                </Badge>
               </div>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink-900">
                 {request.client.displayName}
