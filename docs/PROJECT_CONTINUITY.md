@@ -48,6 +48,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR52 | Lekkie row actions na `RequestsPage` | DONE |
 | PR53 | Oznaczenie priorytetu pracy w wierszu listy spraw | DONE |
 | PR54 | Operacyjny hint v1 w wierszu listy spraw | DONE |
+| PR55 | Ownership signal (Moja / Nieprzypisana) w wierszu listy spraw | DONE |
 
 ---
 
@@ -95,6 +96,16 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - Admin ma strone `Ustawienia powiadomien portingowych` do konfiguracji fallback email/Teams.
   - Read-only diagnostyka env: `email adapter mode`, `SMTP configured`.
 - Zakres pozostaje wewnetrzny (operacyjny) - bez zmian w customer communication pipeline.
+
+### PR55 - ownership signal w wierszu listy spraw
+
+- Frontend-only. Brak zmian backendu, DTO, endpointów.
+- Nowy helper `getOwnershipSignal(assignedUserSummary, currentUserId)` w `portingOwnership.ts`:
+  - `null` assignee → `{ label: 'Nieprzypisana', tone: 'amber' }`
+  - `assignedUserSummary.id === currentUserId` → `{ label: 'Moja', tone: 'emerald' }`
+  - assigned to someone else → `null` (bez badge, nazwa już widoczna)
+- `RequestRow` renderuje mały Badge w kolumnie "Przypisanie" na podstawie signalu.
+- Weryfikacja: 261/261 frontend testów PASS, tsc clean.
 
 ### PR16 - diagnostyka zdrowia notyfikacji
 

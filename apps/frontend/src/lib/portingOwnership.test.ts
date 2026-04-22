@@ -5,6 +5,7 @@ import {
   canSelectAnyAssignee,
   formatAssigneeLabel,
   formatAssignmentHistoryHeadline,
+  getOwnershipSignal,
   parseOwnershipFilter,
 } from './portingOwnership'
 
@@ -49,6 +50,29 @@ describe('portingOwnership helpers', () => {
     expect(formatAssignmentHistoryHeadline(historyItem)).toBe(
       'Zmieniono przypisanie z Anna Admin na Jan Kowalski.',
     )
+  })
+
+  describe('getOwnershipSignal', () => {
+    const assignee = {
+      id: 'user-1',
+      email: 'user-1@np-manager.local',
+      displayName: 'Jan Kowalski',
+      role: 'BOK_CONSULTANT' as const,
+    }
+
+    it('returns Nieprzypisana when no assignee', () => {
+      expect(getOwnershipSignal(null, 'user-1')).toEqual({ label: 'Nieprzypisana', tone: 'amber' })
+      expect(getOwnershipSignal(null, null)).toEqual({ label: 'Nieprzypisana', tone: 'amber' })
+    })
+
+    it('returns Moja when assignee matches currentUserId', () => {
+      expect(getOwnershipSignal(assignee, 'user-1')).toEqual({ label: 'Moja', tone: 'emerald' })
+    })
+
+    it('returns null when assigned to someone else', () => {
+      expect(getOwnershipSignal(assignee, 'user-2')).toBeNull()
+      expect(getOwnershipSignal(assignee, null)).toBeNull()
+    })
   })
 
   it('parses ownership filter values and RBAC helper flags', () => {
