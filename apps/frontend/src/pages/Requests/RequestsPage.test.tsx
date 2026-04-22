@@ -452,6 +452,34 @@ describe('RequestsPage quick work filters', () => {
     })
   })
 
+  it('selects "Priorytet pracy" sort, syncs to URL and survives refresh', async () => {
+    const { unmount } = renderPage()
+    await screen.findByText('Sprawy portowania')
+
+    fireEvent.change(screen.getByLabelText('Sortowanie listy'), {
+      target: { value: 'WORK_PRIORITY' },
+    })
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({ sort: 'WORK_PRIORITY', page: 1 })
+    })
+
+    unmount()
+    cleanup()
+    getPortingRequestsMock.mockClear()
+
+    renderPage('/requests?sort=WORK_PRIORITY')
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({ sort: 'WORK_PRIORITY' })
+    })
+
+    const sortSelect = screen.getByLabelText('Sortowanie listy') as HTMLSelectElement
+    expect(sortSelect.value).toBe('WORK_PRIORITY')
+  })
+
   it('clears the quick work filter when selecting "Wszystkie"', async () => {
     renderPage('/requests?quickWorkFilter=URGENT&page=2&status=SUBMITTED')
 

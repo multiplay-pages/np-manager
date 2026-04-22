@@ -4,6 +4,7 @@ import type {
   PortingCaseStatus,
   PortingMode,
   PortingRequestListQueryDto,
+  PortingRequestListSort,
   PortingRequestOperationalSummaryDto,
   PortingRequestQuickWorkFilter,
   PortingRequestSummaryQueryDto,
@@ -38,6 +39,9 @@ const QUICK_WORK_FILTERS: RequestsQuickWorkFilter[] = [
   'NEEDS_ACTION_TODAY',
 ]
 
+const LIST_SORTS: PortingRequestListSort[] = ['CREATED_AT_DESC', 'WORK_PRIORITY']
+export const DEFAULT_REQUESTS_SORT: PortingRequestListSort = 'CREATED_AT_DESC'
+
 export interface RequestsOperationalFilterState {
   searchInput: string
   statusFilter: PortingCaseStatus | null
@@ -47,6 +51,7 @@ export interface RequestsOperationalFilterState {
   quickWorkFilter: RequestsQuickWorkFilter
   commercialOwnerFilter: CommercialOwnerFilter
   notificationHealthFilter: NotificationHealthFilter
+  sort: PortingRequestListSort
   page: number
   pageSize: number
 }
@@ -65,6 +70,14 @@ export function parseCommercialOwnerFilter(value: string | null): CommercialOwne
   }
 
   return 'ALL'
+}
+
+export function parseListSort(value: string | null): PortingRequestListSort {
+  if (value && LIST_SORTS.includes(value as PortingRequestListSort)) {
+    return value as PortingRequestListSort
+  }
+
+  return DEFAULT_REQUESTS_SORT
 }
 
 export function parseNotificationHealthFilter(value: string | null): NotificationHealthFilter {
@@ -120,6 +133,7 @@ export function buildListQueryFromFilters(
       filters.notificationHealthFilter !== 'ALL'
         ? filters.notificationHealthFilter
         : undefined,
+    sort: filters.sort !== DEFAULT_REQUESTS_SORT ? filters.sort : undefined,
     page: filters.page,
     pageSize: filters.pageSize,
   }

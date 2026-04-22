@@ -27,6 +27,7 @@ export type OwnershipFilter = 'ALL' | 'MINE' | 'UNASSIGNED'
 export type CommercialOwnerFilter = 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE'
 export type NotificationHealthFilter = 'ALL' | 'HAS_FAILURES' | 'NO_FAILURES'
 export type PortingRequestQuickWorkFilter = 'URGENT' | 'NO_DATE' | 'NEEDS_ACTION_TODAY'
+export type PortingRequestListSort = 'CREATED_AT_DESC' | 'WORK_PRIORITY'
 export type NotificationHealthStatus = 'OK' | 'FAILED' | 'MISCONFIGURED' | 'MIXED'
 
 export interface NotificationHealthDiagnosticsDto {
@@ -92,6 +93,7 @@ export interface PortingRequestListQueryDto {
   quickWorkFilter?: PortingRequestQuickWorkFilter
   commercialOwnerFilter?: CommercialOwnerFilter
   notificationHealthFilter?: NotificationHealthFilter
+  sort?: PortingRequestListSort
   page?: number
   pageSize?: number
 }

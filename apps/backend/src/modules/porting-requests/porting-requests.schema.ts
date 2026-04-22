@@ -62,6 +62,7 @@ const ownershipFilterEnum = z.enum(['ALL', 'MINE', 'UNASSIGNED'])
 const commercialOwnerFilterEnum = z.enum(['ALL', 'WITH_OWNER', 'WITHOUT_OWNER', 'MINE'])
 const notificationHealthFilterEnum = z.enum(['ALL', 'HAS_FAILURES', 'NO_FAILURES'])
 const quickWorkFilterEnum = z.enum(['URGENT', 'NO_DATE', 'NEEDS_ACTION_TODAY'])
+const listSortEnum = z.enum(['CREATED_AT_DESC', 'WORK_PRIORITY'])
 
 function validateDeferredEarliestDate(
   value: string | undefined,
@@ -357,6 +358,7 @@ export const portingRequestListQuerySchema = z.object({
   quickWorkFilter: quickWorkFilterEnum.optional(),
   commercialOwnerFilter: commercialOwnerFilterEnum.optional().default('ALL'),
   notificationHealthFilter: notificationHealthFilterEnum.optional().default('ALL'),
+  sort: listSortEnum.optional().default('CREATED_AT_DESC'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 })
@@ -365,6 +367,7 @@ export type PortingRequestListQuery = z.input<typeof portingRequestListQuerySche
 
 export const portingRequestSummaryQuerySchema = portingRequestListQuerySchema.omit({
   quickWorkFilter: true,
+  sort: true,
   page: true,
   pageSize: true,
 })

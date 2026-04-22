@@ -21,6 +21,7 @@ import type {
 } from '@np-manager/shared'
 import {
   getPortingUrgencyDateBoundaries,
+  getPortingWorkPriorityRank,
   PORTING_CASE_STATUS_LABELS,
 } from '@np-manager/shared'
 import type {
@@ -925,7 +926,12 @@ export async function listPortingRequests(
 ): Promise<PortingRequestListResultDto> {
   const page = query.page ?? 1
   const pageSize = query.pageSize ?? 20
+  const sort = query.sort ?? 'CREATED_AT_DESC'
   const where = buildPortingRequestListWhere(query, currentUserId)
+
+  if (sort === 'WORK_PRIORITY') {
+    return listPortingRequestsByWorkPriority(where, page, pageSize)
+  }
 
   const [total, requests] = await prisma.$transaction([
     prisma.portingRequest.count({ where }),
@@ -947,6 +953,78 @@ export async function listPortingRequests(
       totalPages: Math.ceil(total / pageSize),
     },
   }
+}
+
+async function listPortingRequestsByWorkPriority(
+  where: Prisma.PortingRequestWhereInput,
+  page: number,
+  pageSize: number,
+): Promise<PortingRequestListResultDto> {
+  // Reuzywamy shared semantyki urgency do wyliczenia kubelka pracy dla kazdej
+  // sprawy, a nastepnie paginujemy po stronie serwera aby lista byla spojna
+  // miedzy stronami.
+  const candidates = await prisma.portingRequest.findMany({
+    where,
+    select: { id: true, confirmedPortDate: true, createdAt: true },
+  })
+
+  const now = new Date()
+  const ordered = [...candidates].sort((a, b) => compareWorkPriority(a, b, now))
+  const total = ordered.length
+  const pageIds = ordered.slice((page - 1) * pageSize, page * pageSize).map((r) => r.id)
+
+  const rows = pageIds.length
+    ? await prisma.portingRequest.findMany({
+        where: { id: { in: pageIds } },
+        select: LIST_SELECT,
+      })
+    : []
+
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  const items: PortingRequestListItemDto[] = []
+  for (const id of pageIds) {
+    const row = byId.get(id)
+    if (row) items.push(toListItem(row))
+  }
+
+  return {
+    items,
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize) || 1,
+    },
+  }
+}
+
+interface WorkPriorityCandidate {
+  id: string
+  confirmedPortDate: Date | null
+  createdAt: Date
+}
+
+function compareWorkPriority(
+  a: WorkPriorityCandidate,
+  b: WorkPriorityCandidate,
+  now: Date,
+): number {
+  const aIso = toDateOnlyString(a.confirmedPortDate)
+  const bIso = toDateOnlyString(b.confirmedPortDate)
+  const aRank = getPortingWorkPriorityRank(aIso, now)
+  const bRank = getPortingWorkPriorityRank(bIso, now)
+  if (aRank !== bRank) return aRank - bRank
+
+  // Dla dat: rosnaco po confirmedPortDate. NO_DATE: oldest-first wg createdAt.
+  if (aIso && bIso) {
+    if (aIso !== bIso) return aIso < bIso ? -1 : 1
+  }
+
+  const aCreated = a.createdAt.getTime()
+  const bCreated = b.createdAt.getTime()
+  if (aCreated !== bCreated) return aCreated - bCreated
+
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
 interface BuildListWhereOptions {

@@ -87,6 +87,7 @@ export async function getPortingRequests(
 ): Promise<PortingRequestListResultDto> {
   const query = new URLSearchParams()
   appendListFiltersToQuery(query, params, { includeQuickWorkFilter: true })
+  if (params.sort && params.sort !== 'CREATED_AT_DESC') query.set('sort', params.sort)
   if (params.page) query.set('page', String(params.page))
   if (params.pageSize) query.set('pageSize', String(params.pageSize))
 
