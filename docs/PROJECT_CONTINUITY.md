@@ -587,24 +587,24 @@ Ostateczna semantyka quick filtrow:
   - nowych filtrow i sortowan,
   - dodatkowych endpointow backendowych.
 
-### PR53 - oznaczenie priorytetu pracy w wierszu listy spraw
+### PR53 - alignment: work priority badges na RequestsPage
 
-- Dodano `getWorkPriorityBadge` do `apps/frontend/src/lib/portingUrgency.ts`:
-  - używa `getPortingWorkPriorityBucket` z `@np-manager/shared` jako single source of truth,
-  - zwraca `null` dla bucket `LATER` (brak badge),
-  - `NO_DATE` → "Bez daty" (spójne z etykietą quick filtra),
-  - `OVERDUE` → "Po terminie (X dni)", czerwony, emphasized,
-  - `TODAY` → "Dzis", czerwony, emphasized,
-  - `TOMORROW` → "Jutro", amber,
-  - `THIS_WEEK` → "W tym tygodniu", amber.
-- Zaktualizowano `RequestRow` w `RequestsPage.tsx`:
-  - zamieniono `getPortingUrgency` + `showUrgencyBadge` na `getWorkPriorityBadge`,
-  - data portowania używa `workPriority.emphasized` do podkreślenia (ring-2) i koloru badge daty,
-  - etykieta "Brak daty" zastąpiona przez "Bez daty" (spójność z quick filters),
-  - `LATER` nie pokazuje badge priorytetu.
-- Dodano 7 testów jednostkowych dla `getWorkPriorityBadge` w `portingUrgency.test.ts`.
-- Backend: bez zmian. Wszystkie potrzebne dane są w `PortingRequestListItemDto.confirmedPortDate`.
-- Weryfikacja: 21/21 testów `portingUrgency.test.ts` PASS, 210/210 frontend testów PASS, tsc bez nowych błędów.
+Closure slice ujednocajacy semantykę badge'ów priorytetu w liscie spraw z getPortingWorkPriorityBucket (shared logic dla quick filters i sortu "Priorytet pracy"). Bez zmian backendu.
+
+- **Frontend helper**: nowy `getWorkPriorityBadge(portDateIso)` w `portingUrgency.ts`:
+  - bezposrednie uzywanie `getPortingWorkPriorityBucket` z shared (single source of truth).
+  - bucket `LATER` → `null` (no badge, reduce UI noise).
+  - `NO_DATE` → label "Bez daty" (alignment z quick filter options, zamiast "Brak daty").
+  - `OVERDUE/TODAY` red + emphasized (ring-2).
+  - `TOMORROW/THIS_WEEK` amber, not emphasized.
+  - `OVERDUE` label includes days count.
+- **RequestRow semantics**: zamieniono `getPortingUrgency` + `showUrgencyBadge` na `getWorkPriorityBadge`:
+  - badge na kolumnie "Data portowania" teraz bezposrednio powiazany z work priority ordering, nie urgency level,
+  - date badge tone + emphasis determinowany przez `workPriority.emphasized`,
+  - NO_DATE case teraz pokazuje "Bez daty" (connection z quick filters).
+- **Test coverage**: 7 nowych testów dla `getWorkPriorityBadge` + update istniejacych testow (RequestsPage label assertion).
+- **Backward compat**: `getPortingUrgency` zachowany (uzywane w RequestDetailPage), bez zmian semantyki.
+- **Weryfikacja**: 258/258 frontend testów PASS, tsc clean, brak zmian backendu.
 
 #### Konfiguracja transportu email
 

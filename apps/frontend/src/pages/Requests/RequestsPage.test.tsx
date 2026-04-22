@@ -328,7 +328,7 @@ describe('RequestRow', () => {
     expect(html).toContain('Po terminie')
   })
 
-  it('shows "Brak daty" hint when confirmedPortDate is missing', () => {
+  it('shows "Bez daty" hint when confirmedPortDate is missing', () => {
     const html = renderToStaticMarkup(
       <table>
         <tbody>
@@ -345,7 +345,7 @@ describe('RequestRow', () => {
       </table>,
     )
 
-    expect(html).toContain('Brak daty')
+    expect(html).toContain('Bez daty')
     expect(html).toContain('Nie wyznaczono')
   })
 
