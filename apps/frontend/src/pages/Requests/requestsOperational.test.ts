@@ -145,6 +145,7 @@ describe('requestsOperational helpers', () => {
         withoutCommercialOwner: 30,
         myCommercialRequests: 8,
         requestsWithNotificationFailures: 5,
+        quickWorkCounts: { urgent: 0, noDate: 0, needsActionToday: 0 },
       },
       makeFilters({ commercialOwnerFilter: 'MINE' }),
     )

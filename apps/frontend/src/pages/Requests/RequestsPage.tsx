@@ -768,17 +768,27 @@ export function RequestsPage() {
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
             Szybka kolejka pracy
           </span>
-          {quickWorkFilterOptions.map((filter) => (
-            <FilterChip
-              key={filter.id}
-              active={quickWorkFilter === filter.id}
-              aria-pressed={quickWorkFilter === filter.id}
-              className="h-8 px-3 text-xs"
-              onClick={() => setQuickWorkFilter(filter.id)}
-            >
-              {filter.label}
-            </FilterChip>
-          ))}
+          {quickWorkFilterOptions.map((filter) => {
+            const count =
+              summary && filter.id === 'URGENT'
+                ? summary.quickWorkCounts.urgent
+                : summary && filter.id === 'NO_DATE'
+                  ? summary.quickWorkCounts.noDate
+                  : summary && filter.id === 'NEEDS_ACTION_TODAY'
+                    ? summary.quickWorkCounts.needsActionToday
+                    : null
+            return (
+              <FilterChip
+                key={filter.id}
+                active={quickWorkFilter === filter.id}
+                aria-pressed={quickWorkFilter === filter.id}
+                className="h-8 px-3 text-xs"
+                onClick={() => setQuickWorkFilter(filter.id)}
+              >
+                {count !== null ? `${filter.label} (${count})` : filter.label}
+              </FilterChip>
+            )
+          })}
         </div>
       </section>
 

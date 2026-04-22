@@ -88,6 +88,11 @@ function mockSummaryResult() {
     withoutCommercialOwner: 1,
     myCommercialRequests: 0,
     requestsWithNotificationFailures: 0,
+    quickWorkCounts: {
+      urgent: 0,
+      noDate: 0,
+      needsActionToday: 0,
+    },
   }
 }
 
@@ -446,7 +451,7 @@ describe('RequestsPage quick work filters', () => {
     const quickFilters = within(
       screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
     )
-    fireEvent.click(quickFilters.getByRole('button', { name: 'Pilne' }))
+    fireEvent.click(quickFilters.getByRole('button', { name: /^Pilne/ }))
 
     await waitFor(() => {
       const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
@@ -614,6 +619,30 @@ describe('RequestsPage quick work filters', () => {
       status: 'SUBMITTED',
     })
     expect(refreshedSummaryCall).not.toHaveProperty('quickWorkFilter')
+  })
+
+  it('shows quickWorkCounts next to URGENT, NO_DATE, NEEDS_ACTION_TODAY chips', async () => {
+    getPortingRequestsSummaryMock.mockResolvedValue({
+      ...mockSummaryResult(),
+      quickWorkCounts: { urgent: 4, noDate: 2, needsActionToday: 3 },
+    })
+
+    renderPage()
+    await screen.findByText('Sprawy portowania')
+
+    const quickFilters = within(
+      screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
+    )
+    await waitFor(() => {
+      expect(quickFilters.getByRole('button', { name: 'Pilne (4)' })).not.toBeNull()
+      expect(quickFilters.getByRole('button', { name: 'Bez daty (2)' })).not.toBeNull()
+      expect(quickFilters.getByRole('button', { name: 'Wymaga reakcji dzis (3)' })).not.toBeNull()
+    })
+
+    // Filters without counts stay unchanged
+    expect(quickFilters.getByRole('button', { name: 'Wszystkie' })).not.toBeNull()
+    expect(quickFilters.getByRole('button', { name: 'Moje' })).not.toBeNull()
+    expect(quickFilters.getByRole('button', { name: 'Nieprzypisane' })).not.toBeNull()
   })
 
   it('shows clear feedback when assign-to-me fails', async () => {

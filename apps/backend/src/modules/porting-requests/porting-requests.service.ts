@@ -1132,30 +1132,51 @@ export async function getPortingRequestsOperationalSummary(
     ignoreNotificationHealthFilter: true,
   })
 
-  const [totalRequests, withCommercialOwner, withoutCommercialOwner, myCommercialRequests, requestsWithNotificationFailures] =
-    await prisma.$transaction([
-      prisma.portingRequest.count({ where: baseWhere }),
-      prisma.portingRequest.count({
-        where: withAdditionalWhere(baseWhere, {
-          commercialOwnerUserId: { not: null },
-        }),
+  const urgentWhere = buildQuickWorkFilterWhere('URGENT')
+  const noDateWhere = buildQuickWorkFilterWhere('NO_DATE')
+  const needsActionTodayWhere = buildQuickWorkFilterWhere('NEEDS_ACTION_TODAY')
+
+  const [
+    totalRequests,
+    withCommercialOwner,
+    withoutCommercialOwner,
+    myCommercialRequests,
+    requestsWithNotificationFailures,
+    urgentCount,
+    noDateCount,
+    needsActionTodayCount,
+  ] = await prisma.$transaction([
+    prisma.portingRequest.count({ where: baseWhere }),
+    prisma.portingRequest.count({
+      where: withAdditionalWhere(baseWhere, {
+        commercialOwnerUserId: { not: null },
       }),
-      prisma.portingRequest.count({
-        where: withAdditionalWhere(baseWhere, {
-          commercialOwnerUserId: null,
-        }),
+    }),
+    prisma.portingRequest.count({
+      where: withAdditionalWhere(baseWhere, {
+        commercialOwnerUserId: null,
       }),
-      prisma.portingRequest.count({
-        where: withAdditionalWhere(baseWhere, {
-          commercialOwnerUserId: currentUserId,
-        }),
+    }),
+    prisma.portingRequest.count({
+      where: withAdditionalWhere(baseWhere, {
+        commercialOwnerUserId: currentUserId,
       }),
-      prisma.portingRequest.count({
-        where: withAdditionalWhere(baseWhere, {
-          events: { some: NOTIFICATION_FAILURE_EVENT_WHERE },
-        }),
+    }),
+    prisma.portingRequest.count({
+      where: withAdditionalWhere(baseWhere, {
+        events: { some: NOTIFICATION_FAILURE_EVENT_WHERE },
       }),
-    ])
+    }),
+    prisma.portingRequest.count({
+      where: urgentWhere ? withAdditionalWhere(baseWhere, urgentWhere) : baseWhere,
+    }),
+    prisma.portingRequest.count({
+      where: noDateWhere ? withAdditionalWhere(baseWhere, noDateWhere) : baseWhere,
+    }),
+    prisma.portingRequest.count({
+      where: needsActionTodayWhere ? withAdditionalWhere(baseWhere, needsActionTodayWhere) : baseWhere,
+    }),
+  ])
 
   return {
     totalRequests,
@@ -1163,6 +1184,11 @@ export async function getPortingRequestsOperationalSummary(
     withoutCommercialOwner,
     myCommercialRequests,
     requestsWithNotificationFailures,
+    quickWorkCounts: {
+      urgent: urgentCount,
+      noDate: noDateCount,
+      needsActionToday: needsActionTodayCount,
+    },
   }
 }
 
