@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculateDaysDiff, getPortingUrgency } from './portingUrgency'
+import { calculateDaysDiff, getPortingUrgency, getWorkPriorityBadge } from './portingUrgency'
 
 // NOW = wtorek 2026-04-21, godz. 11:00 Warsaw (09:00 UTC)
 // ISO week: pon 2026-04-20 - ndz 2026-04-26
@@ -100,5 +100,58 @@ describe('getPortingUrgency', () => {
   it('OVERDUE pluralizes multi-day offsets', () => {
     expect(getPortingUrgency('2026-04-18', NOW).label).toContain('3 dni')
     expect(getPortingUrgency('2026-04-14', NOW).label).toContain('7 dni')
+  })
+})
+
+describe('getWorkPriorityBadge', () => {
+  it('returns null for null date (NO_DATE? No: NO_DATE returns badge, LATER returns null)', () => {
+    const badge = getWorkPriorityBadge(null, NOW)
+    expect(badge).not.toBeNull()
+    expect(badge?.bucket).toBe('NO_DATE')
+    expect(badge?.label).toBe('Bez daty')
+    expect(badge?.tone).toBe('neutral')
+    expect(badge?.emphasized).toBe(false)
+  })
+
+  it('returns null for LATER', () => {
+    expect(getWorkPriorityBadge('2026-04-27', NOW)).toBeNull()
+    expect(getWorkPriorityBadge('2026-05-15', NOW)).toBeNull()
+  })
+
+  it('OVERDUE is red emphasized with day count', () => {
+    const badge = getWorkPriorityBadge('2026-04-20', NOW)
+    expect(badge?.bucket).toBe('OVERDUE')
+    expect(badge?.label).toContain('Po terminie')
+    expect(badge?.label).toContain('1 dzien')
+    expect(badge?.tone).toBe('red')
+    expect(badge?.emphasized).toBe(true)
+  })
+
+  it('OVERDUE pluralizes correctly', () => {
+    expect(getWorkPriorityBadge('2026-04-18', NOW)?.label).toContain('3 dni')
+  })
+
+  it('TODAY is red emphasized', () => {
+    const badge = getWorkPriorityBadge('2026-04-21', NOW)
+    expect(badge?.bucket).toBe('TODAY')
+    expect(badge?.label).toBe('Dzis')
+    expect(badge?.tone).toBe('red')
+    expect(badge?.emphasized).toBe(true)
+  })
+
+  it('TOMORROW is amber not emphasized', () => {
+    const badge = getWorkPriorityBadge('2026-04-22', NOW)
+    expect(badge?.bucket).toBe('TOMORROW')
+    expect(badge?.label).toBe('Jutro')
+    expect(badge?.tone).toBe('amber')
+    expect(badge?.emphasized).toBe(false)
+  })
+
+  it('THIS_WEEK is amber not emphasized', () => {
+    const badge = getWorkPriorityBadge('2026-04-25', NOW)
+    expect(badge?.bucket).toBe('THIS_WEEK')
+    expect(badge?.label).toBe('W tym tygodniu')
+    expect(badge?.tone).toBe('amber')
+    expect(badge?.emphasized).toBe(false)
   })
 })

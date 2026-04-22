@@ -10,7 +10,7 @@ import {
   type OwnershipFilter,
 } from '@/lib/portingOwnership'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
-import { getPortingUrgency } from '@/lib/portingUrgency'
+import { getWorkPriorityBadge } from '@/lib/portingUrgency'
 import {
   assignPortingRequestToMe,
   getPortingRequests,
@@ -49,6 +49,7 @@ import {
 
 const PAGE_SIZE = 20
 const PORTING_MODES: PortingMode[] = ['DAY', 'END', 'EOP']
+const ACTION_FEEDBACK_RESET_MS = 2000
 
 const commercialOwnerOptions: Array<{ id: CommercialOwnerFilter; label: string }> = [
   { id: 'ALL', label: 'Wszystkie' },
@@ -199,6 +200,7 @@ function NotificationHealthBadge({ request }: { request: PortingRequestListItemD
 export function RequestRow({
   request,
   onClick,
+  requestPath,
   formatDate: formatDateValue,
   currentUserId,
   canAssign,
@@ -206,6 +208,7 @@ export function RequestRow({
 }: {
   request: PortingRequestListItemDto
   onClick: () => void
+  requestPath: string
   formatDate: (value: string) => string
   currentUserId: string | null
   canAssign: boolean
@@ -213,34 +216,93 @@ export function RequestRow({
 }) {
   const ownerLabel = formatCommercialOwnerLabel(request.commercialOwnerSummary)
   const assigneeLabel = formatAssigneeLabel(request.assignedUserSummary)
-  const isAssignedToMe = request.assignedUserSummary?.id === currentUserId
+  const isUnassigned = request.assignedUserSummary === null
+  const canAssignToMe = canAssign && isUnassigned && currentUserId !== null
   const [isAssigning, setIsAssigning] = useState(false)
-  const [assignError, setAssignError] = useState<string | null>(null)
-  const [caseCopied, setCaseCopied] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const portingDateLabel = request.confirmedPortDate
     ? formatDateValue(request.confirmedPortDate)
     : null
-  const urgency = getPortingUrgency(request.confirmedPortDate)
-  const showUrgencyBadge = urgency.level !== 'LATER' && urgency.level !== 'NONE'
+  const workPriority = getWorkPriorityBadge(request.confirmedPortDate)
+
+  const setTimedFeedback = useCallback((tone: 'success' | 'error', message: string) => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current)
+    }
+
+    setFeedback({ tone, message })
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setFeedback(null)
+      feedbackTimeoutRef.current = null
+    }, ACTION_FEEDBACK_RESET_MS)
+  }, [])
+
+  useEffect(() => {
+    if (!isMenuOpen) return
+
+    function handlePointerDown(event: MouseEvent | globalThis.MouseEvent) {
+      if (!(event.target instanceof Node)) return
+      if (menuRef.current?.contains(event.target)) return
+      setIsMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [isMenuOpen])
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current)
+      }
+    }
+  }, [])
 
   async function handleAssignToMe(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
     setIsAssigning(true)
-    setAssignError(null)
     try {
       await onAssignToMe(request.id)
+      setTimedFeedback('success', 'Przypisano sprawę do Ciebie.')
+      setIsMenuOpen(false)
     } catch {
-      setAssignError('Nie udalo sie przypisac sprawy.')
+      setTimedFeedback('error', 'Nie udało się przypisać sprawy.')
     } finally {
       setIsAssigning(false)
     }
   }
 
-  function handleCopyCase(event: MouseEvent<HTMLButtonElement>) {
+  async function handleCopyCase(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
-    void navigator.clipboard.writeText(request.caseNumber)
-    setCaseCopied(true)
-    setTimeout(() => setCaseCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(request.caseNumber)
+      setTimedFeedback('success', 'Skopiowano numer sprawy.')
+      setIsMenuOpen(false)
+    } catch {
+      setTimedFeedback('error', 'Nie udało się skopiować numeru sprawy.')
+    }
+  }
+
+  async function handleCopyLink(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+
+    try {
+      const canonicalLink = window.location.origin + requestPath
+      await navigator.clipboard.writeText(canonicalLink)
+      setTimedFeedback('success', 'Skopiowano link do sprawy.')
+      setIsMenuOpen(false)
+    } catch {
+      setTimedFeedback('error', 'Nie udało się skopiować linku do sprawy.')
+    }
+  }
+
+  function handleOpenRequest(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    setIsMenuOpen(false)
+    onClick()
   }
 
   return (
@@ -267,23 +329,23 @@ export function RequestRow({
         {portingDateLabel ? (
           <div className="flex flex-col gap-1">
             <Badge
-              tone={urgency.emphasized ? urgency.tone : 'brand'}
+              tone={workPriority?.emphasized ? workPriority.tone : 'brand'}
               className={cx(
                 'w-fit font-mono text-xs font-semibold',
-                urgency.emphasized && 'ring-2',
+                workPriority?.emphasized && 'ring-2',
               )}
             >
               {portingDateLabel}
             </Badge>
-            {showUrgencyBadge && (
+            {workPriority && (
               <Badge
-                tone={urgency.tone}
+                tone={workPriority.tone}
                 className={cx(
                   'w-fit text-[11px] font-semibold uppercase tracking-[0.04em]',
-                  urgency.emphasized && 'ring-2',
+                  workPriority.emphasized && 'ring-2',
                 )}
               >
-                {urgency.label}
+                {workPriority.label}
               </Badge>
             )}
             <span className="text-[11px] text-ink-450">Data portowania</span>
@@ -291,7 +353,7 @@ export function RequestRow({
         ) : (
           <div className="flex flex-col gap-1">
             <Badge tone="neutral" className="w-fit text-[11px] font-semibold uppercase tracking-[0.04em]">
-              Brak daty
+              Bez daty
             </Badge>
             <span className="text-sm font-semibold text-ink-600">Nie wyznaczono</span>
             <span className="text-[11px] text-ink-450">Data portowania</span>
@@ -333,28 +395,79 @@ export function RequestRow({
         className="px-4 py-3 align-top"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex flex-col gap-1.5">
-          {canAssign && !isAssignedToMe && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleAssignToMe}
-              disabled={isAssigning}
-              data-testid={`assign-to-me-${request.id}`}
-            >
-              {isAssigning ? 'Przypisywanie...' : 'Przypisz do mnie'}
-            </Button>
-          )}
+        <div ref={menuRef} className="relative flex flex-col items-start gap-2">
           <Button
             size="sm"
             variant="ghost"
-            onClick={handleCopyCase}
-            data-testid={`copy-case-${request.id}`}
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={isMenuOpen}
+            onClick={(event) => {
+              event.stopPropagation()
+              setIsMenuOpen((prev) => !prev)
+            }}
+            data-testid={`row-actions-trigger-${request.id}`}
           >
-            {caseCopied ? 'Skopiowano' : 'Kopiuj numer'}
+            Akcje
           </Button>
-          {assignError && (
-            <span className="text-xs text-red-600">{assignError}</span>
+
+          {isMenuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-10 z-20 min-w-[200px] rounded-ui border border-line bg-white p-1.5 shadow-panel"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
+                onClick={handleOpenRequest}
+                data-testid={`row-action-open-${request.id}`}
+              >
+                Otworz sprawe
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
+                onClick={handleCopyCase}
+                data-testid={`row-action-copy-case-${request.id}`}
+              >
+                Kopiuj numer sprawy
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
+                onClick={handleCopyLink}
+                data-testid={`row-action-copy-link-${request.id}`}
+              >
+                Kopiuj link
+              </button>
+              {canAssignToMe && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleAssignToMe}
+                  disabled={isAssigning}
+                  data-testid={`row-action-assign-to-me-${request.id}`}
+                >
+                  {isAssigning ? 'Przypisywanie...' : 'Przypisz do mnie'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {feedback && (
+            <span
+              className={cx(
+                'text-xs',
+                feedback.tone === 'error' ? 'text-red-600' : 'text-emerald-700',
+              )}
+              data-testid={`row-action-feedback-${request.id}`}
+            >
+              {feedback.message}
+            </span>
           )}
         </div>
       </td>
@@ -473,15 +586,19 @@ export function RequestsPage() {
     }
   }, [])
 
+  const fetchRequestsData = useCallback(async () => {
+    return Promise.all([
+      getPortingRequests(buildListQueryFromFilters(filters)),
+      getPortingRequestsSummary(buildSummaryQueryFromFilters(filters)),
+    ])
+  }, [filters])
+
   const loadData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const [listData, summaryData] = await Promise.all([
-        getPortingRequests(buildListQueryFromFilters(filters)),
-        getPortingRequestsSummary(buildSummaryQueryFromFilters(filters)),
-      ])
+      const [listData, summaryData] = await fetchRequestsData()
 
       setResult(listData)
       setSummary(summaryData)
@@ -490,7 +607,17 @@ export function RequestsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [filters])
+  }, [fetchRequestsData])
+
+  const refreshVisibleData = useCallback(async () => {
+    try {
+      const [listData, summaryData] = await fetchRequestsData()
+      setResult(listData)
+      setSummary(summaryData)
+    } catch {
+      // Zachowujemy aktualny widok, jesli cichy refresh po akcji wiersza sie nie powiedzie.
+    }
+  }, [fetchRequestsData])
 
   useEffect(() => {
     void loadData()
@@ -501,15 +628,22 @@ export function RequestsPage() {
       const updated = await assignPortingRequestToMe(requestId)
       setResult((prev) => {
         if (!prev) return prev
+
+        const shouldRemoveAssignedRow = filters.quickWorkFilter === 'UNASSIGNED'
+
         return {
           ...prev,
-          items: prev.items.map((item) =>
-            item.id === requestId ? { ...item, assignedUserSummary: updated.assignedUser } : item,
-          ),
+          items: shouldRemoveAssignedRow
+            ? prev.items.filter((item) => item.id !== requestId)
+            : prev.items.map((item) =>
+                item.id === requestId ? { ...item, assignedUserSummary: updated.assignedUser } : item,
+              ),
         }
       })
+
+      void refreshVisibleData()
     },
-    [],
+    [filters.quickWorkFilter, refreshVisibleData],
   )
 
   const { items = [], pagination } = result ?? {}
@@ -885,6 +1019,7 @@ export function RequestsPage() {
                   <RequestRow
                     key={request.id}
                     request={request}
+                    requestPath={buildPath(ROUTES.REQUEST_DETAIL, request.caseNumber)}
                     onClick={() =>
                       void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.caseNumber), {
                         state: { fromList: true, listSearch: location.search },

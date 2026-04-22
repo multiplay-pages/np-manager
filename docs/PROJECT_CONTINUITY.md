@@ -45,6 +45,8 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR49 | Markery pilnosci/dat na liscie i w detailu | DONE |
 | PR50A | Quick work filters na `RequestsPage` | DONE |
 | PR50B | Sort "Priorytet pracy" na `RequestsPage` | DONE |
+| PR52 | Lekkie row actions na `RequestsPage` | DONE |
+| PR53 | Oznaczenie priorytetu pracy w wierszu listy spraw | DONE |
 
 ---
 
@@ -561,6 +563,48 @@ Ostateczna semantyka quick filtrow:
 - `No date`: `confirmedPortDate === null`.
 - `Needs action today`: `confirmedPortDate < start of tomorrow`, czyli poziomy
   `OVERDUE | TODAY`.
+
+### PR52 - lekkie row actions na RequestsPage
+
+- `RequestsPage` zostal domkniety jako lekka kolejka operacyjna przez
+  kompaktowe menu w kolumnie `Akcje`, bez rozbudowy listy do mini detail view.
+- Finalny zestaw akcji v1:
+  - `Otworz sprawe`,
+  - `Kopiuj numer sprawy`,
+  - `Kopiuj link`,
+  - `Przypisz do mnie`.
+- Canonical navigation i deeplink pozostaja oparte wylacznie o
+  `/requests/:caseNumber`.
+- `Przypisz do mnie` na liscie jest widoczne tylko dla spraw nieprzypisanych i
+  tylko dla rol z istniejacym prawem self-assign; reuzywa dotychczasowy endpoint
+  assignment oraz istniejace RBAC.
+- Po self-assign lista odswieza tylko biezacy widok z zachowaniem filtrow,
+  quickWorkFilter, sortu, paginacji i URL state.
+- Backend changes: **nie byly potrzebne**.
+- Slice celowo nie obejmuje:
+  - batch actions,
+  - inline workflow/status editing,
+  - nowych filtrow i sortowan,
+  - dodatkowych endpointow backendowych.
+
+### PR53 - alignment: work priority badges na RequestsPage
+
+Closure slice ujednocajacy semantykę badge'ów priorytetu w liscie spraw z getPortingWorkPriorityBucket (shared logic dla quick filters i sortu "Priorytet pracy"). Bez zmian backendu.
+
+- **Frontend helper**: nowy `getWorkPriorityBadge(portDateIso)` w `portingUrgency.ts`:
+  - bezposrednie uzywanie `getPortingWorkPriorityBucket` z shared (single source of truth).
+  - bucket `LATER` → `null` (no badge, reduce UI noise).
+  - `NO_DATE` → label "Bez daty" (alignment z quick filter options, zamiast "Brak daty").
+  - `OVERDUE/TODAY` red + emphasized (ring-2).
+  - `TOMORROW/THIS_WEEK` amber, not emphasized.
+  - `OVERDUE` label includes days count.
+- **RequestRow semantics**: zamieniono `getPortingUrgency` + `showUrgencyBadge` na `getWorkPriorityBadge`:
+  - badge na kolumnie "Data portowania" teraz bezposrednio powiazany z work priority ordering, nie urgency level,
+  - date badge tone + emphasis determinowany przez `workPriority.emphasized`,
+  - NO_DATE case teraz pokazuje "Bez daty" (connection z quick filters).
+- **Test coverage**: 7 nowych testów dla `getWorkPriorityBadge` + update istniejacych testow (RequestsPage label assertion).
+- **Backward compat**: `getPortingUrgency` zachowany (uzywane w RequestDetailPage), bez zmian semantyki.
+- **Weryfikacja**: 258/258 frontend testów PASS, tsc clean, brak zmian backendu.
 
 #### Konfiguracja transportu email
 

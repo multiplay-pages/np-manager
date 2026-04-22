@@ -1,16 +1,26 @@
 // @vitest-environment jsdom
+import type { ComponentProps } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PortingRequestListItemDto } from '@np-manager/shared'
 
 const {
   assignPortingRequestToMeMock,
+  clipboardWriteTextMock,
+  currentUserState,
   getPortingRequestsMock,
   getPortingRequestsSummaryMock,
 } = vi.hoisted(() => ({
   assignPortingRequestToMeMock: vi.fn(),
+  clipboardWriteTextMock: vi.fn(),
+  currentUserState: {
+    user: {
+      id: 'bok-1',
+      role: 'BOK_CONSULTANT',
+    },
+  },
   getPortingRequestsMock: vi.fn(),
   getPortingRequestsSummaryMock: vi.fn(),
 }))
@@ -28,13 +38,7 @@ vi.mock('@/services/portingRequests.api', () => ({
 }))
 
 vi.mock('@/stores/auth.store', () => ({
-  useAuthStore: (selector: (state: { user: { id: string; role: string } }) => unknown) =>
-    selector({
-      user: {
-        id: 'bok-1',
-        role: 'BOK_CONSULTANT',
-      },
-    }),
+  useAuthStore: (selector: (state: typeof currentUserState) => unknown) => selector(currentUserState),
 }))
 
 import { RequestRow, RequestsPage } from './RequestsPage'
@@ -97,9 +101,70 @@ function renderPage(initialEntry = '/requests') {
   )
 }
 
+function LocationProbe() {
+  const location = useLocation()
+  const listSearch =
+    typeof location.state === 'object' && location.state !== null && 'listSearch' in location.state
+      ? String(location.state.listSearch)
+      : ''
+
+  return (
+    <div>
+      <div data-testid="location-path">{location.pathname}</div>
+      <div data-testid="location-search">{location.search}</div>
+      <div data-testid="location-list-search">{listSearch}</div>
+    </div>
+  )
+}
+
+function renderPageWithDetail(initialEntry = '/requests') {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="/requests" element={<RequestsPage />} />
+        <Route path="/requests/:caseNumber" element={<LocationProbe />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+function renderRow(
+  overrides: Partial<ComponentProps<typeof RequestRow>> = {},
+  requestOverrides: Partial<PortingRequestListItemDto> = {},
+) {
+  return render(
+    <table>
+      <tbody>
+        <RequestRow
+          request={makeRequest(requestOverrides)}
+          onClick={() => undefined}
+          requestPath="/requests/FNP-20260409-ABC123"
+          formatDate={() => '09.04.2026'}
+          currentUserId="bok-1"
+          canAssign={true}
+          onAssignToMe={noop}
+          {...overrides}
+        />
+      </tbody>
+    </table>,
+  )
+}
+
 describe('RequestRow', () => {
   beforeEach(() => {
+    cleanup()
     vi.clearAllMocks()
+    currentUserState.user = {
+      id: 'bok-1',
+      role: 'BOK_CONSULTANT',
+    }
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: {
+        writeText: clipboardWriteTextMock,
+      },
+      configurable: true,
+    })
+    clipboardWriteTextMock.mockResolvedValue(undefined)
   })
 
   it('shows commercial owner and failure signal badge', () => {
@@ -121,6 +186,7 @@ describe('RequestRow', () => {
               notificationLastFailureOutcome: 'FAILED',
             })}
             onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
             formatDate={() => '09.04.2026'}
             currentUserId={null}
             canAssign={false}
@@ -142,6 +208,7 @@ describe('RequestRow', () => {
           <RequestRow
             request={makeRequest()}
             onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
             formatDate={() => '09.04.2026'}
             currentUserId={null}
             canAssign={false}
@@ -157,113 +224,67 @@ describe('RequestRow', () => {
     expect(html).toContain('Data portowania')
   })
 
-  it('renders Kopiuj numer button for all users', () => {
-    const html = renderToStaticMarkup(
-      <table>
-        <tbody>
-          <RequestRow
-            request={makeRequest()}
-            onClick={() => undefined}
-            formatDate={() => '09.04.2026'}
-            currentUserId={null}
-            canAssign={false}
-            onAssignToMe={noop}
-          />
-        </tbody>
-      </table>,
-    )
+  it('shows row actions menu with the v1 action set', () => {
+    renderRow()
 
-    expect(html).toContain('Kopiuj numer')
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+
+    expect(screen.getByRole('menuitem', { name: 'Otworz sprawe' })).not.toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Kopiuj numer sprawy' })).not.toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Kopiuj link' })).not.toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Przypisz do mnie' })).not.toBeNull()
   })
 
-  it('renders Przypisz do mnie for eligible user when not yet assigned', () => {
-    const html = renderToStaticMarkup(
-      <table>
-        <tbody>
-          <RequestRow
-            request={makeRequest({ assignedUserSummary: null })}
-            onClick={() => undefined}
-            formatDate={() => '09.04.2026'}
-            currentUserId="bok-1"
-            canAssign={true}
-            onAssignToMe={noop}
-          />
-        </tbody>
-      </table>,
+  it('shows assign-to-me only for unassigned requests', () => {
+    renderRow(
+      {},
+      {
+        assignedUserSummary: {
+          id: 'other-bok',
+          email: 'other@np-manager.local',
+          displayName: 'Inny BOK',
+          role: 'BOK_CONSULTANT',
+        },
+      },
     )
 
-    expect(html).toContain('Przypisz do mnie')
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+
+    expect(screen.queryByRole('menuitem', { name: 'Przypisz do mnie' })).toBeNull()
   })
 
-  it('hides Przypisz do mnie when already assigned to current user', () => {
-    const html = renderToStaticMarkup(
-      <table>
-        <tbody>
-          <RequestRow
-            request={makeRequest({
-              assignedUserSummary: {
-                id: 'bok-1',
-                email: 'bok@np-manager.local',
-                displayName: 'BOK Uzytkownik',
-                role: 'BOK_CONSULTANT',
-              },
-            })}
-            onClick={() => undefined}
-            formatDate={() => '09.04.2026'}
-            currentUserId="bok-1"
-            canAssign={true}
-            onAssignToMe={noop}
-          />
-        </tbody>
-      </table>,
-    )
+  it('hides assign-to-me for user without assignment rights', () => {
+    renderRow({ canAssign: false, currentUserId: 'sales-1' }, { assignedUserSummary: null })
 
-    expect(html).not.toContain('Przypisz do mnie')
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+
+    expect(screen.queryByRole('menuitem', { name: 'Przypisz do mnie' })).toBeNull()
   })
 
-  it('hides Przypisz do mnie for user without assignment rights', () => {
-    const html = renderToStaticMarkup(
-      <table>
-        <tbody>
-          <RequestRow
-            request={makeRequest({ assignedUserSummary: null })}
-            onClick={() => undefined}
-            formatDate={() => '09.04.2026'}
-            currentUserId="sales-1"
-            canAssign={false}
-            onAssignToMe={noop}
-          />
-        </tbody>
-      </table>,
-    )
+  it('copies case number and shows lightweight feedback', async () => {
+    renderRow()
 
-    expect(html).not.toContain('Przypisz do mnie')
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Kopiuj numer sprawy' }))
+
+    await waitFor(() => {
+      expect(clipboardWriteTextMock).toHaveBeenCalledWith('FNP-20260409-ABC123')
+    })
+    expect(screen.getByText('Skopiowano numer sprawy.')).not.toBeNull()
   })
 
-  it('shows Przypisz do mnie for different user assigned (not mine)', () => {
-    const html = renderToStaticMarkup(
-      <table>
-        <tbody>
-          <RequestRow
-            request={makeRequest({
-              assignedUserSummary: {
-                id: 'other-bok',
-                email: 'other@np-manager.local',
-                displayName: 'Inny BOK',
-                role: 'BOK_CONSULTANT',
-              },
-            })}
-            onClick={() => undefined}
-            formatDate={() => '09.04.2026'}
-            currentUserId="bok-1"
-            canAssign={true}
-            onAssignToMe={noop}
-          />
-        </tbody>
-      </table>,
-    )
+  it('copies request link and shows lightweight feedback', async () => {
+    renderRow()
 
-    expect(html).toContain('Przypisz do mnie')
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Kopiuj link' }))
+
+    await waitFor(() => {
+      expect(clipboardWriteTextMock).toHaveBeenCalledWith(
+        `${window.location.origin}/requests/FNP-20260409-ABC123`,
+      )
+    })
+    expect(screen.getByText('Skopiowano link do sprawy.')).not.toBeNull()
   })
 
   it('shows amber styling for unassigned BOK', () => {
@@ -273,6 +294,7 @@ describe('RequestRow', () => {
           <RequestRow
             request={makeRequest({ assignedUserSummary: null })}
             onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
             formatDate={() => '09.04.2026'}
             currentUserId={null}
             canAssign={false}
@@ -293,6 +315,7 @@ describe('RequestRow', () => {
           <RequestRow
             request={makeRequest({ confirmedPortDate: '2020-01-01T00:00:00.000Z' })}
             onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
             formatDate={() => '01.01.2020'}
             currentUserId={null}
             canAssign={false}
@@ -305,13 +328,14 @@ describe('RequestRow', () => {
     expect(html).toContain('Po terminie')
   })
 
-  it('shows "Brak daty" hint when confirmedPortDate is missing', () => {
+  it('shows "Bez daty" hint when confirmedPortDate is missing', () => {
     const html = renderToStaticMarkup(
       <table>
         <tbody>
           <RequestRow
             request={makeRequest({ confirmedPortDate: null })}
             onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
             formatDate={() => '09.04.2026'}
             currentUserId={null}
             canAssign={false}
@@ -321,7 +345,7 @@ describe('RequestRow', () => {
       </table>,
     )
 
-    expect(html).toContain('Brak daty')
+    expect(html).toContain('Bez daty')
     expect(html).toContain('Nie wyznaczono')
   })
 
@@ -339,6 +363,7 @@ describe('RequestRow', () => {
               },
             })}
             onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
             formatDate={() => '09.04.2026'}
             currentUserId={null}
             canAssign={false}
@@ -356,6 +381,17 @@ describe('RequestRow', () => {
 describe('RequestsPage quick work filters', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    currentUserState.user = {
+      id: 'bok-1',
+      role: 'BOK_CONSULTANT',
+    }
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: {
+        writeText: clipboardWriteTextMock,
+      },
+      configurable: true,
+    })
+    clipboardWriteTextMock.mockResolvedValue(undefined)
     getPortingRequestsMock.mockResolvedValue(mockListResult())
     getPortingRequestsSummaryMock.mockResolvedValue(mockSummaryResult())
     assignPortingRequestToMeMock.mockResolvedValue({
@@ -509,5 +545,89 @@ describe('RequestsPage quick work filters', () => {
       expect(lastListCall.quickWorkFilter).toBeUndefined()
       expect(lastListCall.ownership).toBeUndefined()
     })
+  })
+
+  it('opens request action using canonical caseNumber route and preserves list search state', async () => {
+    renderPageWithDetail('/requests?quickWorkFilter=URGENT&page=2&status=SUBMITTED')
+    await screen.findByText('Sprawy portowania')
+
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Otworz sprawe' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-path').textContent).toBe('/requests/FNP-20260409-ABC123')
+    })
+    expect(screen.getByTestId('location-search').textContent).toBe('')
+    expect(screen.getByTestId('location-list-search').textContent).toBe(
+      '?quickWorkFilter=URGENT&page=2&status=SUBMITTED',
+    )
+  })
+
+  it('assigns to me, refreshes the visible queue and keeps current list state', async () => {
+    getPortingRequestsMock
+      .mockResolvedValueOnce(mockListResult())
+      .mockResolvedValueOnce({
+        items: [
+          makeRequest({
+            assignedUserSummary: {
+              id: 'bok-1',
+              email: 'bok@np-manager.local',
+              displayName: 'BOK Uzytkownik',
+              role: 'BOK_CONSULTANT',
+            },
+          }),
+        ],
+        pagination: {
+          page: 2,
+          pageSize: 20,
+          total: 1,
+          totalPages: 3,
+        },
+      })
+
+    renderPage('/requests?quickWorkFilter=UNASSIGNED&page=2&sort=WORK_PRIORITY&status=SUBMITTED')
+    await screen.findByText('Sprawy portowania')
+
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Przypisz do mnie' }))
+
+    await waitFor(() => {
+      expect(assignPortingRequestToMeMock).toHaveBeenCalledWith('request-1')
+    })
+
+    await waitFor(() => {
+      expect(getPortingRequestsMock).toHaveBeenCalledTimes(2)
+    })
+
+    const refreshedListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+    expect(refreshedListCall).toMatchObject({
+      ownership: 'UNASSIGNED',
+      sort: 'WORK_PRIORITY',
+      status: 'SUBMITTED',
+      page: 2,
+      pageSize: 20,
+    })
+    expect(refreshedListCall.quickWorkFilter).toBeUndefined()
+
+    const refreshedSummaryCall = getPortingRequestsSummaryMock.mock.calls.at(-1)?.[0]
+    expect(refreshedSummaryCall).toMatchObject({
+      status: 'SUBMITTED',
+    })
+    expect(refreshedSummaryCall).not.toHaveProperty('quickWorkFilter')
+  })
+
+  it('shows clear feedback when assign-to-me fails', async () => {
+    assignPortingRequestToMeMock.mockRejectedValueOnce(new Error('forbidden'))
+
+    renderPage()
+    await screen.findByText('Sprawy portowania')
+
+    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Przypisz do mnie' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Nie udało się przypisać sprawy.')).not.toBeNull()
+    })
+    expect(getPortingRequestsMock).toHaveBeenCalledTimes(1)
   })
 })
