@@ -2,10 +2,12 @@ import type { BadgeTone } from '@/components/ui'
 import {
   calculatePortingDaysDiff,
   getPortingUrgencyLevel,
+  getPortingWorkPriorityBucket,
   type PortingUrgencyLevel,
+  type PortingWorkPriorityBucket,
 } from '@np-manager/shared'
 
-export type { PortingUrgencyLevel }
+export type { PortingUrgencyLevel, PortingWorkPriorityBucket }
 
 export interface PortingUrgency {
   level: PortingUrgencyLevel
@@ -20,6 +22,41 @@ export function calculateDaysDiff(
   now: Date = new Date(),
 ): number | null {
   return calculatePortingDaysDiff(portDateIso, now)
+}
+
+export interface WorkPriorityBadge {
+  bucket: PortingWorkPriorityBucket
+  label: string
+  tone: BadgeTone
+  emphasized: boolean
+}
+
+export function getWorkPriorityBadge(
+  portDateIso: string | null | undefined,
+  now: Date = new Date(),
+): WorkPriorityBadge | null {
+  const bucket = getPortingWorkPriorityBucket(portDateIso, now)
+
+  if (bucket === 'LATER') return null
+
+  if (bucket === 'OVERDUE') {
+    const daysDiff = calculatePortingDaysDiff(portDateIso, now)
+    const days = Math.abs(daysDiff ?? 0)
+    const suffix = days === 1 ? 'dzien' : 'dni'
+    return { bucket, label: `Po terminie (${days} ${suffix})`, tone: 'red', emphasized: true }
+  }
+
+  const config: Record<
+    Exclude<PortingWorkPriorityBucket, 'OVERDUE' | 'LATER'>,
+    WorkPriorityBadge
+  > = {
+    TODAY: { bucket: 'TODAY', label: 'Dzis', tone: 'red', emphasized: true },
+    TOMORROW: { bucket: 'TOMORROW', label: 'Jutro', tone: 'amber', emphasized: false },
+    THIS_WEEK: { bucket: 'THIS_WEEK', label: 'W tym tygodniu', tone: 'amber', emphasized: false },
+    NO_DATE: { bucket: 'NO_DATE', label: 'Bez daty', tone: 'neutral', emphasized: false },
+  }
+
+  return config[bucket]
 }
 
 export function getPortingUrgency(

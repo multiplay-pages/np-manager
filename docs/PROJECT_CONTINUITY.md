@@ -46,6 +46,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR50A | Quick work filters na `RequestsPage` | DONE |
 | PR50B | Sort "Priorytet pracy" na `RequestsPage` | DONE |
 | PR52 | Lekkie row actions na `RequestsPage` | DONE |
+| PR53 | Oznaczenie priorytetu pracy w wierszu listy spraw | DONE |
 
 ---
 
@@ -585,6 +586,25 @@ Ostateczna semantyka quick filtrow:
   - inline workflow/status editing,
   - nowych filtrow i sortowan,
   - dodatkowych endpointow backendowych.
+
+### PR53 - oznaczenie priorytetu pracy w wierszu listy spraw
+
+- Dodano `getWorkPriorityBadge` do `apps/frontend/src/lib/portingUrgency.ts`:
+  - używa `getPortingWorkPriorityBucket` z `@np-manager/shared` jako single source of truth,
+  - zwraca `null` dla bucket `LATER` (brak badge),
+  - `NO_DATE` → "Bez daty" (spójne z etykietą quick filtra),
+  - `OVERDUE` → "Po terminie (X dni)", czerwony, emphasized,
+  - `TODAY` → "Dzis", czerwony, emphasized,
+  - `TOMORROW` → "Jutro", amber,
+  - `THIS_WEEK` → "W tym tygodniu", amber.
+- Zaktualizowano `RequestRow` w `RequestsPage.tsx`:
+  - zamieniono `getPortingUrgency` + `showUrgencyBadge` na `getWorkPriorityBadge`,
+  - data portowania używa `workPriority.emphasized` do podkreślenia (ring-2) i koloru badge daty,
+  - etykieta "Brak daty" zastąpiona przez "Bez daty" (spójność z quick filters),
+  - `LATER` nie pokazuje badge priorytetu.
+- Dodano 7 testów jednostkowych dla `getWorkPriorityBadge` w `portingUrgency.test.ts`.
+- Backend: bez zmian. Wszystkie potrzebne dane są w `PortingRequestListItemDto.confirmedPortDate`.
+- Weryfikacja: 21/21 testów `portingUrgency.test.ts` PASS, 210/210 frontend testów PASS, tsc bez nowych błędów.
 
 #### Konfiguracja transportu email
 
