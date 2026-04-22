@@ -691,7 +691,6 @@ describe('RequestsPage quick work filters', () => {
     expect(quickFilters.getByRole('button', { name: 'Moje' })).not.toBeNull()
     expect(quickFilters.getByRole('button', { name: 'Nieprzypisane' })).not.toBeNull()
   })
-
   it('shows clear feedback when assign-to-me fails', async () => {
     assignPortingRequestToMeMock.mockRejectedValueOnce(new Error('forbidden'))
 

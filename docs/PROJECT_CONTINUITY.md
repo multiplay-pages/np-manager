@@ -635,7 +635,6 @@ Waski frontend-only slice na `RequestsPage`: kazdy wiersz dostal drugi, lekki ba
   - `apps/backend`: `npx vitest run` FAIL poza zakresem tego slice'a:
     - Vitest podnosi rowniez `dist/**` skompilowane testy CommonJS (`Vitest cannot be imported in a CommonJS module using require()`),
     - czesc runtime suite wpada dodatkowo w problem wersji pluginu Fastify/CORS (`@fastify/cors - expected '4.x' fastify version, '5.8.5' is installed`).
-
 #### Konfiguracja transportu email
 
 ```env
