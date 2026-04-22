@@ -1,0 +1,31 @@
+{
+  "name": "caveman",
+  "version": "1.0.0",
+  "description": "Ultra-kompaktowy tryb odpowiedzi dla Codexa z zachowaniem sensu technicznego.",
+  "author": {
+    "name": "yibie",
+    "url": "https://github.com/yibie"
+  },
+  "homepage": "https://github.com/yibie/caveman-codex",
+  "repository": "https://github.com/yibie/caveman-codex",
+  "license": "MIT",
+  "keywords": ["caveman", "compression", "brevity", "productivity"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Caveman",
+    "shortDescription": "Mowi krocej, bez utraty sensu technicznego.",
+    "longDescription": "Lokalny plugin dodajacy skill caveman do Codexa. Kompresuje styl odpowiedzi, zostawiajac tresc techniczna i instrukcje wykonawcze.",
+    "developerName": "yibie",
+    "category": "Productivity",
+    "capabilities": ["Skills"],
+    "websiteURL": "https://github.com/yibie/caveman-codex",
+    "privacyPolicyURL": "https://github.com/yibie/caveman-codex",
+    "termsOfServiceURL": "https://github.com/yibie/caveman-codex",
+    "defaultPrompt": [
+      "$caveman",
+      "$caveman lite",
+      "$caveman ultra"
+    ],
+    "brandColor": "#6B7280"
+  }
+}

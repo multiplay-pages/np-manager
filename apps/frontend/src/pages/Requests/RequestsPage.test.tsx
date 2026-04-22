@@ -88,6 +88,11 @@ function mockSummaryResult() {
     withoutCommercialOwner: 1,
     myCommercialRequests: 0,
     requestsWithNotificationFailures: 0,
+    quickWorkCounts: {
+      urgent: 0,
+      noDate: 0,
+      needsActionToday: 0,
+    },
   }
 }
 
@@ -220,6 +225,7 @@ describe('RequestRow', () => {
 
     expect(html).toContain('Brak opiekuna')
     expect(html).toContain('OK')
+    expect(html).toContain('Wymaga potwierdzenia')
     expect(html).toContain('Nie wyznaczono')
     expect(html).toContain('Data portowania')
   })
@@ -349,6 +355,52 @@ describe('RequestRow', () => {
     expect(html).toContain('Nie wyznaczono')
   })
 
+  it('shows donor-date hint for pending donor cases without confirmed port date', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              statusInternal: 'PENDING_DONOR',
+              confirmedPortDate: null,
+            })}
+            onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
+            formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Brak daty od dawcy')
+  })
+
+  it('shows client-contact hint for confirmed cases with a port date', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              statusInternal: 'CONFIRMED',
+              confirmedPortDate: '2026-04-30',
+            })}
+            onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
+            formatDate={() => '30.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Do kontaktu z klientem')
+  })
+
   it('shows normal ink styling for assigned BOK', () => {
     const html = renderToStaticMarkup(
       <table>
@@ -446,7 +498,7 @@ describe('RequestsPage quick work filters', () => {
     const quickFilters = within(
       screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
     )
-    fireEvent.click(quickFilters.getByRole('button', { name: 'Pilne' }))
+    fireEvent.click(quickFilters.getByRole('button', { name: /^Pilne/ }))
 
     await waitFor(() => {
       const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
@@ -616,6 +668,29 @@ describe('RequestsPage quick work filters', () => {
     expect(refreshedSummaryCall).not.toHaveProperty('quickWorkFilter')
   })
 
+  it('shows quickWorkCounts next to URGENT, NO_DATE, NEEDS_ACTION_TODAY chips', async () => {
+    getPortingRequestsSummaryMock.mockResolvedValue({
+      ...mockSummaryResult(),
+      quickWorkCounts: { urgent: 4, noDate: 2, needsActionToday: 3 },
+    })
+
+    renderPage()
+    await screen.findByText('Sprawy portowania')
+
+    const quickFilters = within(
+      screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
+    )
+    await waitFor(() => {
+      expect(quickFilters.getByRole('button', { name: 'Pilne (4)' })).not.toBeNull()
+      expect(quickFilters.getByRole('button', { name: 'Bez daty (2)' })).not.toBeNull()
+      expect(quickFilters.getByRole('button', { name: 'Wymaga reakcji dzis (3)' })).not.toBeNull()
+    })
+
+    // Filters without counts stay unchanged
+    expect(quickFilters.getByRole('button', { name: 'Wszystkie' })).not.toBeNull()
+    expect(quickFilters.getByRole('button', { name: 'Moje' })).not.toBeNull()
+    expect(quickFilters.getByRole('button', { name: 'Nieprzypisane' })).not.toBeNull()
+  })
   it('shows clear feedback when assign-to-me fails', async () => {
     assignPortingRequestToMeMock.mockRejectedValueOnce(new Error('forbidden'))
 

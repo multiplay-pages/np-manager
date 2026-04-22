@@ -9,6 +9,7 @@ import {
   parseOwnershipFilter,
   type OwnershipFilter,
 } from '@/lib/portingOwnership'
+import { getPortingOperationalHint } from '@/lib/portingOperationalHint'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import { getWorkPriorityBadge } from '@/lib/portingUrgency'
 import {
@@ -227,6 +228,10 @@ export function RequestRow({
     ? formatDateValue(request.confirmedPortDate)
     : null
   const workPriority = getWorkPriorityBadge(request.confirmedPortDate)
+  const operationalHint = getPortingOperationalHint({
+    statusInternal: request.statusInternal,
+    confirmedPortDate: request.confirmedPortDate,
+  })
 
   const setTimedFeedback = useCallback((tone: 'success' | 'error', message: string) => {
     if (feedbackTimeoutRef.current) {
@@ -323,7 +328,12 @@ export function RequestRow({
         </div>
       </td>
       <td className="px-5 py-4 align-top">
-        <StatusBadge status={request.statusInternal} />
+        <div className="flex flex-col gap-2">
+          <StatusBadge status={request.statusInternal} />
+          <Badge tone={operationalHint.tone} className="w-fit text-[11px] font-medium">
+            {operationalHint.label}
+          </Badge>
+        </div>
       </td>
       <td className="px-5 py-4 align-top">
         {portingDateLabel ? (
@@ -768,17 +778,27 @@ export function RequestsPage() {
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
             Szybka kolejka pracy
           </span>
-          {quickWorkFilterOptions.map((filter) => (
-            <FilterChip
-              key={filter.id}
-              active={quickWorkFilter === filter.id}
-              aria-pressed={quickWorkFilter === filter.id}
-              className="h-8 px-3 text-xs"
-              onClick={() => setQuickWorkFilter(filter.id)}
-            >
-              {filter.label}
-            </FilterChip>
-          ))}
+          {quickWorkFilterOptions.map((filter) => {
+            const count =
+              summary && filter.id === 'URGENT'
+                ? summary.quickWorkCounts.urgent
+                : summary && filter.id === 'NO_DATE'
+                  ? summary.quickWorkCounts.noDate
+                  : summary && filter.id === 'NEEDS_ACTION_TODAY'
+                    ? summary.quickWorkCounts.needsActionToday
+                    : null
+            return (
+              <FilterChip
+                key={filter.id}
+                active={quickWorkFilter === filter.id}
+                aria-pressed={quickWorkFilter === filter.id}
+                className="h-8 px-3 text-xs"
+                onClick={() => setQuickWorkFilter(filter.id)}
+              >
+                {count !== null ? `${filter.label} (${count})` : filter.label}
+              </FilterChip>
+            )
+          })}
         </div>
       </section>
 

@@ -139,12 +139,19 @@ export interface PortingRequestListResultDto {
   }
 }
 
+export interface PortingRequestQuickWorkCountsDto {
+  urgent: number
+  noDate: number
+  needsActionToday: number
+}
+
 export interface PortingRequestOperationalSummaryDto {
   totalRequests: number
   withCommercialOwner: number
   withoutCommercialOwner: number
   myCommercialRequests: number
   requestsWithNotificationFailures: number
+  quickWorkCounts: PortingRequestQuickWorkCountsDto
 }
 
 // ============================================================
