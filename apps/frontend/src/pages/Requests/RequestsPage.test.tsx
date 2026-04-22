@@ -225,6 +225,7 @@ describe('RequestRow', () => {
 
     expect(html).toContain('Brak opiekuna')
     expect(html).toContain('OK')
+    expect(html).toContain('Wymaga potwierdzenia')
     expect(html).toContain('Nie wyznaczono')
     expect(html).toContain('Data portowania')
   })
@@ -352,6 +353,52 @@ describe('RequestRow', () => {
 
     expect(html).toContain('Bez daty')
     expect(html).toContain('Nie wyznaczono')
+  })
+
+  it('shows donor-date hint for pending donor cases without confirmed port date', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              statusInternal: 'PENDING_DONOR',
+              confirmedPortDate: null,
+            })}
+            onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
+            formatDate={() => '09.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Brak daty od dawcy')
+  })
+
+  it('shows client-contact hint for confirmed cases with a port date', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              statusInternal: 'CONFIRMED',
+              confirmedPortDate: '2026-04-30',
+            })}
+            onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
+            formatDate={() => '30.04.2026'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).toContain('Do kontaktu z klientem')
   })
 
   it('shows normal ink styling for assigned BOK', () => {

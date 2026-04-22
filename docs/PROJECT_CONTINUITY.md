@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-21)
+## Aktualny stan projektu (2026-04-22)
 
 ### Stan prac / etapy
 
@@ -47,6 +47,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR50B | Sort "Priorytet pracy" na `RequestsPage` | DONE |
 | PR52 | Lekkie row actions na `RequestsPage` | DONE |
 | PR53 | Oznaczenie priorytetu pracy w wierszu listy spraw | DONE |
+| PR54 | Operacyjny hint v1 w wierszu listy spraw | DONE |
 
 ---
 
@@ -605,6 +606,35 @@ Closure slice ujednocajacy semantykę badge'ów priorytetu w liscie spraw z getP
 - **Test coverage**: 7 nowych testów dla `getWorkPriorityBadge` + update istniejacych testow (RequestsPage label assertion).
 - **Backward compat**: `getPortingUrgency` zachowany (uzywane w RequestDetailPage), bez zmian semantyki.
 - **Weryfikacja**: 258/258 frontend testów PASS, tsc clean, brak zmian backendu.
+
+### PR54 - operacyjny hint v1 w wierszu listy spraw
+
+Waski frontend-only slice na `RequestsPage`: kazdy wiersz dostal drugi, lekki badge pod statusem z odpowiedzia na pytanie "co ta sprawa wymaga teraz?".
+
+- **Zakres danych**: bez zmian backendu i bez nowego pola DTO.
+  - decyzja byla celowa: obecne `PortingRequestListItemDto` wystarcza do heurystyki v1 opartej o `statusInternal` i `confirmedPortDate`,
+  - nie dodawano `nextActionHint`, bo dla tego slice'a nie byl potrzebny nowy source of truth po stronie API.
+- **Frontend helper**: nowy `portingOperationalHint.ts`.
+  - mapowanie pozostaje swiadomie lekkie i review-friendly,
+  - `DRAFT` -> `Czeka na dokumenty`,
+  - `SUBMITTED` -> `Wymaga potwierdzenia`,
+  - `PENDING_DONOR` / `CONFIRMED` bez daty -> `Brak daty od dawcy`,
+  - `CONFIRMED` z data -> `Do kontaktu z klientem`,
+  - `ERROR` -> `Wymaga interwencji`,
+  - statusy terminalne -> `Brak dalszych akcji`.
+- **Spojnosc domenowa**:
+  - hint nie wprowadza nowego workflow engine,
+  - reguly bazuja na istniejacej semantyce statusow z backendowego workflow oraz na obecnej logice dat operacyjnych na liscie,
+  - to jest heurystyka UI v1, nie drugi backendowy kontrakt procesu.
+- **Testy**:
+  - dodano testy jednostkowe helpera hintow,
+  - rozszerzono testy renderu `RequestRow` o scenariusze `PENDING_DONOR` bez daty i `CONFIRMED` z data.
+- **Weryfikacja**:
+  - `apps/frontend`: `npx vitest run` PASS (268 testow), `npx tsc --noEmit` PASS, `npm run build` PASS,
+  - `apps/backend`: `npx tsc --noEmit` PASS,
+  - `apps/backend`: `npx vitest run` FAIL poza zakresem tego slice'a:
+    - Vitest podnosi rowniez `dist/**` skompilowane testy CommonJS (`Vitest cannot be imported in a CommonJS module using require()`),
+    - czesc runtime suite wpada dodatkowo w problem wersji pluginu Fastify/CORS (`@fastify/cors - expected '4.x' fastify version, '5.8.5' is installed`).
 
 #### Konfiguracja transportu email
 
