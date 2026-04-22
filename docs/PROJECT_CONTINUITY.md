@@ -49,6 +49,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR53 | Oznaczenie priorytetu pracy w wierszu listy spraw | DONE |
 | PR54 | Operacyjny hint v1 w wierszu listy spraw | DONE |
 | PR55 | Ownership signal (Moja / Nieprzypisana) w wierszu listy spraw | DONE |
+| PR56 | Backend test/runtime foundation: vitest config + @fastify/cors alignment | DONE |
 
 ---
 
@@ -646,6 +647,26 @@ Waski frontend-only slice na `RequestsPage`: kazdy wiersz dostal drugi, lekki ba
   - `apps/backend`: `npx vitest run` FAIL poza zakresem tego slice'a:
     - Vitest podnosi rowniez `dist/**` skompilowane testy CommonJS (`Vitest cannot be imported in a CommonJS module using require()`),
     - czesc runtime suite wpada dodatkowo w problem wersji pluginu Fastify/CORS (`@fastify/cors - expected '4.x' fastify version, '5.8.5' is installed`).
+### PR56 - backend test/runtime foundation
+
+Waski fix-pack infrastrukturalny. Bez zmian domenowych.
+
+Root causes:
+- Brak `vitest.config.ts` → vitest (domyslny discovery) lapie `dist/**/*.test.js` (skompilowane CJS pliki TestScriptu).
+- Skompilowane pliki uzywaja `require('vitest')` → `Vitest cannot be imported in a CommonJS module using require()`.
+- `@fastify/cors: ^9.0.1` w package.json niespojne z faktycznie zainstalowanym `10.1.0` (lock mial `^10.0.0`).
+
+Zmiany:
+- Nowy `apps/backend/vitest.config.ts`:
+  - `include: ['src/**/*.test.ts', 'src/**/*.spec.ts', 'prisma/**/*.test.ts']` — pokrywa wszystkie 65 plikow testowych.
+  - `exclude: ['node_modules', 'dist']` — jawne wykluczenie artefaktow budowania.
+  - `resolve.alias` dla `@np-manager/shared` → bezposrednio ze zrodel TypeScript.
+- `apps/backend/package.json`: `@fastify/cors ^9.0.1` → `^10.0.0` (zgodnie z package-lock i zainstalowana wersja 10.1.0, ktora wspiera fastify 5.x).
+
+Wyniki walidacji:
+- `npx tsc --noEmit` (backend): PASS
+- `npx vitest run` (backend): 65/65 plikow, 488/488 testow, 0 bledow.
+
 #### Konfiguracja transportu email
 
 ```env
