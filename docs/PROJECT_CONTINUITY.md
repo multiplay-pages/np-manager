@@ -44,6 +44,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR48 | "Co dalej ze sprawa?" panel na `RequestDetailPage` | DONE |
 | PR49 | Markery pilnosci/dat na liscie i w detailu | DONE |
 | PR50A | Quick work filters na `RequestsPage` | DONE |
+| PR50B | Sort "Priorytet pracy" na `RequestsPage` | DONE |
 
 ---
 

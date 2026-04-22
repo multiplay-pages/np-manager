@@ -127,3 +127,44 @@ export function getPortingUrgencyLevel(
 
   return 'LATER'
 }
+
+// ============================================================
+// WORK PRIORITY (PR50B)
+// ============================================================
+// Kolejnosc, w jakiej operator powinien pracowac nad sprawami.
+// Reuzywa shared semantyki urgency; NO_DATE jest miedzy THIS_WEEK
+// a pozniejszymi sprawami LATER.
+
+export type PortingWorkPriorityBucket =
+  | 'OVERDUE'
+  | 'TODAY'
+  | 'TOMORROW'
+  | 'THIS_WEEK'
+  | 'NO_DATE'
+  | 'LATER'
+
+export const PORTING_WORK_PRIORITY_ORDER: Record<PortingWorkPriorityBucket, number> = {
+  OVERDUE: 1,
+  TODAY: 2,
+  TOMORROW: 3,
+  THIS_WEEK: 4,
+  NO_DATE: 5,
+  LATER: 6,
+}
+
+export function getPortingWorkPriorityBucket(
+  portDateIso: string | null | undefined,
+  now: Date = new Date(),
+): PortingWorkPriorityBucket {
+  const level = getPortingUrgencyLevel(portDateIso, now)
+  if (level === 'NONE') return 'NO_DATE'
+  if (level === 'LATER') return 'LATER'
+  return level
+}
+
+export function getPortingWorkPriorityRank(
+  portDateIso: string | null | undefined,
+  now: Date = new Date(),
+): number {
+  return PORTING_WORK_PRIORITY_ORDER[getPortingWorkPriorityBucket(portDateIso, now)]
+}

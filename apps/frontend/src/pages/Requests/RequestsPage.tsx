@@ -30,6 +30,7 @@ import type {
   PortingRequestAssigneeSummaryDto,
   PortingRequestListItemDto,
   PortingRequestListResultDto,
+  PortingRequestListSort,
   PortingRequestOperationalSummaryDto,
 } from '@np-manager/shared'
 import {
@@ -37,8 +38,10 @@ import {
   buildListQueryFromFilters,
   buildRequestsSummaryCards,
   buildSummaryQueryFromFilters,
+  DEFAULT_REQUESTS_SORT,
   hasActiveRequestsFilters,
   parseCommercialOwnerFilter,
+  parseListSort,
   parseNotificationHealthFilter,
   parseQuickWorkFilter,
   type RequestsQuickWorkFilter,
@@ -95,6 +98,11 @@ const notificationHealthFilterLabels: Record<NotificationHealthFilter, string> =
   HAS_FAILURES: 'Bledy notyfikacji',
   NO_FAILURES: 'Bez bledow',
 }
+
+const sortOptions: Array<{ id: PortingRequestListSort; label: string }> = [
+  { id: 'CREATED_AT_DESC', label: 'Najnowsze' },
+  { id: 'WORK_PRIORITY', label: 'Priorytet pracy' },
+]
 
 interface ActiveFilterChip {
   id: string
@@ -381,6 +389,7 @@ export function RequestsPage() {
   const notificationHealthFilter = parseNotificationHealthFilter(
     searchParams.get('notificationHealthFilter'),
   )
+  const sort = parseListSort(searchParams.get('sort'))
   const page = parsePage(searchParams.get('page'))
 
   const filters = useMemo(
@@ -393,6 +402,7 @@ export function RequestsPage() {
       quickWorkFilter,
       commercialOwnerFilter,
       notificationHealthFilter,
+      sort,
       page,
       pageSize: PAGE_SIZE,
     }),
@@ -402,6 +412,7 @@ export function RequestsPage() {
       notificationHealthFilter,
       ownershipFilter,
       quickWorkFilter,
+      sort,
       page,
       portingModeFilter,
       searchInput,
@@ -732,6 +743,25 @@ export function RequestsPage() {
               {notificationHealthOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   Notyfikacje: {option.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              aria-label="Sortowanie listy"
+              value={sort}
+              onChange={(event) => {
+                const next = event.target.value as PortingRequestListSort
+                setParam({
+                  sort: next === DEFAULT_REQUESTS_SORT ? null : next,
+                  page: null,
+                })
+              }}
+              className="input-field h-10 min-w-[180px] lg:max-w-[220px]"
+            >
+              {sortOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  Sortuj: {option.label}
                 </option>
               ))}
             </select>

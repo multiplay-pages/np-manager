@@ -371,6 +371,149 @@ describe('listPortingRequests - quick work filters', () => {
   })
 })
 
+describe('listPortingRequests - WORK_PRIORITY sort (PR50B)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    // Wed 2026-04-22 11:00 Warsaw
+    vi.setSystemTime(new Date('2026-04-22T09:00:00.000Z'))
+
+    mockPrismaTransaction.mockImplementation(async (arg: unknown) => {
+      if (Array.isArray(arg)) return Promise.all(arg)
+      return undefined
+    })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function makeCandidate(
+    id: string,
+    confirmedPortDate: Date | null,
+    createdAt: Date,
+  ): { id: string; confirmedPortDate: Date | null; createdAt: Date } {
+    return { id, confirmedPortDate, createdAt }
+  }
+
+  it('orders rows by work-priority bucket, then date asc, with NO_DATE between THIS_WEEK and LATER', async () => {
+    const overdue = makeCandidate(
+      'overdue',
+      new Date('2026-04-20T00:00:00.000Z'),
+      new Date('2026-04-01T10:00:00.000Z'),
+    )
+    const today = makeCandidate(
+      'today',
+      new Date('2026-04-22T00:00:00.000Z'),
+      new Date('2026-04-01T10:00:00.000Z'),
+    )
+    const tomorrow = makeCandidate(
+      'tomorrow',
+      new Date('2026-04-23T00:00:00.000Z'),
+      new Date('2026-04-01T10:00:00.000Z'),
+    )
+    const thisWeek = makeCandidate(
+      'this_week',
+      new Date('2026-04-26T00:00:00.000Z'),
+      new Date('2026-04-01T10:00:00.000Z'),
+    )
+    const noDateOld = makeCandidate(
+      'no_date_old',
+      null,
+      new Date('2026-03-01T10:00:00.000Z'),
+    )
+    const noDateNew = makeCandidate(
+      'no_date_new',
+      null,
+      new Date('2026-04-10T10:00:00.000Z'),
+    )
+    const later = makeCandidate(
+      'later',
+      new Date('2026-05-11T00:00:00.000Z'),
+      new Date('2026-04-01T10:00:00.000Z'),
+    )
+
+    const shuffled = [later, noDateNew, thisWeek, overdue, noDateOld, tomorrow, today]
+    // First findMany: candidates (id, confirmedPortDate, createdAt)
+    // Second findMany: full rows for page
+    mockPortingRequestFindMany.mockResolvedValueOnce(shuffled)
+    mockPortingRequestFindMany.mockResolvedValueOnce([
+      makeListRow({ id: 'overdue', confirmedPortDate: overdue.confirmedPortDate }),
+      makeListRow({ id: 'today', confirmedPortDate: today.confirmedPortDate }),
+      makeListRow({ id: 'tomorrow', confirmedPortDate: tomorrow.confirmedPortDate }),
+      makeListRow({ id: 'this_week', confirmedPortDate: thisWeek.confirmedPortDate }),
+      makeListRow({ id: 'no_date_old', confirmedPortDate: null }),
+      makeListRow({ id: 'no_date_new', confirmedPortDate: null }),
+      makeListRow({ id: 'later', confirmedPortDate: later.confirmedPortDate }),
+    ])
+
+    const result = await listPortingRequests(
+      { sort: 'WORK_PRIORITY', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    expect(result.pagination.total).toBe(7)
+    expect(result.items.map((i) => i.id)).toEqual([
+      'overdue',
+      'today',
+      'tomorrow',
+      'this_week',
+      'no_date_old',
+      'no_date_new',
+      'later',
+    ])
+
+    // Pagination-safe: second findMany queries only the target page ids
+    const secondCall = mockPortingRequestFindMany.mock.calls[1]?.[0] as {
+      where: { id: { in: string[] } }
+    }
+    expect(secondCall.where.id.in).toHaveLength(7)
+  })
+
+  it('respects pagination boundaries for WORK_PRIORITY sort', async () => {
+    const candidates = Array.from({ length: 5 }, (_, i) =>
+      makeCandidate(
+        `r-${i + 1}`,
+        new Date(`2026-04-${String(20 + i).padStart(2, '0')}T00:00:00.000Z`),
+        new Date('2026-04-01T10:00:00.000Z'),
+      ),
+    )
+
+    mockPortingRequestFindMany.mockResolvedValueOnce(candidates)
+    mockPortingRequestFindMany.mockResolvedValueOnce([
+      makeListRow({ id: 'r-3' }),
+      makeListRow({ id: 'r-4' }),
+    ])
+
+    const result = await listPortingRequests(
+      { sort: 'WORK_PRIORITY', page: 2, pageSize: 2 },
+      CURRENT_USER_ID,
+    )
+
+    const pageIds = (
+      mockPortingRequestFindMany.mock.calls[1]?.[0] as { where: { id: { in: string[] } } }
+    ).where.id.in
+    expect(pageIds).toEqual(['r-3', 'r-4'])
+    expect(result.pagination.total).toBe(5)
+    expect(result.pagination.totalPages).toBe(3)
+  })
+
+  it('composes with quickWorkFilter when sorting by WORK_PRIORITY', async () => {
+    mockPortingRequestFindMany.mockResolvedValueOnce([])
+    mockPortingRequestFindMany.mockResolvedValueOnce([])
+
+    await listPortingRequests(
+      { sort: 'WORK_PRIORITY', quickWorkFilter: 'NO_DATE', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const candidatesCall = mockPortingRequestFindMany.mock.calls[0]?.[0] as {
+      where: Record<string, unknown>
+    }
+    expect(candidatesCall.where).toMatchObject({ confirmedPortDate: null })
+  })
+})
+
 describe('getPortingRequestsOperationalSummary', () => {
   beforeEach(() => {
     vi.clearAllMocks()

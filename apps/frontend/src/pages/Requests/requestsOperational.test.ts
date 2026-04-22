@@ -7,6 +7,7 @@ import {
   buildSummaryQueryFromFilters,
   hasActiveRequestsFilters,
   parseCommercialOwnerFilter,
+  parseListSort,
   parseNotificationHealthFilter,
   parseQuickWorkFilter,
   type RequestsOperationalFilterState,
@@ -24,6 +25,7 @@ function makeFilters(
     quickWorkFilter: 'ALL',
     commercialOwnerFilter: 'ALL',
     notificationHealthFilter: 'ALL',
+    sort: 'CREATED_AT_DESC',
     page: 1,
     pageSize: 20,
     ...overrides,
@@ -73,6 +75,7 @@ describe('requestsOperational helpers', () => {
       quickWorkFilter: undefined,
       commercialOwnerFilter: 'WITHOUT_OWNER',
       notificationHealthFilter: 'HAS_FAILURES',
+      sort: undefined,
       page: 3,
       pageSize: 20,
     })
@@ -94,9 +97,22 @@ describe('requestsOperational helpers', () => {
       quickWorkFilter: 'URGENT',
       commercialOwnerFilter: undefined,
       notificationHealthFilter: undefined,
+      sort: undefined,
       page: 1,
       pageSize: 20,
     })
+  })
+
+  it('parses and round-trips the WORK_PRIORITY sort option', () => {
+    expect(parseListSort('WORK_PRIORITY')).toBe('WORK_PRIORITY')
+    expect(parseListSort('unknown')).toBe('CREATED_AT_DESC')
+    expect(parseListSort(null)).toBe('CREATED_AT_DESC')
+
+    const query = buildListQueryFromFilters(makeFilters({ sort: 'WORK_PRIORITY' }))
+    expect(query.sort).toBe('WORK_PRIORITY')
+
+    const defaultQuery = buildListQueryFromFilters(makeFilters({ sort: 'CREATED_AT_DESC' }))
+    expect(defaultQuery.sort).toBeUndefined()
   })
 
   it('builds summary query without date-based quick filter and operational cards filters', () => {
