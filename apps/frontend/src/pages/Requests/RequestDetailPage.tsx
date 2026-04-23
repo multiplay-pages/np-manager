@@ -20,6 +20,7 @@ import {
   getPortingRequestInternalNotificationAttempts,
   getPortingRequestInternalNotifications,
   getPortingRequestNotificationFailures,
+  getPortingRequestDetailsHistory,
   getPortingRequestE03Draft,
   getPortingRequestE12Draft,
   getPortingRequestE18Draft,
@@ -75,6 +76,7 @@ import {
   type PortingRequestStatusActionDto,
   type CommercialOwnerCandidateDto,
   type NotificationFailureHistoryItemDto,
+  type PortingRequestDetailsHistoryItemDto,
   type NotificationHealthDiagnosticsDto,
   type UpdatePortingRequestDetailsDto,
 } from '@np-manager/shared'
@@ -91,6 +93,7 @@ import { PliCbdTechnicalPayloadPreview } from '@/components/PliCbdTechnicalPaylo
 import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview'
 import { PortingInternalNotificationsPanel } from '@/components/PortingInternalNotificationsPanel/PortingInternalNotificationsPanel'
 import { RequestOperationalDetailsPanel } from '@/components/RequestOperationalDetailsPanel/RequestOperationalDetailsPanel'
+import { RequestDetailsHistoryPanel } from '@/components/RequestDetailsHistoryPanel/RequestDetailsHistoryPanel'
 import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
 import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
@@ -520,6 +523,9 @@ export function RequestDetailPage() {
   >([])
   const [isNotificationFailuresLoading, setIsNotificationFailuresLoading] = useState(true)
   const [notificationFailuresError, setNotificationFailuresError] = useState<string | null>(null)
+  const [detailsHistoryItems, setDetailsHistoryItems] = useState<PortingRequestDetailsHistoryItemDto[]>([])
+  const [isDetailsHistoryLoading, setIsDetailsHistoryLoading] = useState(true)
+  const [detailsHistoryError, setDetailsHistoryError] = useState<string | null>(null)
   const [assignmentHistoryItems, setAssignmentHistoryItems] = useState<
     PortingRequestAssignmentHistoryItemDto[]
   >([])
@@ -882,6 +888,23 @@ export function RequestDetailPage() {
     }
   }, [canUseInternalNotificationDiagnostics, id])
 
+  const loadDetailsHistory = useCallback(async () => {
+    if (!id) return
+
+    setIsDetailsHistoryLoading(true)
+    setDetailsHistoryError(null)
+
+    try {
+      const result = await getPortingRequestDetailsHistory(id)
+      setDetailsHistoryItems(result.items)
+    } catch {
+      setDetailsHistoryItems([])
+      setDetailsHistoryError('Nie udalo sie zaladowac historii zmian danych sprawy.')
+    } finally {
+      setIsDetailsHistoryLoading(false)
+    }
+  }, [id])
+
   const loadAssignmentHistory = useCallback(async () => {
     if (!id) return
 
@@ -1136,6 +1159,7 @@ export function RequestDetailPage() {
     void loadInternalNotificationHistory()
     void loadInternalNotificationAttempts()
     void loadNotificationFailures()
+    void loadDetailsHistory()
     void loadAssignmentHistory()
     void loadAssignableUsers()
     void loadCommercialOwnerCandidates()
@@ -1361,6 +1385,7 @@ export function RequestDetailPage() {
         const updatedRequest = await updatePortingRequestDetails(id, payload)
         setRequest(updatedRequest)
         void loadCaseHistory()
+        void loadDetailsHistory()
       } catch (err) {
         if (axios.isAxiosError(err)) {
           const apiError = err.response?.data as { error?: { message?: string } } | undefined
@@ -1914,6 +1939,12 @@ export function RequestDetailPage() {
               onSave={handleUpdateOperationalDetails}
             />
           </SectionCard>
+
+          <RequestDetailsHistoryPanel
+            items={detailsHistoryItems}
+            isLoading={isDetailsHistoryLoading}
+            error={detailsHistoryError}
+          />
 
           <div id="communication-panel" className="scroll-mt-6">
             <PortingCommunicationPanel
