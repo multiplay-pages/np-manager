@@ -4,6 +4,8 @@ import type {
   CommercialOwnerCandidatesResultDto,
   ConfirmPortingRequestPortDateDto,
   UpdatePortingRequestCommercialOwnerDto,
+  UpdatePortingRequestDetailsDto,
+  UpdatePortingRequestPortDateDto,
   CommunicationDeliveryAttemptsResultDto,
   CreatePortingRequestDto,
   ExecutePortingRequestExternalActionDto,
@@ -25,6 +27,7 @@ import type {
   PortingRequestCaseHistoryResultDto,
   PortingRequestDetailDto,
   NotificationFailureHistoryResultDto,
+  PortingRequestDetailsHistoryResultDto,
   PortingInternalNotificationHistoryResultDto,
   InternalNotificationDeliveryAttemptsResultDto,
   PortingRequestListQueryDto,
@@ -51,6 +54,8 @@ export type PliCbdTechnicalPayloadApiMessageType = 'e03' | 'e12' | 'e18' | 'e23'
 export type PreparePortingCommunicationDraftPayload = PreparePortingCommunicationDraftDto
 export type ExecutePortingRequestExternalActionPayload = ExecutePortingRequestExternalActionDto
 export type UpdatePortingRequestCommercialOwnerPayload = UpdatePortingRequestCommercialOwnerDto
+export type UpdatePortingRequestDetailsPayload = UpdatePortingRequestDetailsDto
+export type UpdatePortingRequestPortDatePayload = UpdatePortingRequestPortDateDto
 
 function appendListFiltersToQuery(
   query: URLSearchParams,
@@ -338,6 +343,17 @@ export async function getPortingRequestNotificationFailures(
   return response.data.data
 }
 
+export async function getPortingRequestDetailsHistory(
+  id: string,
+): Promise<PortingRequestDetailsHistoryResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingRequestDetailsHistoryResultDto
+  }>(`/porting-requests/${id}/details-history`)
+
+  return response.data.data
+}
+
 export async function getPortingRequestCommunicationHistory(
   id: string,
 ): Promise<PortingCommunicationListResultDto> {
@@ -537,6 +553,30 @@ export async function listCommercialOwnerCandidates(): Promise<CommercialOwnerCa
   }>('/porting-requests/commercial-owner-candidates')
 
   return response.data.data
+}
+
+export async function updatePortingRequestDetails(
+  id: string,
+  data: UpdatePortingRequestDetailsPayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/details`, data)
+
+  return response.data.data.request
+}
+
+export async function updatePortingRequestPortDate(
+  id: string,
+  data: UpdatePortingRequestPortDatePayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/port-date`, data)
+
+  return response.data.data.request
 }
 
 export async function updatePortingRequestCommercialOwner(

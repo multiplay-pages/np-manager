@@ -21,6 +21,7 @@ import {
   getPortingRequestInternalNotificationAttempts,
   getPortingRequestInternalNotifications,
   getPortingRequestNotificationFailures,
+  getPortingRequestDetailsHistory,
   getPortingRequestE03Draft,
   getPortingRequestE12Draft,
   getPortingRequestE18Draft,
@@ -39,6 +40,8 @@ import {
   syncPortingRequest,
   updatePortingRequestAssignment,
   updatePortingRequestCommercialOwner,
+  updatePortingRequestDetails,
+  updatePortingRequestPortDate,
   updatePortingRequestStatus,
   listCommercialOwnerCandidates,
 } from '@/services/portingRequests.api'
@@ -75,7 +78,10 @@ import {
   type PortingRequestStatusActionDto,
   type CommercialOwnerCandidateDto,
   type NotificationFailureHistoryItemDto,
+  type PortingRequestDetailsHistoryItemDto,
   type NotificationHealthDiagnosticsDto,
+  type UpdatePortingRequestDetailsDto,
+  type UpdatePortingRequestPortDateDto,
 } from '@np-manager/shared'
 import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
 import { PortingCaseHistory } from '@/components/PortingCaseHistory/PortingCaseHistory'
@@ -89,6 +95,9 @@ import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbd
 import { PliCbdTechnicalPayloadPreview } from '@/components/PliCbdTechnicalPayloadPreview/PliCbdTechnicalPayloadPreview'
 import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview'
 import { PortingInternalNotificationsPanel } from '@/components/PortingInternalNotificationsPanel/PortingInternalNotificationsPanel'
+import { RequestOperationalDetailsPanel } from '@/components/RequestOperationalDetailsPanel/RequestOperationalDetailsPanel'
+import { RequestPortDatePanel } from '@/components/RequestPortDatePanel/RequestPortDatePanel'
+import { RequestDetailsHistoryPanel } from '@/components/RequestDetailsHistoryPanel/RequestDetailsHistoryPanel'
 import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
 import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
@@ -520,6 +529,9 @@ export function RequestDetailPage() {
   >([])
   const [isNotificationFailuresLoading, setIsNotificationFailuresLoading] = useState(true)
   const [notificationFailuresError, setNotificationFailuresError] = useState<string | null>(null)
+  const [detailsHistoryItems, setDetailsHistoryItems] = useState<PortingRequestDetailsHistoryItemDto[]>([])
+  const [isDetailsHistoryLoading, setIsDetailsHistoryLoading] = useState(true)
+  const [detailsHistoryError, setDetailsHistoryError] = useState<string | null>(null)
   const [assignmentHistoryItems, setAssignmentHistoryItems] = useState<
     PortingRequestAssignmentHistoryItemDto[]
   >([])
@@ -617,6 +629,16 @@ export function RequestDetailPage() {
     () => ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(user?.role ?? ''),
     [user?.role],
   )
+  const canEditDetailsRole = canManageStatus
+  const isRequestClosed = request
+    ? TERMINAL_CLOSED_STATUSES.includes(request.statusInternal)
+    : false
+  const canEditOperationalDetails = canEditDetailsRole && !isRequestClosed
+  const operationalDetailsDisabledReason = !canEditDetailsRole
+    ? 'Twoja rola nie ma uprawnien do edycji danych sprawy.'
+    : isRequestClosed
+      ? 'Sprawa w statusie koncowym — edycja zablokowana.'
+      : null
   const isAdmin = useMemo(() => user?.role === 'ADMIN', [user?.role])
   const canUseInternalNotificationDiagnostics = isAdmin
   const canRetryInternalNotificationAttempts = isAdmin
@@ -628,6 +650,8 @@ export function RequestDetailPage() {
   const canUseManualPortDateAction = canUseManualPortDateConfirmation(systemCapabilities, user?.role)
   const canShowPliCbdSection =
     isAdmin && (canUsePliCbdDiagnostics || canUsePliCbdExport || canUsePliCbdSync)
+  const isManualMode = !systemCapabilities.pliCbd.active
+  const canEditPortDate = canEditDetailsRole && !isRequestClosed
   const canShowPliCbdDiagnostics = isAdmin && canUsePliCbdDiagnostics
   const canShowPliCbdOperationalMeta = shouldShowPliCbdOperationalMeta(systemCapabilities)
   const canManageAssignment = useMemo(() => canManagePortingOwnership(user?.role), [user?.role])
@@ -882,6 +906,23 @@ export function RequestDetailPage() {
       setIsNotificationFailuresLoading(false)
     }
   }, [canUseInternalNotificationDiagnostics, id])
+
+  const loadDetailsHistory = useCallback(async () => {
+    if (!id) return
+
+    setIsDetailsHistoryLoading(true)
+    setDetailsHistoryError(null)
+
+    try {
+      const result = await getPortingRequestDetailsHistory(id)
+      setDetailsHistoryItems(result.items)
+    } catch {
+      setDetailsHistoryItems([])
+      setDetailsHistoryError('Nie udalo sie zaladowac historii zmian danych sprawy.')
+    } finally {
+      setIsDetailsHistoryLoading(false)
+    }
+  }, [id])
 
   const loadAssignmentHistory = useCallback(async () => {
     if (!id) return
@@ -1140,6 +1181,7 @@ export function RequestDetailPage() {
     void loadInternalNotificationHistory()
     void loadInternalNotificationAttempts()
     void loadNotificationFailures()
+    void loadDetailsHistory()
     void loadAssignmentHistory()
     void loadAssignableUsers()
     void loadCommercialOwnerCandidates()
@@ -1354,6 +1396,52 @@ export function RequestDetailPage() {
       setIsUpdatingStatus(false)
     }
   }
+
+  const handleUpdateOperationalDetails = useCallback(
+    async (payload: UpdatePortingRequestDetailsDto) => {
+      if (!id) {
+        throw new Error('Brak identyfikatora sprawy.')
+      }
+
+      try {
+        const updatedRequest = await updatePortingRequestDetails(id, payload)
+        setRequest(updatedRequest)
+        void loadCaseHistory()
+        void loadDetailsHistory()
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          const apiError = err.response?.data as { error?: { message?: string } } | undefined
+          const message = apiError?.error?.message
+          throw new Error(message ?? 'Nie udalo sie zapisac zmian.')
+        }
+        throw err instanceof Error ? err : new Error('Nie udalo sie zapisac zmian.')
+      }
+    },
+    [id, loadCaseHistory, loadDetailsHistory],
+  )
+
+  const handleUpdatePortDate = useCallback(
+    async (payload: UpdatePortingRequestPortDateDto) => {
+      if (!id) {
+        throw new Error('Brak identyfikatora sprawy.')
+      }
+
+      try {
+        const updatedRequest = await updatePortingRequestPortDate(id, payload)
+        setRequest(updatedRequest)
+        void loadCaseHistory()
+        void loadDetailsHistory()
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          const apiError = err.response?.data as { error?: { message?: string } } | undefined
+          const message = apiError?.error?.message
+          throw new Error(message ?? 'Nie udalo sie zapisac daty.')
+        }
+        throw err instanceof Error ? err : new Error('Nie udalo sie zapisac daty.')
+      }
+    },
+    [id, loadCaseHistory, loadDetailsHistory],
+  )
 
   const handleConfirmManualPortDate = async () => {
     if (
@@ -1929,16 +2017,49 @@ export function RequestDetailPage() {
             </dl>
           </SectionCard>
 
-          <SectionCard title="Dane klienta i kontakt" description="Tozsamosc abonenta, kontakt i notatki operacyjne.">
+          {isManualMode && (
+            <SectionCard
+              title="Dane portowania"
+              description="Reczne uzupelnienie wyznaczonej daty przeniesienia numeru (tryb manualny)."
+            >
+              <RequestPortDatePanel
+                confirmedPortDate={request.confirmedPortDate}
+                canEdit={canEditPortDate}
+                disabledReason={operationalDetailsDisabledReason}
+                onSave={handleUpdatePortDate}
+              />
+            </SectionCard>
+          )}
+
+          <SectionCard title="Dane klienta i kontakt" description="Tozsamosc abonenta i powiazania operatorskie.">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Typ identyfikatora" value={SUBSCRIBER_IDENTITY_TYPE_LABELS[request.identityType]} />
               <Field label="Wartosc identyfikatora" value={request.identityValue} mono />
               <Field label="Usluga hurtowa po stronie biorcy" value={request.linkedWholesaleServiceOnRecipientSide ? 'Tak' : 'Nie'} />
               <Field label="Operator infrastrukturalny" value={request.infrastructureOperator?.name} />
-              <WideField label="Adres korespondencyjny" value={request.correspondenceAddress} />
-              <WideField label="Notatki wewnetrzne" value={request.internalNotes} />
             </dl>
           </SectionCard>
+
+          <SectionCard
+            title="Dane kontaktowe i operacyjne"
+            description="Edycja operacyjna v1: adres, kanal kontaktu, notatki, numer dokumentu."
+          >
+            <RequestOperationalDetailsPanel
+              correspondenceAddress={request.correspondenceAddress}
+              contactChannel={request.contactChannel}
+              internalNotes={request.internalNotes}
+              requestDocumentNumber={request.requestDocumentNumber}
+              canEdit={canEditOperationalDetails}
+              disabledReason={operationalDetailsDisabledReason}
+              onSave={handleUpdateOperationalDetails}
+            />
+          </SectionCard>
+
+          <RequestDetailsHistoryPanel
+            items={detailsHistoryItems}
+            isLoading={isDetailsHistoryLoading}
+            error={detailsHistoryError}
+          />
 
           <div id="communication-panel" className="scroll-mt-6">
             <PortingCommunicationPanel

@@ -349,6 +349,32 @@ export const updatePortingRequestStatusSchema = z.object({
 
 export type UpdatePortingRequestStatusBody = z.infer<typeof updatePortingRequestStatusSchema>
 
+// ============================================================
+// OPERATIONAL DETAILS EDIT v1
+// ============================================================
+
+const nullableTrimmedString = (max: number) =>
+  z.preprocess(
+    (value) => (value === '' ? null : value),
+    z.union([z.string().max(max).trim(), z.null()]),
+  )
+
+// ============================================================
+// MANUAL PORT DATE EDIT
+// ============================================================
+
+export const updatePortingRequestPortDateSchema = z.object({
+  confirmedPortDate: z.preprocess(
+    (value) => (value === '' ? null : value),
+    z.union([
+      z.string().refine(isValidDateOnly, 'Data musi miec format RRRR-MM-DD'),
+      z.null(),
+    ]),
+  ),
+})
+
+export type UpdatePortingRequestPortDateBody = z.infer<typeof updatePortingRequestPortDateSchema>
+
 export const confirmPortingRequestPortDateSchema = z.object({
   confirmedPortDate: dateOnlySchema,
   comment: optionalTrimmedString(5000),
@@ -357,6 +383,33 @@ export const confirmPortingRequestPortDateSchema = z.object({
 export type ConfirmPortingRequestPortDateBody = z.infer<
   typeof confirmPortingRequestPortDateSchema
 >
+
+// ============================================================
+// OPERATIONAL DETAILS EDIT v1
+// ============================================================
+
+export const updatePortingRequestDetailsSchema = z
+  .object({
+    correspondenceAddress: z
+      .string()
+      .min(1, 'Adres korespondencyjny nie moze byc pusty.')
+      .max(1000)
+      .trim()
+      .optional(),
+    contactChannel: z.enum(['EMAIL', 'SMS', 'LETTER']).optional(),
+    internalNotes: nullableTrimmedString(5000).optional(),
+    requestDocumentNumber: nullableTrimmedString(100).optional(),
+  })
+  .refine(
+    (data) =>
+      data.correspondenceAddress !== undefined ||
+      data.contactChannel !== undefined ||
+      data.internalNotes !== undefined ||
+      data.requestDocumentNumber !== undefined,
+    { message: 'Podaj przynajmniej jedno pole do zmiany.' },
+  )
+
+export type UpdatePortingRequestDetailsBody = z.infer<typeof updatePortingRequestDetailsSchema>
 
 export const portingRequestListQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),

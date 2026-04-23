@@ -6,6 +6,7 @@ import { useOperators } from '@/hooks/useOperators'
 import {
   canManagePortingOwnership,
   formatAssigneeLabel,
+  getOwnershipSignal,
   parseOwnershipFilter,
   type OwnershipFilter,
 } from '@/lib/portingOwnership'
@@ -217,6 +218,7 @@ export function RequestRow({
 }) {
   const ownerLabel = formatCommercialOwnerLabel(request.commercialOwnerSummary)
   const assigneeLabel = formatAssigneeLabel(request.assignedUserSummary)
+  const ownershipSignal = getOwnershipSignal(request.assignedUserSummary, currentUserId)
   const isUnassigned = request.assignedUserSummary === null
   const canAssignToMe = canAssign && isUnassigned && currentUserId !== null
   const [isAssigning, setIsAssigning] = useState(false)
@@ -385,6 +387,14 @@ export function RequestRow({
         >
           {assigneeLabel}
         </div>
+        {ownershipSignal && (
+          <Badge
+            tone={ownershipSignal.tone}
+            className="mt-1 w-fit text-[11px] font-semibold uppercase tracking-[0.04em]"
+          >
+            {ownershipSignal.label}
+          </Badge>
+        )}
         <div className="mt-1 text-xs text-ink-400">BOK</div>
       </td>
       <td className="px-5 py-4 align-top">

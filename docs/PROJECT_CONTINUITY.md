@@ -48,7 +48,12 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR52 | Lekkie row actions na `RequestsPage` | DONE |
 | PR53 | Oznaczenie priorytetu pracy w wierszu listy spraw | DONE |
 | PR54 | Operacyjny hint v1 w wierszu listy spraw | DONE |
-| PR55 | Manualna akcja biznesowa "Potwierdz date przeniesienia" | DONE |
+| PR55 | Ownership signal (Moja / Nieprzypisana) w wierszu listy spraw | DONE |
+| PR56 | Backend test/runtime foundation: vitest config + @fastify/cors alignment | DONE |
+| PR57 | Operational edit v1 w `RequestDetailPage` (correspondenceAddress, contactChannel, internalNotes, requestDocumentNumber) | DONE |
+| PR58 | Historia zmian danych sprawy v1 w `RequestDetailPage` (read path dla AuditLog tych 4 pol) | DONE |
+| PR59 | Reczne uzupelnienie confirmedPortDate w trybie manualnym (PATCH /port-date + RequestPortDatePanel) | DONE |
+| PR60 | Manualna akcja biznesowa "Potwierdz date przeniesienia" (POST `/manual-actions/confirm-port-date`) | DONE |
 
 ---
 
@@ -96,6 +101,16 @@ Dispatch jest non-blocking (`.catch(() => {})`) i nie blokuje glownego flow API.
   - Admin ma strone `Ustawienia powiadomien portingowych` do konfiguracji fallback email/Teams.
   - Read-only diagnostyka env: `email adapter mode`, `SMTP configured`.
 - Zakres pozostaje wewnetrzny (operacyjny) - bez zmian w customer communication pipeline.
+
+### PR55 - ownership signal w wierszu listy spraw
+
+- Frontend-only. Brak zmian backendu, DTO, endpointów.
+- Nowy helper `getOwnershipSignal(assignedUserSummary, currentUserId)` w `portingOwnership.ts`:
+  - `null` assignee → `{ label: 'Nieprzypisana', tone: 'amber' }`
+  - `assignedUserSummary.id === currentUserId` → `{ label: 'Moja', tone: 'emerald' }`
+  - assigned to someone else → `null` (bez badge, nazwa już widoczna)
+- `RequestRow` renderuje mały Badge w kolumnie "Przypisanie" na podstawie signalu.
+- Weryfikacja: 261/261 frontend testów PASS, tsc clean.
 
 ### PR16 - diagnostyka zdrowia notyfikacji
 
@@ -636,31 +651,49 @@ Waski frontend-only slice na `RequestsPage`: kazdy wiersz dostal drugi, lekki ba
   - `apps/backend`: `npx vitest run` FAIL poza zakresem tego slice'a:
     - Vitest podnosi rowniez `dist/**` skompilowane testy CommonJS (`Vitest cannot be imported in a CommonJS module using require()`),
     - czesc runtime suite wpada dodatkowo w problem wersji pluginu Fastify/CORS (`@fastify/cors - expected '4.x' fastify version, '5.8.5' is installed`).
+### PR56 - backend test/runtime foundation
 
-### PR55 - manualna akcja biznesowa "Potwierdz date przeniesienia"
+Waski fix-pack infrastrukturalny. Bez zmian domenowych.
 
-Cel: odseparowac manualne potwierdzanie terminu przeniesienia od ogolnej edycji pola i nadac mu czytelna semantyke domenowa.
+Root causes:
+- Brak `vitest.config.ts` → vitest (domyslny discovery) lapie `dist/**/*.test.js` (skompilowane CJS pliki TestScriptu).
+- Skompilowane pliki uzywaja `require('vitest')` → `Vitest cannot be imported in a CommonJS module using require()`.
+- `@fastify/cors: ^9.0.1` w package.json niespojne z faktycznie zainstalowanym `10.1.0` (lock mial `^10.0.0`).
 
-- **Backend endpoint (manual action)**:
-  - `POST /api/porting-requests/:id/manual-actions/confirm-port-date`
-  - body: `confirmedPortDate` (wymagane, `YYYY-MM-DD`) + opcjonalny `comment`
-  - endpoint jest przeznaczony dla `STANDALONE` (tryb manualny); poza tym trybem zwraca kontrolowany `400`.
-- **Decyzja statusowa (workflow-consistent)**:
-  - naturalny status dla potwierdzonego terminu to `CONFIRMED`,
-  - dla `SUBMITTED` / `PENDING_DONOR` akcja wykonuje transition do `CONFIRMED` przez istniejacy resolver workflow (bez obchodzenia obecnych reguł roli),
-  - dla `CONFIRMED` akcja zapisuje potwierdzenie daty bez dodatkowej zmiany statusu.
-- **Audit/history**:
-  - transakcja zapisuje: `confirmedPortDate`, `donorAssignedPortDate`, wpis do `PortingRequestCaseHistory` (event `STATUS_CHANGED` + `metadata.actionId=CONFIRM_PORT_DATE_MANUAL`) i czytelny `PortingRequestEvent NOTE`,
-  - audit log pozostaje wymagany dla mutacji.
-- **Notyfikacje**:
-  - po akcji emitowany jest event `PORT_DATE_CONFIRMED` do wewnetrznego pipeline (non-blocking dispatch).
-- **Frontend (`RequestDetailPage`)**:
-  - nowy prosty panel "Potwierdz date przeniesienia" (tryb manualny),
-  - osobny formularz: data + komentarz,
-  - czytelny feedback sukces/blad i odswiezanie historii po akcji.
-- **Kontrakty i schema**:
-  - dodano `ConfirmPortingRequestPortDateDto` do shared DTO,
-  - bez zmian enumu Prisma dla case history; czytelna semantyka akcji jest kodowana przez `metadata.actionId`.
+Zmiany:
+- Nowy `apps/backend/vitest.config.ts`:
+  - `include: ['src/**/*.test.ts', 'src/**/*.spec.ts', 'prisma/**/*.test.ts']` — pokrywa wszystkie 65 plikow testowych.
+  - `exclude: ['node_modules', 'dist']` — jawne wykluczenie artefaktow budowania.
+  - `resolve.alias` dla `@np-manager/shared` → bezposrednio ze zrodel TypeScript.
+- `apps/backend/package.json`: `@fastify/cors ^9.0.1` → `^10.0.0` (zgodnie z package-lock i zainstalowana wersja 10.1.0, ktora wspiera fastify 5.x).
+
+Wyniki walidacji:
+- `npx tsc --noEmit` (backend): PASS
+- `npx vitest run` (backend): 65/65 plikow, 488/488 testow, 0 bledow.
+
+### PR60 - manualna akcja biznesowa "Potwierdz date przeniesienia"
+
+Cel: odseparowac manualne potwierdzanie terminu przeniesienia od zwyklej edycji pola i nadac temu flow czytelna semantyke domenowa.
+
+- Backend:
+  - nowy endpoint: `POST /api/porting-requests/:id/manual-actions/confirm-port-date`,
+  - nowy kontrakt request body: `confirmedPortDate` (wymagane, `YYYY-MM-DD`) + opcjonalny `comment`,
+  - akcja dziala tylko w trybie manualnym (`STANDALONE`), poza nim zwraca kontrolowany blad biznesowy.
+- Decyzja statusowa:
+  - naturalnym statusem dla potwierdzonej daty pozostaje `CONFIRMED`,
+  - dla `SUBMITTED` i `PENDING_DONOR` akcja wykonuje przejscie do `CONFIRMED` przez istniejacy workflow resolver,
+  - dla `CONFIRMED` zapisuje tylko potwierdzenie daty bez dodatkowej zmiany statusu.
+- Historia/audit:
+  - zapis przypadku obejmuje `confirmedPortDate` + `donorAssignedPortDate`,
+  - dodawany jest czytelny wpis case history (`STATUS_CHANGED` + `metadata.actionId=CONFIRM_PORT_DATE_MANUAL`) i wpis NOTE w eventach,
+  - zachowane jest `logAuditEvent()` dla mutacji.
+- Frontend:
+  - w `RequestDetailPage` dodano osobna akcje operacyjna "Potwierdz date przeniesienia",
+  - prosty formularz: data + opcjonalny komentarz,
+  - po sukcesie odswiezana jest historia i pokazywany status-aware komunikat.
+- Kontrakty:
+  - dodano `ConfirmPortingRequestPortDateDto` w shared DTO.
+
 #### Konfiguracja transportu email
 
 ```env
@@ -687,7 +720,7 @@ Teams: webhook URL pochodzi z `SystemSetting.porting_status_notify_shared_teams_
 - `CASE_REJECTED`
 - `COMMERCIAL_OWNER_CHANGED`
 
-Aktywnie podlaczone: `STATUS_CHANGED`, `COMMERCIAL_OWNER_CHANGED`, `PORT_DATE_CONFIRMED`. Pozostale eventy pozostaja gotowe jako punkt rozszerzenia.
+W PR13A aktywnie podlaczony jest bezpieczny hook `STATUS_CHANGED` (+ zmiana ownera). Pozostale eventy sa gotowe jako punkt rozszerzenia.
 
 ### Rozdzial odpowiedzialnosci komunikacyjnych
 
@@ -764,6 +797,92 @@ apps/frontend/src/
 6. Commit prefix: `feat(prXXy): opis`
 
 ---
+
+## PR57 — Operational edit v1 (2026-04-23)
+
+Waski zakres edycji 4 pol operacyjnych na `RequestDetailPage`:
+- `correspondenceAddress` (max 1000), `contactChannel` (enum EMAIL/SMS/LETTER), `internalNotes` (max 5000, nullable), `requestDocumentNumber` (max 100, nullable).
+
+Backend:
+- `PATCH /api/porting-requests/:id/details` — Zod schema wymaga >=1 pola, RBAC przez `writeRoles` (ADMIN/BOK_CONSULTANT/BACK_OFFICE/MANAGER).
+- Status gate: `CLOSED_STATUSES` (REJECTED/CANCELLED/PORTED) -> 400 `REQUEST_CLOSED_EDIT_FORBIDDEN`.
+- Per-pole diff: jesli brak zmian, zwraca aktualny detail bez side effects.
+- Audit: per-field `AuditLog` (null/empty -> `BRAK`, truncate >200) + pojedynczy `PortingRequestEvent` NOTE z prefiksem `[DetailsEdit]` (spojne z `[Dispatch]`/`[ErrorFallback]`). Nie rozszerzamy `PortingRequestCaseHistoryEventType`.
+
+Frontend:
+- Nowy komponent `RequestOperationalDetailsPanel` (view/edit toggle, client-side walidacja "no changes" i pustego adresu, maxLength z `MAX_LENGTHS`).
+- Sekcja w `RequestDetailPage`: przeniesione `correspondenceAddress`/`internalNotes` z karty "Dane klienta" do nowej karty "Dane kontaktowe i operacyjne".
+- `canEdit = writeRole && !isClosed`; disabled reason pokazany w tooltipie i inline.
+
+Testy/walidacje:
+- Backend vitest: 8 testow (pelny update + NOTE + 4 audity, partial, no-op, 404, 3x status gate, null clear) — PASS.
+- Backend tsc: clean. Frontend tsc: clean.
+- Frontend vitest/RTL: brak infrastruktury w repo; nie konfigurujemy w tej iteracji (out of v1 scope). Core logika pokryta backendem + client-side diff jest prosty.
+
+## PR58 — Historia zmian danych sprawy v1 (2026-04-23)
+
+Waski read path dla historii zmian 4 pol edytowanych przez PR57.
+
+Decyzja architektoniczna: AuditLog ma `requestId` zindeksowany i PR57 juz zapisuje do niego entries z tych 4 pol. Brak nowej migracji. Brak ogolnego audit module.
+
+Backend:
+- Nowy endpoint `GET /api/porting-requests/:id/details-history` (RBAC: `readRoles`).
+- Nowy serwis `porting-request-details-history.service.ts`:
+  - query `AuditLog WHERE requestId = id AND action = 'UPDATE' AND fieldName IN [4 pola]`,
+  - JOIN User (firstName, lastName, role),
+  - sort desc by timestamp, limit 50.
+- Nowe DTO w `packages/shared`: `PortingRequestDetailsHistoryItemDto`, `PortingRequestDetailsHistoryResultDto`, `DetailsHistoryFieldName`.
+
+Frontend:
+- Nowy komponent `RequestDetailsHistoryPanel` (isLoading / error / empty state / lista wpisow).
+- Kazdy wpis pokazuje: pole (czytelny label), stara wartosc, nowa wartosc, aktor, timestamp.
+- `BRAK` (pusty string zapisany przez PR57) renderowany jako `—` z muted stylem.
+- Panel w `RequestDetailPage` za sekcja "Dane kontaktowe i operacyjne".
+- Historia odswieza sie automatycznie po kazdym udanym save w `RequestOperationalDetailsPanel`.
+
+Testy/walidacje:
+- Backend: 6 nowych testow jednostkowych serwisu (mapowanie, filtr 4 pol, empty, 404, BRAK, null) — PASS.
+- Backend tsc: clean. Frontend tsc: clean.
+- Frontend vitest: 271/271 PASS (brak RTL dla nowego komponentu — prosta prezentacja, core logika pokryta backendem).
+
+## PR59 — Reczne uzupelnienie confirmedPortDate w trybie manualnym (2026-04-23)
+
+Waski pionowy slice: operator w trybie manualnym moze recznie uzupelnic wyznaczona date przeniesienia numeru uzyskana z Adescom / od dawcy.
+
+Architektura:
+- **Dedykowany endpoint**: `PATCH /api/porting-requests/:id/port-date`.
+  - Body: `{ confirmedPortDate: string | null }` (YYYY-MM-DD lub null).
+  - RBAC: `writeRoles` (ADMIN, BOK_CONSULTANT, BACK_OFFICE, MANAGER).
+  - Status gate: CLOSED_STATUSES blokuje edycje (`REQUEST_CLOSED_EDIT_FORBIDDEN`).
+  - No-op: jesli ta sama wartosc, zwraca aktualny detail bez side effects.
+  - Audit: `AuditLog` entry z `fieldName: 'confirmedPortDate'`.
+  - Historia: `PortingRequestEvent NOTE` z prefiksem `[PortDateEdit]`.
+
+Shared:
+- `UpdatePortingRequestPortDateDto` (nowy) — kontrakt body PATCH.
+- `DetailsHistoryFieldName` — dodano `confirmedPortDate` (5 pol zamiast 4).
+
+Backend:
+- `updatePortingRequestPortDateSchema` w `porting-requests.schema.ts`.
+- `updatePortingRequestPortDate()` w `porting-requests.service.ts`.
+- PATCH `/:id/port-date` w `porting-requests.router.ts`.
+- `confirmedPortDate` dodany do `DETAILS_HISTORY_FIELD_NAMES` w `porting-request-details-history.service.ts` — historia zmian dostepna przez istniejacy endpoint i panel `RequestDetailsHistoryPanel`.
+
+Frontend:
+- Nowy komponent `RequestPortDatePanel` (view/edit/save toggle, analogia do `RequestOperationalDetailsPanel`).
+- Nowa sekcja `Dane portowania` w `RequestDetailPage` — widoczna tylko gdy `!systemCapabilities.pliCbd.active` (tryb manualny/standalone).
+- `FIELD_LABELS['confirmedPortDate']` dodany w `RequestDetailsHistoryPanel` (label: `Data przeniesienia numeru`).
+- `updatePortingRequestPortDate()` w `portingRequests.api.ts`.
+
+Testy/walidacja:
+- Backend: nowy plik testowy `porting-requests.port-date-edit.service.test.ts` — 7 testow (set date, clear, no-op, 404, 3x status gate) — PASS.
+- Backend tsc: clean. Frontend tsc: clean.
+- Frontend vitest: 271/271 PASS (tyle samo co przed).
+
+Decyzje:
+- Endpoint dedykowany (nie przez /details) — inna semantyka domenowa.
+- Sekcja widoczna tylko w trybie manualnym (fail-closed zgodne z istniejacym wzorcem capabilities).
+- Historia `confirmedPortDate` trafia do istniejacego panelu `RequestDetailsHistoryPanel` bez nowych endpointow.
 
 ## Kolejne kroki
 

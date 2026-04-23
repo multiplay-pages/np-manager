@@ -14,6 +14,8 @@ import {
   retryInternalNotificationAttemptSchema,
   updatePortingRequestAssignmentSchema,
   updatePortingRequestCommercialOwnerSchema,
+  updatePortingRequestDetailsSchema,
+  updatePortingRequestPortDateSchema,
   updatePortingRequestStatusSchema,
 } from './porting-requests.schema'
 import {
@@ -33,6 +35,8 @@ import {
   syncPortingRequestFromPliCbd,
   updatePortingRequestAssignment,
   updateCommercialOwner,
+  updatePortingRequestDetails,
+  updatePortingRequestPortDate,
   updatePortingRequestStatus,
 } from './porting-requests.service'
 import {
@@ -56,6 +60,7 @@ import {
   retryInternalNotificationAttempt,
 } from './porting-internal-notification-attempts.service'
 import { getPortingRequestNotificationFailures } from './porting-notification-failure-history.service'
+import { getPortingRequestDetailsHistory } from './porting-request-details-history.service'
 import {
   buildE03DraftForPortingRequest,
   buildE12DraftForPortingRequest,
@@ -147,6 +152,15 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     { preHandler: [authenticate, authorize(readRoles)] },
     async (request, reply) => {
       const result = await getPortingRequestCaseHistory(request.params.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  app.get<{ Params: { id: string } }>(
+    '/:id/details-history',
+    { preHandler: [authenticate, authorize(readRoles)] },
+    async (request, reply) => {
+      const result = await getPortingRequestDetailsHistory(request.params.id)
       return reply.status(200).send({ success: true, data: result })
     },
   )
@@ -423,6 +437,42 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
     return reply.status(201).send({ success: true, data: { request: portingRequest } })
   })
+
+  app.patch<{ Params: { id: string } }>(
+    '/:id/details',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const body = updatePortingRequestDetailsSchema.parse(request.body)
+      const portingRequest = await updatePortingRequestDetails(
+        request.params.id,
+        body,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
+    },
+  )
+
+  app.patch<{ Params: { id: string } }>(
+    '/:id/port-date',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const body = updatePortingRequestPortDateSchema.parse(request.body)
+      const portingRequest = await updatePortingRequestPortDate(
+        request.params.id,
+        body.confirmedPortDate,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
+    },
+  )
 
   app.patch<{ Params: { id: string } }>(
     '/:id/status',

@@ -4,6 +4,25 @@ import type {
   UserRole,
 } from '@np-manager/shared'
 
+export type OwnershipSignal =
+  | { label: 'Moja'; tone: 'emerald' }
+  | { label: 'Nieprzypisana'; tone: 'amber' }
+
+export function getOwnershipSignal(
+  assignedUserSummary: PortingRequestAssigneeSummaryDto | null,
+  currentUserId: string | null,
+): OwnershipSignal | null {
+  if (!assignedUserSummary) {
+    return { label: 'Nieprzypisana', tone: 'amber' }
+  }
+
+  if (currentUserId && assignedUserSummary.id === currentUserId) {
+    return { label: 'Moja', tone: 'emerald' }
+  }
+
+  return null
+}
+
 export type OwnershipFilter = 'ALL' | 'MINE' | 'UNASSIGNED'
 
 export function parseOwnershipFilter(value: string | null): OwnershipFilter {
