@@ -5,6 +5,7 @@ export type DetailsHistoryFieldName =
   | 'contactChannel'
   | 'internalNotes'
   | 'requestDocumentNumber'
+  | 'confirmedPortDate'
 
 export interface PortingRequestDetailsHistoryItemDto {
   id: string

@@ -359,6 +359,26 @@ const nullableTrimmedString = (max: number) =>
     z.union([z.string().max(max).trim(), z.null()]),
   )
 
+// ============================================================
+// MANUAL PORT DATE EDIT
+// ============================================================
+
+export const updatePortingRequestPortDateSchema = z.object({
+  confirmedPortDate: z.preprocess(
+    (value) => (value === '' ? null : value),
+    z.union([
+      z.string().refine(isValidDateOnly, 'Data musi miec format RRRR-MM-DD'),
+      z.null(),
+    ]),
+  ),
+})
+
+export type UpdatePortingRequestPortDateBody = z.infer<typeof updatePortingRequestPortDateSchema>
+
+// ============================================================
+// OPERATIONAL DETAILS EDIT v1
+// ============================================================
+
 export const updatePortingRequestDetailsSchema = z
   .object({
     correspondenceAddress: z

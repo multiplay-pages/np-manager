@@ -202,6 +202,11 @@ export interface UpdatePortingRequestDetailsDto {
   requestDocumentNumber?: string | null
 }
 
+/** Ręczne uzupełnienie wyznaczonej daty przeniesienia numeru (tryb manualny). */
+export interface UpdatePortingRequestPortDateDto {
+  confirmedPortDate: string | null
+}
+
 export interface PortingRequestStatusActionDto {
   actionId: PortingRequestStatusActionId
   label: string

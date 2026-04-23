@@ -1680,6 +1680,84 @@ export async function updatePortingRequestDetails(
   return getPortingRequest(requestId, userRole)
 }
 
+// ============================================================
+// MANUAL PORT DATE EDIT
+// ============================================================
+
+export async function updatePortingRequestPortDate(
+  requestId: string,
+  confirmedPortDate: string | null,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const current = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: {
+      id: true,
+      statusInternal: true,
+      confirmedPortDate: true,
+    },
+  })
+
+  if (!current) {
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
+  }
+
+  if (CLOSED_STATUSES.includes(current.statusInternal)) {
+    throw AppError.badRequest(
+      'Nie mozna edytowac danych sprawy w statusie koncowym.',
+      'REQUEST_CLOSED_EDIT_FORBIDDEN',
+    )
+  }
+
+  const currentDateStr = toDateOnlyString(current.confirmedPortDate)
+  if (confirmedPortDate === currentDateStr) {
+    return getPortingRequest(requestId, userRole)
+  }
+
+  const newDateValue = confirmedPortDate ? toDateOnlyValue(confirmedPortDate) ?? null : null
+
+  const oldDisplay = currentDateStr ?? 'BRAK'
+  const newDisplay = confirmedPortDate ?? 'BRAK'
+
+  await prisma.$transaction(async (tx) => {
+    await tx.portingRequest.update({
+      where: { id: requestId },
+      data: { confirmedPortDate: newDateValue },
+    })
+
+    await tx.portingRequestEvent.create({
+      data: {
+        request: { connect: { id: requestId } },
+        eventSource: 'INTERNAL',
+        eventType: 'NOTE',
+        title: '[PortDateEdit] Reczna zmiana daty przeniesienia numeru',
+        description: `Data przeniesienia: ${oldDisplay} -> ${newDisplay}`,
+        statusBefore: current.statusInternal,
+        statusAfter: current.statusInternal,
+        createdBy: { connect: { id: userId } },
+      },
+    })
+  })
+
+  await logAuditEvent({
+    action: 'UPDATE',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    fieldName: 'confirmedPortDate',
+    oldValue: oldDisplay,
+    newValue: newDisplay,
+    ipAddress,
+    userAgent,
+  })
+
+  return getPortingRequest(requestId, userRole)
+}
+
 export async function listCommercialOwnerCandidates(): Promise<CommercialOwnerCandidatesResultDto> {
   const rows = await prisma.user.findMany({
     where: { isActive: true, role: 'SALES' },

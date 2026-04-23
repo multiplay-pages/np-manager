@@ -5,6 +5,7 @@ const FIELD_LABELS: Record<DetailsHistoryFieldName, string> = {
   contactChannel: 'Kanal kontaktu',
   internalNotes: 'Notatki wewnetrzne',
   requestDocumentNumber: 'Numer dokumentu',
+  confirmedPortDate: 'Data przeniesienia numeru',
 }
 
 interface RequestDetailsHistoryPanelProps {
@@ -55,7 +56,7 @@ export function RequestDetailsHistoryPanel({
           Historia zmian danych sprawy
         </h2>
         <p className="mt-1 text-sm text-gray-500">
-          Zmiany pol: adres korespondencyjny, kanal kontaktu, notatki, numer dokumentu.
+          Zmiany pol: adres korespondencyjny, kanal kontaktu, notatki, numer dokumentu, data przeniesienia.
         </p>
       </div>
 

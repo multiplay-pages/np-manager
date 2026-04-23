@@ -4,6 +4,7 @@ import type {
   CommercialOwnerCandidatesResultDto,
   UpdatePortingRequestCommercialOwnerDto,
   UpdatePortingRequestDetailsDto,
+  UpdatePortingRequestPortDateDto,
   CommunicationDeliveryAttemptsResultDto,
   CreatePortingRequestDto,
   ExecutePortingRequestExternalActionDto,
@@ -52,6 +53,7 @@ export type PreparePortingCommunicationDraftPayload = PreparePortingCommunicatio
 export type ExecutePortingRequestExternalActionPayload = ExecutePortingRequestExternalActionDto
 export type UpdatePortingRequestCommercialOwnerPayload = UpdatePortingRequestCommercialOwnerDto
 export type UpdatePortingRequestDetailsPayload = UpdatePortingRequestDetailsDto
+export type UpdatePortingRequestPortDatePayload = UpdatePortingRequestPortDateDto
 
 function appendListFiltersToQuery(
   query: URLSearchParams,
@@ -547,6 +549,18 @@ export async function updatePortingRequestDetails(
     success: true
     data: { request: PortingRequestDetailDto }
   }>(`/porting-requests/${id}/details`, data)
+
+  return response.data.data.request
+}
+
+export async function updatePortingRequestPortDate(
+  id: string,
+  data: UpdatePortingRequestPortDatePayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/port-date`, data)
 
   return response.data.data.request
 }
