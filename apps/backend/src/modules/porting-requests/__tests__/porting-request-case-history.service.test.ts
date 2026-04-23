@@ -56,4 +56,28 @@ describe('porting-request-case-history.service', () => {
       retryCount: 2,
     })
   })
+
+  it('supports manual port-date confirmation metadata on STATUS_CHANGED', () => {
+    const dto = mapCaseHistoryToDto({
+      id: 'hist-2',
+      eventType: 'STATUS_CHANGED',
+      statusBefore: null,
+      statusAfter: 'CONFIRMED',
+      reason: null,
+      comment: 'Potwierdzenie z Adescom',
+      metadata: {
+        actionId: 'CONFIRM_PORT_DATE_MANUAL',
+        confirmedPortDate: '2026-05-02',
+      },
+      occurredAt: new Date('2026-05-01T10:00:00.000Z'),
+      actor: null,
+    })
+
+    expect(dto.eventType).toBe('STATUS_CHANGED')
+    expect(dto.statusAfter).toBe('CONFIRMED')
+    expect(dto.metadata).toEqual({
+      actionId: 'CONFIRM_PORT_DATE_MANUAL',
+      confirmedPortDate: '2026-05-02',
+    })
+  })
 })

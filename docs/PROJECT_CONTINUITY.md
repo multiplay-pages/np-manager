@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-22)
+## Aktualny stan projektu (2026-04-23)
 
 ### Stan prac / etapy
 
@@ -48,6 +48,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR52 | Lekkie row actions na `RequestsPage` | DONE |
 | PR53 | Oznaczenie priorytetu pracy w wierszu listy spraw | DONE |
 | PR54 | Operacyjny hint v1 w wierszu listy spraw | DONE |
+| PR55 | Manualna akcja biznesowa "Potwierdz date przeniesienia" | DONE |
 
 ---
 
@@ -635,6 +636,31 @@ Waski frontend-only slice na `RequestsPage`: kazdy wiersz dostal drugi, lekki ba
   - `apps/backend`: `npx vitest run` FAIL poza zakresem tego slice'a:
     - Vitest podnosi rowniez `dist/**` skompilowane testy CommonJS (`Vitest cannot be imported in a CommonJS module using require()`),
     - czesc runtime suite wpada dodatkowo w problem wersji pluginu Fastify/CORS (`@fastify/cors - expected '4.x' fastify version, '5.8.5' is installed`).
+
+### PR55 - manualna akcja biznesowa "Potwierdz date przeniesienia"
+
+Cel: odseparowac manualne potwierdzanie terminu przeniesienia od ogolnej edycji pola i nadac mu czytelna semantyke domenowa.
+
+- **Backend endpoint (manual action)**:
+  - `POST /api/porting-requests/:id/manual-actions/confirm-port-date`
+  - body: `confirmedPortDate` (wymagane, `YYYY-MM-DD`) + opcjonalny `comment`
+  - endpoint jest przeznaczony dla `STANDALONE` (tryb manualny); poza tym trybem zwraca kontrolowany `400`.
+- **Decyzja statusowa (workflow-consistent)**:
+  - naturalny status dla potwierdzonego terminu to `CONFIRMED`,
+  - dla `SUBMITTED` / `PENDING_DONOR` akcja wykonuje transition do `CONFIRMED` przez istniejacy resolver workflow (bez obchodzenia obecnych reguł roli),
+  - dla `CONFIRMED` akcja zapisuje potwierdzenie daty bez dodatkowej zmiany statusu.
+- **Audit/history**:
+  - transakcja zapisuje: `confirmedPortDate`, `donorAssignedPortDate`, wpis do `PortingRequestCaseHistory` (event `STATUS_CHANGED` + `metadata.actionId=CONFIRM_PORT_DATE_MANUAL`) i czytelny `PortingRequestEvent NOTE`,
+  - audit log pozostaje wymagany dla mutacji.
+- **Notyfikacje**:
+  - po akcji emitowany jest event `PORT_DATE_CONFIRMED` do wewnetrznego pipeline (non-blocking dispatch).
+- **Frontend (`RequestDetailPage`)**:
+  - nowy prosty panel "Potwierdz date przeniesienia" (tryb manualny),
+  - osobny formularz: data + komentarz,
+  - czytelny feedback sukces/blad i odswiezanie historii po akcji.
+- **Kontrakty i schema**:
+  - dodano `ConfirmPortingRequestPortDateDto` do shared DTO,
+  - bez zmian enumu Prisma dla case history; czytelna semantyka akcji jest kodowana przez `metadata.actionId`.
 #### Konfiguracja transportu email
 
 ```env
@@ -661,7 +687,7 @@ Teams: webhook URL pochodzi z `SystemSetting.porting_status_notify_shared_teams_
 - `CASE_REJECTED`
 - `COMMERCIAL_OWNER_CHANGED`
 
-W PR13A aktywnie podlaczony jest bezpieczny hook `STATUS_CHANGED` (+ zmiana ownera). Pozostale eventy sa gotowe jako punkt rozszerzenia.
+Aktywnie podlaczone: `STATUS_CHANGED`, `COMMERCIAL_OWNER_CHANGED`, `PORT_DATE_CONFIRMED`. Pozostale eventy pozostaja gotowe jako punkt rozszerzenia.
 
 ### Rozdzial odpowiedzialnosci komunikacyjnych
 

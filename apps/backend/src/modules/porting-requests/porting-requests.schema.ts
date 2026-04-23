@@ -349,6 +349,15 @@ export const updatePortingRequestStatusSchema = z.object({
 
 export type UpdatePortingRequestStatusBody = z.infer<typeof updatePortingRequestStatusSchema>
 
+export const confirmPortingRequestPortDateSchema = z.object({
+  confirmedPortDate: dateOnlySchema,
+  comment: optionalTrimmedString(5000),
+})
+
+export type ConfirmPortingRequestPortDateBody = z.infer<
+  typeof confirmPortingRequestPortDateSchema
+>
+
 export const portingRequestListQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   status: statusEnum.optional(),

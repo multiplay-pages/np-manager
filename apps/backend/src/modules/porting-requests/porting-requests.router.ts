@@ -3,6 +3,7 @@ import type { UserRole } from '@prisma/client'
 import { authenticate } from '../../shared/middleware/authenticate'
 import { authorize } from '../../shared/middleware/authorize'
 import {
+  confirmPortingRequestPortDateSchema,
   createPortingRequestSchema,
   executePortingRequestExternalActionSchema,
   internalNotificationAttemptsQuerySchema,
@@ -17,6 +18,7 @@ import {
 } from './porting-requests.schema'
 import {
   assignPortingRequestToMe,
+  confirmPortingRequestPortDateManual,
   createPortingRequest,
   executePortingRequestExternalAction,
   exportPortingRequestToPliCbd,
@@ -85,6 +87,7 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
   const assignmentWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT']
   const commercialOwnerWriteRoles: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'MANAGER']
   const externalActionRoles: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
+  const manualPortDateConfirmationRoles: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
   const pliCbdRoles: UserRole[] = ['ADMIN']
   const internalNotificationDiagnosticRoles: UserRole[] = ['ADMIN']
 
@@ -427,6 +430,24 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const body = updatePortingRequestStatusSchema.parse(request.body)
       const portingRequest = await updatePortingRequestStatus(
+        request.params.id,
+        body,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
+    },
+  )
+
+  app.post<{ Params: { id: string } }>(
+    '/:id/manual-actions/confirm-port-date',
+    { preHandler: [authenticate, authorize(manualPortDateConfirmationRoles)] },
+    async (request, reply) => {
+      const body = confirmPortingRequestPortDateSchema.parse(request.body)
+      const portingRequest = await confirmPortingRequestPortDateManual(
         request.params.id,
         body,
         request.user.id,

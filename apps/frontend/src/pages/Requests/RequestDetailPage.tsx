@@ -8,6 +8,7 @@ import { Badge, Button, ButtonLink, type BadgeTone, cx } from '@/components/ui'
 import {
   assignPortingRequestToMe,
   cancelPortingCommunication,
+  confirmPortingRequestPortDateManual,
   createPortingCommunicationDraft,
   executePortingRequestExternalAction,
   exportPortingRequest,
@@ -102,6 +103,8 @@ import {
   canSelectAnyAssignee,
 } from '@/lib/portingOwnership'
 import {
+  canConfirmPortDateForStatus,
+  canUseManualPortDateConfirmation,
   getWorkflowErrorEmptyStateMessage,
   shouldShowPliCbdOperationalMeta,
 } from './requestDetailCapabilities'
@@ -562,6 +565,11 @@ export function RequestDetailPage() {
   const [statusActionError, setStatusActionError] = useState<string | null>(null)
   const [statusActionSuccess, setStatusActionSuccess] = useState<string | null>(null)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [manualConfirmedPortDate, setManualConfirmedPortDate] = useState('')
+  const [manualPortDateComment, setManualPortDateComment] = useState('')
+  const [manualPortDateError, setManualPortDateError] = useState<string | null>(null)
+  const [manualPortDateSuccess, setManualPortDateSuccess] = useState<string | null>(null)
+  const [isSubmittingManualPortDate, setIsSubmittingManualPortDate] = useState(false)
 
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
@@ -617,6 +625,7 @@ export function RequestDetailPage() {
   const canUsePliCbdSync = systemCapabilities.pliCbd.capabilities.sync
   const canUsePliCbdDiagnostics = systemCapabilities.pliCbd.capabilities.diagnostics
   const canUsePliCbdExternalActions = systemCapabilities.pliCbd.capabilities.externalActions
+  const canUseManualPortDateAction = canUseManualPortDateConfirmation(systemCapabilities, user?.role)
   const canShowPliCbdSection =
     isAdmin && (canUsePliCbdDiagnostics || canUsePliCbdExport || canUsePliCbdSync)
   const canShowPliCbdDiagnostics = isAdmin && canUsePliCbdDiagnostics
@@ -657,6 +666,9 @@ export function RequestDetailPage() {
   const availableStatusActions = request?.availableStatusActions ?? []
   const availableExternalActions = request?.availableExternalActions ?? []
   const availableCommunicationActions = request?.availableCommunicationActions ?? []
+  const canUseManualPortDateForCurrentStatus = request
+    ? canConfirmPortDateForStatus(request.statusInternal)
+    : false
   const communicationSummary = request?.communicationSummary ?? EMPTY_COMMUNICATION_SUMMARY
 
   const clearCommunicationFeedbackTimer = useCallback(() => {
@@ -730,6 +742,8 @@ export function RequestDetailPage() {
       setRequest(nextRequest)
       setAssigneeDraft(nextRequest.assignedUser?.id ?? '')
       setCommercialOwnerDraft(nextRequest.commercialOwner?.id ?? '')
+      setManualConfirmedPortDate(nextRequest.confirmedPortDate ?? nextRequest.donorAssignedPortDate ?? '')
+      setManualPortDateComment('')
       setSelectedStatusAction((current) =>
         current
           ? nextRequest.availableStatusActions.find(
@@ -1110,6 +1124,9 @@ export function RequestDetailPage() {
     setInternalNotificationAttemptsRetrySuccess(null)
     setInternalNotificationAttemptsRetryError(null)
     setRetryingInternalNotificationAttemptId(null)
+    setManualPortDateError(null)
+    setManualPortDateSuccess(null)
+    setManualPortDateComment('')
 
     if (!caseNumber) return
     void loadRequest()
@@ -1335,6 +1352,62 @@ export function RequestDetailPage() {
       }
     } finally {
       setIsUpdatingStatus(false)
+    }
+  }
+
+  const handleConfirmManualPortDate = async () => {
+    if (
+      !id ||
+      !request ||
+      !canUseManualPortDateAction ||
+      !canUseManualPortDateForCurrentStatus ||
+      isSubmittingManualPortDate
+    ) {
+      return
+    }
+
+    if (!manualConfirmedPortDate) {
+      setManualPortDateError('Wskaz date przeniesienia.')
+      setManualPortDateSuccess(null)
+      return
+    }
+
+    const previousStatus = request.statusInternal
+
+    setIsSubmittingManualPortDate(true)
+    setManualPortDateError(null)
+    setManualPortDateSuccess(null)
+
+    try {
+      const updatedRequest = await confirmPortingRequestPortDateManual(id, {
+        confirmedPortDate: manualConfirmedPortDate,
+        comment: manualPortDateComment.trim() || undefined,
+      })
+
+      setRequest(updatedRequest)
+      setManualConfirmedPortDate(
+        updatedRequest.confirmedPortDate ?? updatedRequest.donorAssignedPortDate ?? manualConfirmedPortDate,
+      )
+      setManualPortDateComment('')
+      void loadCaseHistory()
+      void loadInternalNotificationHistory()
+      void loadInternalNotificationAttempts()
+      void loadNotificationFailures()
+
+      setManualPortDateSuccess(
+        previousStatus !== updatedRequest.statusInternal
+          ? `Data przeniesienia potwierdzona. Status sprawy zmieniono na ${PORTING_CASE_STATUS_LABELS[updatedRequest.statusInternal]}.`
+          : 'Data przeniesienia zostala potwierdzona.',
+      )
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const message = (err.response?.data as { error?: { message?: string } })?.error?.message
+        setManualPortDateError(message ?? 'Nie udalo sie potwierdzic daty przeniesienia.')
+      } else {
+        setManualPortDateError('Nie udalo sie potwierdzic daty przeniesienia.')
+      }
+    } finally {
+      setIsSubmittingManualPortDate(false)
     }
   }
 
@@ -2379,6 +2452,91 @@ export function RequestDetailPage() {
                 {statusActionError && (
                   <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {statusActionError}
+                  </div>
+                )}
+
+                {canUseManualPortDateAction && (
+                  <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/60 p-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-sky-900">Potwierdz date przeniesienia</h3>
+                      <p className="mt-1 text-sm text-sky-800">
+                        Dedykowana akcja biznesowa dla trybu manualnego.
+                      </p>
+                    </div>
+
+                    {canUseManualPortDateForCurrentStatus ? (
+                      <>
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-sky-900">
+                            Data przeniesienia
+                          </span>
+                          <input
+                            type="date"
+                            value={manualConfirmedPortDate}
+                            onChange={(event) => setManualConfirmedPortDate(event.target.value)}
+                            className="input-field"
+                            disabled={
+                              isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                            }
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-medium text-sky-900">
+                            Komentarz operacyjny (opcjonalnie)
+                          </span>
+                          <textarea
+                            value={manualPortDateComment}
+                            onChange={(event) => setManualPortDateComment(event.target.value)}
+                            rows={3}
+                            className="input-field"
+                            placeholder="Dodaj komentarz do historii operacyjnej"
+                            disabled={
+                              isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                            }
+                          />
+                        </label>
+
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleConfirmManualPortDate()}
+                            className="btn-primary"
+                            disabled={
+                              isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                            }
+                          >
+                            {isSubmittingManualPortDate
+                              ? 'Zapisywanie potwierdzenia'
+                              : 'Potwierdz date przeniesienia'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setManualPortDateComment('')}
+                            className="btn-secondary"
+                            disabled={isSubmittingManualPortDate}
+                          >
+                            Wyczysc komentarz
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                        Akcja dostepna tylko dla statusow: Zlozona, Oczekuje na dawce, Potwierdzona.
+                      </div>
+                    )}
+
+                    {manualPortDateSuccess && (
+                      <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                        {manualPortDateSuccess}
+                      </div>
+                    )}
+
+                    {manualPortDateError && (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {manualPortDateError}
+                      </div>
+                    )}
                   </div>
                 )}
 

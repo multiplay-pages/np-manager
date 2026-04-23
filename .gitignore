@@ -58,3 +58,9 @@ apps/frontend/.vite/
 # Misc
 *.pem
 .cache/
+
+# Temporary runtime artifacts (hooks, smoke checks, dev scripts)
+.tmp-*
+
+# Claude Code worktrees (git-managed, must not be tracked as gitlinks)
+.claude/worktrees/

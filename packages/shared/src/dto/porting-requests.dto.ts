@@ -190,6 +190,11 @@ export interface UpdatePortingRequestStatusDto {
   comment?: string
 }
 
+export interface ConfirmPortingRequestPortDateDto {
+  confirmedPortDate: string
+  comment?: string
+}
+
 export interface PortingRequestStatusActionDto {
   actionId: PortingRequestStatusActionId
   label: string

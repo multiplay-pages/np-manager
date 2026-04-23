@@ -2,6 +2,7 @@ import { apiClient } from './api.client'
 import type {
   GlobalNotificationFailureQueueResultDto,
   CommercialOwnerCandidatesResultDto,
+  ConfirmPortingRequestPortDateDto,
   UpdatePortingRequestCommercialOwnerDto,
   CommunicationDeliveryAttemptsResultDto,
   CreatePortingRequestDto,
@@ -42,6 +43,7 @@ export type GetPortingRequestsParams = PortingRequestListQueryDto
 export type GetPortingRequestsSummaryParams = PortingRequestSummaryQueryDto
 export type CreatePortingRequestPayload = CreatePortingRequestDto
 export type UpdatePortingRequestStatusPayload = UpdatePortingRequestStatusDto
+export type ConfirmPortingRequestPortDatePayload = ConfirmPortingRequestPortDateDto
 export interface UpdatePortingRequestAssignmentPayload {
   assignedUserId: string | null
 }
@@ -152,6 +154,18 @@ export async function updatePortingRequestStatus(
     success: true
     data: { request: PortingRequestDetailDto }
   }>(`/porting-requests/${id}/status`, data)
+
+  return response.data.data.request
+}
+
+export async function confirmPortingRequestPortDateManual(
+  id: string,
+  data: ConfirmPortingRequestPortDatePayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.post<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/manual-actions/confirm-port-date`, data)
 
   return response.data.data.request
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { SystemCapabilitiesDto } from '@np-manager/shared'
 import {
+  canConfirmPortDateForStatus,
+  canUseManualPortDateConfirmation,
   getWorkflowErrorEmptyStateMessage,
   shouldShowPliCbdOperationalMeta,
 } from './requestDetailCapabilities'
@@ -73,5 +75,27 @@ describe('requestDetailCapabilities', () => {
 
   it('keeps external-action guidance when capability is enabled', () => {
     expect(getWorkflowErrorEmptyStateMessage(true)).toContain('akcji zewnetrznych')
+  })
+
+  it('enables manual port-date confirmation only in standalone for allowed roles', () => {
+    const standalone = buildCapabilities({ mode: 'STANDALONE' })
+    const integrated = buildCapabilities({
+      mode: 'PLI_CBD_INTEGRATED',
+      enabled: true,
+      configured: true,
+    })
+
+    expect(canUseManualPortDateConfirmation(standalone, 'ADMIN')).toBe(true)
+    expect(canUseManualPortDateConfirmation(standalone, 'BOK_CONSULTANT')).toBe(false)
+    expect(canUseManualPortDateConfirmation(standalone, undefined)).toBe(false)
+    expect(canUseManualPortDateConfirmation(integrated, 'ADMIN')).toBe(false)
+  })
+
+  it('allows manual port-date confirmation only for supported statuses', () => {
+    expect(canConfirmPortDateForStatus('SUBMITTED')).toBe(true)
+    expect(canConfirmPortDateForStatus('PENDING_DONOR')).toBe(true)
+    expect(canConfirmPortDateForStatus('CONFIRMED')).toBe(true)
+    expect(canConfirmPortDateForStatus('PORTED')).toBe(false)
+    expect(canConfirmPortDateForStatus('CANCELLED')).toBe(false)
   })
 })
