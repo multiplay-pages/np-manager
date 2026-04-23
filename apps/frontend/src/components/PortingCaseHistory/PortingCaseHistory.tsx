@@ -20,6 +20,10 @@ function getEventTitle(item: PortingRequestCaseHistoryItemDto): string {
     return 'Utworzono sprawe'
   }
 
+  if (item.metadata?.actionId === 'CONFIRM_PORT_DATE_MANUAL') {
+    return 'Potwierdzono date przeniesienia'
+  }
+
   if (item.statusAfter) {
     return `Zmiana statusu na: ${PORTING_CASE_STATUS_LABELS[item.statusAfter]}`
   }
@@ -27,7 +31,20 @@ function getEventTitle(item: PortingRequestCaseHistoryItemDto): string {
   return 'Zdarzenie biznesowe'
 }
 
+function getConfirmedPortDateFromMetadata(
+  metadata: PortingRequestCaseHistoryItemDto['metadata'],
+): string | null {
+  if (!metadata) return null
+  const value = metadata.confirmedPortDate
+  return typeof value === 'string' ? value : null
+}
+
 function HistoryItem({ item }: { item: PortingRequestCaseHistoryItemDto }) {
+  const confirmedPortDate =
+    item.metadata?.actionId === 'CONFIRM_PORT_DATE_MANUAL'
+      ? getConfirmedPortDateFromMetadata(item.metadata)
+      : null
+
   return (
     <div className="relative flex gap-4 pb-6 last:pb-0">
       <div className="flex flex-col items-center">
@@ -65,6 +82,12 @@ function HistoryItem({ item }: { item: PortingRequestCaseHistoryItemDto }) {
         {item.reason && (
           <p className="text-sm text-gray-700">
             <span className="font-medium">Powod:</span> {item.reason}
+          </p>
+        )}
+
+        {confirmedPortDate && (
+          <p className="text-sm text-gray-700">
+            <span className="font-medium">Data przeniesienia:</span> {confirmedPortDate}
           </p>
         )}
 

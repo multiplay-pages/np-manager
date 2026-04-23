@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-22)
+## Aktualny stan projektu (2026-04-23)
 
 ### Stan prac / etapy
 
@@ -53,6 +53,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR57 | Operational edit v1 w `RequestDetailPage` (correspondenceAddress, contactChannel, internalNotes, requestDocumentNumber) | DONE |
 | PR58 | Historia zmian danych sprawy v1 w `RequestDetailPage` (read path dla AuditLog tych 4 pol) | DONE |
 | PR59 | Reczne uzupelnienie confirmedPortDate w trybie manualnym (PATCH /port-date + RequestPortDatePanel) | DONE |
+| PR60 | Manualna akcja biznesowa "Potwierdz date przeniesienia" (POST `/manual-actions/confirm-port-date`) | DONE |
 
 ---
 
@@ -669,6 +670,29 @@ Zmiany:
 Wyniki walidacji:
 - `npx tsc --noEmit` (backend): PASS
 - `npx vitest run` (backend): 65/65 plikow, 488/488 testow, 0 bledow.
+
+### PR60 - manualna akcja biznesowa "Potwierdz date przeniesienia"
+
+Cel: odseparowac manualne potwierdzanie terminu przeniesienia od zwyklej edycji pola i nadac temu flow czytelna semantyke domenowa.
+
+- Backend:
+  - nowy endpoint: `POST /api/porting-requests/:id/manual-actions/confirm-port-date`,
+  - nowy kontrakt request body: `confirmedPortDate` (wymagane, `YYYY-MM-DD`) + opcjonalny `comment`,
+  - akcja dziala tylko w trybie manualnym (`STANDALONE`), poza nim zwraca kontrolowany blad biznesowy.
+- Decyzja statusowa:
+  - naturalnym statusem dla potwierdzonej daty pozostaje `CONFIRMED`,
+  - dla `SUBMITTED` i `PENDING_DONOR` akcja wykonuje przejscie do `CONFIRMED` przez istniejacy workflow resolver,
+  - dla `CONFIRMED` zapisuje tylko potwierdzenie daty bez dodatkowej zmiany statusu.
+- Historia/audit:
+  - zapis przypadku obejmuje `confirmedPortDate` + `donorAssignedPortDate`,
+  - dodawany jest czytelny wpis case history (`STATUS_CHANGED` + `metadata.actionId=CONFIRM_PORT_DATE_MANUAL`) i wpis NOTE w eventach,
+  - zachowane jest `logAuditEvent()` dla mutacji.
+- Frontend:
+  - w `RequestDetailPage` dodano osobna akcje operacyjna "Potwierdz date przeniesienia",
+  - prosty formularz: data + opcjonalny komentarz,
+  - po sukcesie odswiezana jest historia i pokazywany status-aware komunikat.
+- Kontrakty:
+  - dodano `ConfirmPortingRequestPortDateDto` w shared DTO.
 
 #### Konfiguracja transportu email
 

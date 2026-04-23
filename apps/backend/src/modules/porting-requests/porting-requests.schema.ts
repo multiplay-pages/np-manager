@@ -375,6 +375,15 @@ export const updatePortingRequestPortDateSchema = z.object({
 
 export type UpdatePortingRequestPortDateBody = z.infer<typeof updatePortingRequestPortDateSchema>
 
+export const confirmPortingRequestPortDateSchema = z.object({
+  confirmedPortDate: dateOnlySchema,
+  comment: optionalTrimmedString(5000),
+})
+
+export type ConfirmPortingRequestPortDateBody = z.infer<
+  typeof confirmPortingRequestPortDateSchema
+>
+
 // ============================================================
 // OPERATIONAL DETAILS EDIT v1
 // ============================================================

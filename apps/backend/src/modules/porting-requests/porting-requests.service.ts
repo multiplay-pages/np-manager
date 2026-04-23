@@ -25,6 +25,7 @@ import {
   PORTING_CASE_STATUS_LABELS,
 } from '@np-manager/shared'
 import type {
+  ConfirmPortingRequestPortDateBody,
   CreatePortingRequestBody,
   ExecutePortingRequestExternalActionBody,
   PortingRequestListQuery,
@@ -69,8 +70,15 @@ import {
   buildCommunicationSummary,
   getAvailableCommunicationActionsForRequest,
 } from '../communications/porting-request-communication-policy'
+import { resolveSystemCapabilities } from '../system-capabilities/system-capabilities.service'
 
 const CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
+const MANUAL_PORT_DATE_CONFIRMATION_ALLOWED_STATUSES: PortingCaseStatus[] = [
+  'SUBMITTED',
+  'PENDING_DONOR',
+  'CONFIRMED',
+]
+const MANUAL_PORT_DATE_CONFIRMATION_TARGET_STATUS: PortingCaseStatus = 'CONFIRMED'
 const PLI_CBD_MANUAL_TRIGGER_ACTION = 'MANUAL_FOUNDATION_TRIGGER'
 const DISPATCH_TITLE_PREFIX = '[Dispatch] '
 
@@ -1443,6 +1451,135 @@ export async function updatePortingRequestStatus(
     commercialOwnerUserId: updated.commercialOwner?.id ?? null,
     actorUserId: userId,
     metadata: { newStatus: updated.statusInternal },
+  }).catch(() => {})
+
+  return updated
+}
+
+export async function confirmPortingRequestPortDateManual(
+  requestId: string,
+  body: ConfirmPortingRequestPortDateBody,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const capabilities = await resolveSystemCapabilities()
+  if (capabilities.mode !== 'STANDALONE') {
+    throw AppError.badRequest(
+      'Akcja potwierdzenia daty przeniesienia jest dostepna tylko w trybie manualnym.',
+      'PORTING_REQUEST_MANUAL_PORT_DATE_CONFIRMATION_NOT_AVAILABLE',
+    )
+  }
+
+  const request = await getPortingRequestForExternalActionOrThrow(requestId)
+  const currentStatus = request.statusInternal
+
+  if (!MANUAL_PORT_DATE_CONFIRMATION_ALLOWED_STATUSES.includes(currentStatus)) {
+    throw AppError.badRequest(
+      `Nie mozna potwierdzic daty przeniesienia w statusie ${PORTING_CASE_STATUS_LABELS[currentStatus]}.`,
+      'PORTING_REQUEST_MANUAL_PORT_DATE_CONFIRMATION_STATUS_NOT_ALLOWED',
+    )
+  }
+
+  const normalizedComment = body.comment?.trim() ? body.comment.trim() : null
+  const confirmedPortDate = toDateOnlyValue(body.confirmedPortDate)
+  const previousConfirmedPortDate = toDateOnlyString(request.confirmedPortDate)
+
+  if (!confirmedPortDate) {
+    throw AppError.badRequest(
+      'Potwierdzona data przeniesienia jest wymagana.',
+      'PORTING_REQUEST_MANUAL_PORT_DATE_CONFIRMATION_DATE_REQUIRED',
+    )
+  }
+
+  const resolvedTransition =
+    currentStatus === MANUAL_PORT_DATE_CONFIRMATION_TARGET_STATUS
+      ? null
+      : resolveWorkflowTransition(
+          currentStatus,
+          { targetStatus: MANUAL_PORT_DATE_CONFIRMATION_TARGET_STATUS },
+          userRole,
+        )
+
+  const nextStatus = resolvedTransition?.config.targetStatus ?? currentStatus
+  const statusChanged = nextStatus !== currentStatus
+
+  await prisma.$transaction(async (tx) => {
+    await tx.portingRequest.update({
+      where: { id: requestId },
+      data: {
+        confirmedPortDate,
+        donorAssignedPortDate: confirmedPortDate,
+        rejectionReason: null,
+        statusInternal: statusChanged ? nextStatus : undefined,
+      },
+    })
+
+    await createCaseHistoryEntry(tx, {
+      requestId,
+      eventType: 'STATUS_CHANGED',
+      statusBefore: statusChanged ? currentStatus : null,
+      statusAfter: nextStatus,
+      comment: normalizedComment,
+      actorUserId: userId,
+      metadata: {
+        actionId: 'CONFIRM_PORT_DATE_MANUAL',
+        actionLabel: 'Potwierdz date przeniesienia',
+        confirmedPortDate: body.confirmedPortDate,
+        previousConfirmedPortDate,
+        statusTransitionApplied: statusChanged,
+      },
+    })
+
+    const descriptionParts = [
+      `Potwierdzono date przeniesienia: ${body.confirmedPortDate}.`,
+      statusChanged
+        ? `Status sprawy zmieniono z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[nextStatus]}.`
+        : null,
+      normalizedComment ? `Komentarz: ${normalizedComment}` : null,
+    ].filter(Boolean)
+
+    await tx.portingRequestEvent.create({
+      data: {
+        request: { connect: { id: requestId } },
+        eventSource: 'INTERNAL',
+        eventType: 'NOTE',
+        title: 'Potwierdzono date przeniesienia',
+        description: descriptionParts.join(' '),
+        statusBefore: currentStatus,
+        statusAfter: nextStatus,
+        createdBy: { connect: { id: userId } },
+      },
+    })
+  })
+
+  await logAuditEvent({
+    action: statusChanged ? 'STATUS_CHANGE' : 'UPDATE',
+    userId,
+    entityType: 'porting_request',
+    entityId: requestId,
+    requestId,
+    fieldName: statusChanged ? undefined : 'confirmedPortDate',
+    oldValue: statusChanged ? currentStatus : previousConfirmedPortDate ?? 'BRAK',
+    newValue: statusChanged ? nextStatus : body.confirmedPortDate,
+    ipAddress,
+    userAgent,
+  })
+
+  const updated = await getPortingRequest(requestId, userRole)
+
+  dispatchPortingNotification({
+    requestId,
+    caseNumber: updated.caseNumber,
+    event: PORTING_NOTIFICATION_EVENT.PORT_DATE_CONFIRMED,
+    commercialOwnerUserId: updated.commercialOwner?.id ?? null,
+    actorUserId: userId,
+    metadata: {
+      confirmedPortDate: body.confirmedPortDate,
+      statusTransitionApplied: statusChanged,
+      newStatus: updated.statusInternal,
+    },
   }).catch(() => {})
 
   return updated
