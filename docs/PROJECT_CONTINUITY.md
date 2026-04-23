@@ -50,6 +50,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR54 | Operacyjny hint v1 w wierszu listy spraw | DONE |
 | PR55 | Ownership signal (Moja / Nieprzypisana) w wierszu listy spraw | DONE |
 | PR56 | Backend test/runtime foundation: vitest config + @fastify/cors alignment | DONE |
+| PR57 | Operational edit v1 w `RequestDetailPage` (correspondenceAddress, contactChannel, internalNotes, requestDocumentNumber) | DONE |
 
 ---
 
@@ -770,6 +771,27 @@ apps/frontend/src/
 6. Commit prefix: `feat(prXXy): opis`
 
 ---
+
+## PR57 — Operational edit v1 (2026-04-23)
+
+Waski zakres edycji 4 pol operacyjnych na `RequestDetailPage`:
+- `correspondenceAddress` (max 1000), `contactChannel` (enum EMAIL/SMS/LETTER), `internalNotes` (max 5000, nullable), `requestDocumentNumber` (max 100, nullable).
+
+Backend:
+- `PATCH /api/porting-requests/:id/details` — Zod schema wymaga >=1 pola, RBAC przez `writeRoles` (ADMIN/BOK_CONSULTANT/BACK_OFFICE/MANAGER).
+- Status gate: `CLOSED_STATUSES` (REJECTED/CANCELLED/PORTED) -> 400 `REQUEST_CLOSED_EDIT_FORBIDDEN`.
+- Per-pole diff: jesli brak zmian, zwraca aktualny detail bez side effects.
+- Audit: per-field `AuditLog` (null/empty -> `BRAK`, truncate >200) + pojedynczy `PortingRequestEvent` NOTE z prefiksem `[DetailsEdit]` (spojne z `[Dispatch]`/`[ErrorFallback]`). Nie rozszerzamy `PortingRequestCaseHistoryEventType`.
+
+Frontend:
+- Nowy komponent `RequestOperationalDetailsPanel` (view/edit toggle, client-side walidacja "no changes" i pustego adresu, maxLength z `MAX_LENGTHS`).
+- Sekcja w `RequestDetailPage`: przeniesione `correspondenceAddress`/`internalNotes` z karty "Dane klienta" do nowej karty "Dane kontaktowe i operacyjne".
+- `canEdit = writeRole && !isClosed`; disabled reason pokazany w tooltipie i inline.
+
+Testy/walidacje:
+- Backend vitest: 8 testow (pelny update + NOTE + 4 audity, partial, no-op, 404, 3x status gate, null clear) — PASS.
+- Backend tsc: clean. Frontend tsc: clean.
+- Frontend vitest/RTL: brak infrastruktury w repo; nie konfigurujemy w tej iteracji (out of v1 scope). Core logika pokryta backendem + client-side diff jest prosty.
 
 ## Kolejne kroki
 

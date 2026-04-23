@@ -3,6 +3,7 @@ import type {
   GlobalNotificationFailureQueueResultDto,
   CommercialOwnerCandidatesResultDto,
   UpdatePortingRequestCommercialOwnerDto,
+  UpdatePortingRequestDetailsDto,
   CommunicationDeliveryAttemptsResultDto,
   CreatePortingRequestDto,
   ExecutePortingRequestExternalActionDto,
@@ -49,6 +50,7 @@ export type PliCbdTechnicalPayloadApiMessageType = 'e03' | 'e12' | 'e18' | 'e23'
 export type PreparePortingCommunicationDraftPayload = PreparePortingCommunicationDraftDto
 export type ExecutePortingRequestExternalActionPayload = ExecutePortingRequestExternalActionDto
 export type UpdatePortingRequestCommercialOwnerPayload = UpdatePortingRequestCommercialOwnerDto
+export type UpdatePortingRequestDetailsPayload = UpdatePortingRequestDetailsDto
 
 function appendListFiltersToQuery(
   query: URLSearchParams,
@@ -523,6 +525,18 @@ export async function listCommercialOwnerCandidates(): Promise<CommercialOwnerCa
   }>('/porting-requests/commercial-owner-candidates')
 
   return response.data.data
+}
+
+export async function updatePortingRequestDetails(
+  id: string,
+  data: UpdatePortingRequestDetailsPayload,
+): Promise<PortingRequestDetailDto> {
+  const response = await apiClient.patch<{
+    success: true
+    data: { request: PortingRequestDetailDto }
+  }>(`/porting-requests/${id}/details`, data)
+
+  return response.data.data.request
 }
 
 export async function updatePortingRequestCommercialOwner(

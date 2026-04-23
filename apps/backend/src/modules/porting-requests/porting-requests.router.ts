@@ -13,6 +13,7 @@ import {
   retryInternalNotificationAttemptSchema,
   updatePortingRequestAssignmentSchema,
   updatePortingRequestCommercialOwnerSchema,
+  updatePortingRequestDetailsSchema,
   updatePortingRequestStatusSchema,
 } from './porting-requests.schema'
 import {
@@ -31,6 +32,7 @@ import {
   syncPortingRequestFromPliCbd,
   updatePortingRequestAssignment,
   updateCommercialOwner,
+  updatePortingRequestDetails,
   updatePortingRequestStatus,
 } from './porting-requests.service'
 import {
@@ -420,6 +422,24 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
 
     return reply.status(201).send({ success: true, data: { request: portingRequest } })
   })
+
+  app.patch<{ Params: { id: string } }>(
+    '/:id/details',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const body = updatePortingRequestDetailsSchema.parse(request.body)
+      const portingRequest = await updatePortingRequestDetails(
+        request.params.id,
+        body,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
+    },
+  )
 
   app.patch<{ Params: { id: string } }>(
     '/:id/status',

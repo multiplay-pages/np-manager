@@ -38,6 +38,7 @@ import {
   syncPortingRequest,
   updatePortingRequestAssignment,
   updatePortingRequestCommercialOwner,
+  updatePortingRequestDetails,
   updatePortingRequestStatus,
   listCommercialOwnerCandidates,
 } from '@/services/portingRequests.api'
@@ -75,6 +76,7 @@ import {
   type CommercialOwnerCandidateDto,
   type NotificationFailureHistoryItemDto,
   type NotificationHealthDiagnosticsDto,
+  type UpdatePortingRequestDetailsDto,
 } from '@np-manager/shared'
 import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
 import { PortingCaseHistory } from '@/components/PortingCaseHistory/PortingCaseHistory'
@@ -88,6 +90,7 @@ import { PliCbdProcessSnapshot } from '@/components/PliCbdProcessSnapshot/PliCbd
 import { PliCbdTechnicalPayloadPreview } from '@/components/PliCbdTechnicalPayloadPreview/PliCbdTechnicalPayloadPreview'
 import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview'
 import { PortingInternalNotificationsPanel } from '@/components/PortingInternalNotificationsPanel/PortingInternalNotificationsPanel'
+import { RequestOperationalDetailsPanel } from '@/components/RequestOperationalDetailsPanel/RequestOperationalDetailsPanel'
 import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
 import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
@@ -609,6 +612,16 @@ export function RequestDetailPage() {
     () => ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER'].includes(user?.role ?? ''),
     [user?.role],
   )
+  const canEditDetailsRole = canManageStatus
+  const isRequestClosed = request
+    ? TERMINAL_CLOSED_STATUSES.includes(request.statusInternal)
+    : false
+  const canEditOperationalDetails = canEditDetailsRole && !isRequestClosed
+  const operationalDetailsDisabledReason = !canEditDetailsRole
+    ? 'Twoja rola nie ma uprawnien do edycji danych sprawy.'
+    : isRequestClosed
+      ? 'Sprawa w statusie koncowym — edycja zablokowana.'
+      : null
   const isAdmin = useMemo(() => user?.role === 'ADMIN', [user?.role])
   const canUseInternalNotificationDiagnostics = isAdmin
   const canRetryInternalNotificationAttempts = isAdmin
@@ -1338,6 +1351,28 @@ export function RequestDetailPage() {
     }
   }
 
+  const handleUpdateOperationalDetails = useCallback(
+    async (payload: UpdatePortingRequestDetailsDto) => {
+      if (!id) {
+        throw new Error('Brak identyfikatora sprawy.')
+      }
+
+      try {
+        const updatedRequest = await updatePortingRequestDetails(id, payload)
+        setRequest(updatedRequest)
+        void loadCaseHistory()
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          const apiError = err.response?.data as { error?: { message?: string } } | undefined
+          const message = apiError?.error?.message
+          throw new Error(message ?? 'Nie udalo sie zapisac zmian.')
+        }
+        throw err instanceof Error ? err : new Error('Nie udalo sie zapisac zmian.')
+      }
+    },
+    [id, loadCaseHistory],
+  )
+
   const handlePreviewCommunicationDraft = async (
     actionType: PortingRequestCommunicationActionType,
   ) => {
@@ -1856,15 +1891,28 @@ export function RequestDetailPage() {
             </dl>
           </SectionCard>
 
-          <SectionCard title="Dane klienta i kontakt" description="Tozsamosc abonenta, kontakt i notatki operacyjne.">
+          <SectionCard title="Dane klienta i kontakt" description="Tozsamosc abonenta i powiazania operatorskie.">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Typ identyfikatora" value={SUBSCRIBER_IDENTITY_TYPE_LABELS[request.identityType]} />
               <Field label="Wartosc identyfikatora" value={request.identityValue} mono />
               <Field label="Usluga hurtowa po stronie biorcy" value={request.linkedWholesaleServiceOnRecipientSide ? 'Tak' : 'Nie'} />
               <Field label="Operator infrastrukturalny" value={request.infrastructureOperator?.name} />
-              <WideField label="Adres korespondencyjny" value={request.correspondenceAddress} />
-              <WideField label="Notatki wewnetrzne" value={request.internalNotes} />
             </dl>
+          </SectionCard>
+
+          <SectionCard
+            title="Dane kontaktowe i operacyjne"
+            description="Edycja operacyjna v1: adres, kanal kontaktu, notatki, numer dokumentu."
+          >
+            <RequestOperationalDetailsPanel
+              correspondenceAddress={request.correspondenceAddress}
+              contactChannel={request.contactChannel}
+              internalNotes={request.internalNotes}
+              requestDocumentNumber={request.requestDocumentNumber}
+              canEdit={canEditOperationalDetails}
+              disabledReason={operationalDetailsDisabledReason}
+              onSave={handleUpdateOperationalDetails}
+            />
           </SectionCard>
 
           <div id="communication-panel" className="scroll-mt-6">

@@ -190,6 +190,18 @@ export interface UpdatePortingRequestStatusDto {
   comment?: string
 }
 
+/**
+ * Operacyjna edycja danych sprawy v1.
+ * Dozwolony waski zestaw pol kontaktowo/operacyjnych.
+ * Wszystkie pola opcjonalne, przynajmniej jedno musi byc obecne w request.
+ */
+export interface UpdatePortingRequestDetailsDto {
+  correspondenceAddress?: string
+  contactChannel?: ContactChannel
+  internalNotes?: string | null
+  requestDocumentNumber?: string | null
+}
+
 export interface PortingRequestStatusActionDto {
   actionId: PortingRequestStatusActionId
   label: string
