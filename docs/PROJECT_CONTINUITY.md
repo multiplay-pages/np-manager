@@ -52,6 +52,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR56 | Backend test/runtime foundation: vitest config + @fastify/cors alignment | DONE |
 | PR57 | Operational edit v1 w `RequestDetailPage` (correspondenceAddress, contactChannel, internalNotes, requestDocumentNumber) | DONE |
 | PR58 | Historia zmian danych sprawy v1 w `RequestDetailPage` (read path dla AuditLog tych 4 pol) | DONE |
+| PR59 | Reczne uzupelnienie confirmedPortDate w trybie manualnym (PATCH /port-date + RequestPortDatePanel) | DONE |
 
 ---
 
@@ -819,6 +820,45 @@ Testy/walidacje:
 - Backend: 6 nowych testow jednostkowych serwisu (mapowanie, filtr 4 pol, empty, 404, BRAK, null) — PASS.
 - Backend tsc: clean. Frontend tsc: clean.
 - Frontend vitest: 271/271 PASS (brak RTL dla nowego komponentu — prosta prezentacja, core logika pokryta backendem).
+
+## PR59 — Reczne uzupelnienie confirmedPortDate w trybie manualnym (2026-04-23)
+
+Waski pionowy slice: operator w trybie manualnym moze recznie uzupelnic wyznaczona date przeniesienia numeru uzyskana z Adescom / od dawcy.
+
+Architektura:
+- **Dedykowany endpoint**: `PATCH /api/porting-requests/:id/port-date`.
+  - Body: `{ confirmedPortDate: string | null }` (YYYY-MM-DD lub null).
+  - RBAC: `writeRoles` (ADMIN, BOK_CONSULTANT, BACK_OFFICE, MANAGER).
+  - Status gate: CLOSED_STATUSES blokuje edycje (`REQUEST_CLOSED_EDIT_FORBIDDEN`).
+  - No-op: jesli ta sama wartosc, zwraca aktualny detail bez side effects.
+  - Audit: `AuditLog` entry z `fieldName: 'confirmedPortDate'`.
+  - Historia: `PortingRequestEvent NOTE` z prefiksem `[PortDateEdit]`.
+
+Shared:
+- `UpdatePortingRequestPortDateDto` (nowy) — kontrakt body PATCH.
+- `DetailsHistoryFieldName` — dodano `confirmedPortDate` (5 pol zamiast 4).
+
+Backend:
+- `updatePortingRequestPortDateSchema` w `porting-requests.schema.ts`.
+- `updatePortingRequestPortDate()` w `porting-requests.service.ts`.
+- PATCH `/:id/port-date` w `porting-requests.router.ts`.
+- `confirmedPortDate` dodany do `DETAILS_HISTORY_FIELD_NAMES` w `porting-request-details-history.service.ts` — historia zmian dostepna przez istniejacy endpoint i panel `RequestDetailsHistoryPanel`.
+
+Frontend:
+- Nowy komponent `RequestPortDatePanel` (view/edit/save toggle, analogia do `RequestOperationalDetailsPanel`).
+- Nowa sekcja `Dane portowania` w `RequestDetailPage` — widoczna tylko gdy `!systemCapabilities.pliCbd.active` (tryb manualny/standalone).
+- `FIELD_LABELS['confirmedPortDate']` dodany w `RequestDetailsHistoryPanel` (label: `Data przeniesienia numeru`).
+- `updatePortingRequestPortDate()` w `portingRequests.api.ts`.
+
+Testy/walidacja:
+- Backend: nowy plik testowy `porting-requests.port-date-edit.service.test.ts` — 7 testow (set date, clear, no-op, 404, 3x status gate) — PASS.
+- Backend tsc: clean. Frontend tsc: clean.
+- Frontend vitest: 271/271 PASS (tyle samo co przed).
+
+Decyzje:
+- Endpoint dedykowany (nie przez /details) — inna semantyka domenowa.
+- Sekcja widoczna tylko w trybie manualnym (fail-closed zgodne z istniejacym wzorcem capabilities).
+- Historia `confirmedPortDate` trafia do istniejacego panelu `RequestDetailsHistoryPanel` bez nowych endpointow.
 
 ## Kolejne kroki
 

@@ -14,6 +14,7 @@ import {
   updatePortingRequestAssignmentSchema,
   updatePortingRequestCommercialOwnerSchema,
   updatePortingRequestDetailsSchema,
+  updatePortingRequestPortDateSchema,
   updatePortingRequestStatusSchema,
 } from './porting-requests.schema'
 import {
@@ -33,6 +34,7 @@ import {
   updatePortingRequestAssignment,
   updateCommercialOwner,
   updatePortingRequestDetails,
+  updatePortingRequestPortDate,
   updatePortingRequestStatus,
 } from './porting-requests.service'
 import {
@@ -441,6 +443,24 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
       const portingRequest = await updatePortingRequestDetails(
         request.params.id,
         body,
+        request.user.id,
+        request.user.role as UserRole,
+        request.ip,
+        request.headers['user-agent'],
+      )
+
+      return reply.status(200).send({ success: true, data: { request: portingRequest } })
+    },
+  )
+
+  app.patch<{ Params: { id: string } }>(
+    '/:id/port-date',
+    { preHandler: [authenticate, authorize(writeRoles)] },
+    async (request, reply) => {
+      const body = updatePortingRequestPortDateSchema.parse(request.body)
+      const portingRequest = await updatePortingRequestPortDate(
+        request.params.id,
+        body.confirmedPortDate,
         request.user.id,
         request.user.role as UserRole,
         request.ip,

@@ -81,7 +81,7 @@ describe('getPortingRequestDetailsHistory', () => {
     })
   })
 
-  it('queries only the 4 details fields with correct filters', async () => {
+  it('queries the 5 editable fields with correct filters', async () => {
     mockPortingRequestFindUnique.mockResolvedValueOnce({ id: 'req-1' })
     mockAuditLogFindMany.mockResolvedValueOnce([])
 

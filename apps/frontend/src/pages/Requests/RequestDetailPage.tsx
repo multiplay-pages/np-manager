@@ -40,6 +40,7 @@ import {
   updatePortingRequestAssignment,
   updatePortingRequestCommercialOwner,
   updatePortingRequestDetails,
+  updatePortingRequestPortDate,
   updatePortingRequestStatus,
   listCommercialOwnerCandidates,
 } from '@/services/portingRequests.api'
@@ -79,6 +80,7 @@ import {
   type PortingRequestDetailsHistoryItemDto,
   type NotificationHealthDiagnosticsDto,
   type UpdatePortingRequestDetailsDto,
+  type UpdatePortingRequestPortDateDto,
 } from '@np-manager/shared'
 import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
 import { PortingCaseHistory } from '@/components/PortingCaseHistory/PortingCaseHistory'
@@ -93,6 +95,7 @@ import { PliCbdTechnicalPayloadPreview } from '@/components/PliCbdTechnicalPaylo
 import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview'
 import { PortingInternalNotificationsPanel } from '@/components/PortingInternalNotificationsPanel/PortingInternalNotificationsPanel'
 import { RequestOperationalDetailsPanel } from '@/components/RequestOperationalDetailsPanel/RequestOperationalDetailsPanel'
+import { RequestPortDatePanel } from '@/components/RequestPortDatePanel/RequestPortDatePanel'
 import { RequestDetailsHistoryPanel } from '@/components/RequestDetailsHistoryPanel/RequestDetailsHistoryPanel'
 import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
@@ -638,6 +641,8 @@ export function RequestDetailPage() {
   const canUsePliCbdExternalActions = systemCapabilities.pliCbd.capabilities.externalActions
   const canShowPliCbdSection =
     isAdmin && (canUsePliCbdDiagnostics || canUsePliCbdExport || canUsePliCbdSync)
+  const isManualMode = !systemCapabilities.pliCbd.active
+  const canEditPortDate = canEditDetailsRole && !isRequestClosed
   const canShowPliCbdDiagnostics = isAdmin && canUsePliCbdDiagnostics
   const canShowPliCbdOperationalMeta = shouldShowPliCbdOperationalMeta(systemCapabilities)
   const canManageAssignment = useMemo(() => canManagePortingOwnership(user?.role), [user?.role])
@@ -1398,6 +1403,29 @@ export function RequestDetailPage() {
     [id, loadCaseHistory],
   )
 
+  const handleUpdatePortDate = useCallback(
+    async (payload: UpdatePortingRequestPortDateDto) => {
+      if (!id) {
+        throw new Error('Brak identyfikatora sprawy.')
+      }
+
+      try {
+        const updatedRequest = await updatePortingRequestPortDate(id, payload)
+        setRequest(updatedRequest)
+        void loadCaseHistory()
+        void loadDetailsHistory()
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          const apiError = err.response?.data as { error?: { message?: string } } | undefined
+          const message = apiError?.error?.message
+          throw new Error(message ?? 'Nie udalo sie zapisac daty.')
+        }
+        throw err instanceof Error ? err : new Error('Nie udalo sie zapisac daty.')
+      }
+    },
+    [id, loadCaseHistory],
+  )
+
   const handlePreviewCommunicationDraft = async (
     actionType: PortingRequestCommunicationActionType,
   ) => {
@@ -1915,6 +1943,20 @@ export function RequestDetailPage() {
               <Field label="Pelnomocnictwo" value={request.hasPowerOfAttorney ? 'Tak' : 'Nie'} />
             </dl>
           </SectionCard>
+
+          {isManualMode && (
+            <SectionCard
+              title="Dane portowania"
+              description="Reczne uzupelnienie wyznaczonej daty przeniesienia numeru (tryb manualny)."
+            >
+              <RequestPortDatePanel
+                confirmedPortDate={request.confirmedPortDate}
+                canEdit={canEditPortDate}
+                disabledReason={operationalDetailsDisabledReason}
+                onSave={handleUpdatePortDate}
+              />
+            </SectionCard>
+          )}
 
           <SectionCard title="Dane klienta i kontakt" description="Tozsamosc abonenta i powiazania operatorskie.">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">

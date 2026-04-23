@@ -11,6 +11,7 @@ const DETAILS_HISTORY_FIELD_NAMES: DetailsHistoryFieldName[] = [
   'contactChannel',
   'internalNotes',
   'requestDocumentNumber',
+  'confirmedPortDate',
 ]
 
 const DEFAULT_LIMIT = 50
