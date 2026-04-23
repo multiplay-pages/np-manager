@@ -25,6 +25,7 @@ import type {
   PortingRequestCaseHistoryResultDto,
   PortingRequestDetailDto,
   NotificationFailureHistoryResultDto,
+  PortingRequestDetailsHistoryResultDto,
   PortingInternalNotificationHistoryResultDto,
   InternalNotificationDeliveryAttemptsResultDto,
   PortingRequestListQueryDto,
@@ -322,6 +323,17 @@ export async function getPortingRequestNotificationFailures(
     success: true
     data: NotificationFailureHistoryResultDto
   }>(`/porting-requests/${id}/notification-failures`)
+
+  return response.data.data
+}
+
+export async function getPortingRequestDetailsHistory(
+  id: string,
+): Promise<PortingRequestDetailsHistoryResultDto> {
+  const response = await apiClient.get<{
+    success: true
+    data: PortingRequestDetailsHistoryResultDto
+  }>(`/porting-requests/${id}/details-history`)
 
   return response.data.data
 }

@@ -51,6 +51,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR55 | Ownership signal (Moja / Nieprzypisana) w wierszu listy spraw | DONE |
 | PR56 | Backend test/runtime foundation: vitest config + @fastify/cors alignment | DONE |
 | PR57 | Operational edit v1 w `RequestDetailPage` (correspondenceAddress, contactChannel, internalNotes, requestDocumentNumber) | DONE |
+| PR58 | Historia zmian danych sprawy v1 w `RequestDetailPage` (read path dla AuditLog tych 4 pol) | DONE |
 
 ---
 
@@ -792,6 +793,32 @@ Testy/walidacje:
 - Backend vitest: 8 testow (pelny update + NOTE + 4 audity, partial, no-op, 404, 3x status gate, null clear) — PASS.
 - Backend tsc: clean. Frontend tsc: clean.
 - Frontend vitest/RTL: brak infrastruktury w repo; nie konfigurujemy w tej iteracji (out of v1 scope). Core logika pokryta backendem + client-side diff jest prosty.
+
+## PR58 — Historia zmian danych sprawy v1 (2026-04-23)
+
+Waski read path dla historii zmian 4 pol edytowanych przez PR57.
+
+Decyzja architektoniczna: AuditLog ma `requestId` zindeksowany i PR57 juz zapisuje do niego entries z tych 4 pol. Brak nowej migracji. Brak ogolnego audit module.
+
+Backend:
+- Nowy endpoint `GET /api/porting-requests/:id/details-history` (RBAC: `readRoles`).
+- Nowy serwis `porting-request-details-history.service.ts`:
+  - query `AuditLog WHERE requestId = id AND action = 'UPDATE' AND fieldName IN [4 pola]`,
+  - JOIN User (firstName, lastName, role),
+  - sort desc by timestamp, limit 50.
+- Nowe DTO w `packages/shared`: `PortingRequestDetailsHistoryItemDto`, `PortingRequestDetailsHistoryResultDto`, `DetailsHistoryFieldName`.
+
+Frontend:
+- Nowy komponent `RequestDetailsHistoryPanel` (isLoading / error / empty state / lista wpisow).
+- Kazdy wpis pokazuje: pole (czytelny label), stara wartosc, nowa wartosc, aktor, timestamp.
+- `BRAK` (pusty string zapisany przez PR57) renderowany jako `—` z muted stylem.
+- Panel w `RequestDetailPage` za sekcja "Dane kontaktowe i operacyjne".
+- Historia odswieza sie automatycznie po kazdym udanym save w `RequestOperationalDetailsPanel`.
+
+Testy/walidacje:
+- Backend: 6 nowych testow jednostkowych serwisu (mapowanie, filtr 4 pol, empty, 404, BRAK, null) — PASS.
+- Backend tsc: clean. Frontend tsc: clean.
+- Frontend vitest: 271/271 PASS (brak RTL dla nowego komponentu — prosta prezentacja, core logika pokryta backendem).
 
 ## Kolejne kroki
 
