@@ -31,6 +31,7 @@ import type {
   PortingRequestSummaryQuery,
   UpdatePortingRequestAssignmentBody,
   UpdatePortingRequestCommercialOwnerBody,
+  UpdatePortingRequestDetailsBody,
   UpdatePortingRequestStatusBody,
 } from './porting-requests.schema'
 import { dispatchPortingNotification } from './porting-notification.service'
@@ -1528,6 +1529,155 @@ export async function updateCommercialOwner(
   }).catch(() => {})
 
   return updated
+}
+
+type DetailsEditableField =
+  | 'correspondenceAddress'
+  | 'contactChannel'
+  | 'internalNotes'
+  | 'requestDocumentNumber'
+
+const DETAILS_EDIT_FIELD_LABELS: Record<DetailsEditableField, string> = {
+  correspondenceAddress: 'Adres korespondencyjny',
+  contactChannel: 'Kanal kontaktu',
+  internalNotes: 'Notatki wewnetrzne',
+  requestDocumentNumber: 'Numer dokumentu',
+}
+
+function formatDetailsAuditValue(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return 'BRAK'
+  return value.length > 200 ? `${value.slice(0, 197)}...` : value
+}
+
+export async function updatePortingRequestDetails(
+  requestId: string,
+  body: UpdatePortingRequestDetailsBody,
+  userId: string,
+  userRole: UserRole,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<PortingRequestDetailDto> {
+  const current = await prisma.portingRequest.findUnique({
+    where: { id: requestId },
+    select: {
+      id: true,
+      caseNumber: true,
+      statusInternal: true,
+      correspondenceAddress: true,
+      contactChannel: true,
+      internalNotes: true,
+      requestDocumentNumber: true,
+    },
+  })
+
+  if (!current) {
+    throw AppError.notFound('Sprawa portowania nie zostala znaleziona.')
+  }
+
+  if (CLOSED_STATUSES.includes(current.statusInternal)) {
+    throw AppError.badRequest(
+      'Nie mozna edytowac danych sprawy w statusie koncowym.',
+      'REQUEST_CLOSED_EDIT_FORBIDDEN',
+    )
+  }
+
+  const changes: Array<{
+    field: DetailsEditableField
+    oldValue: string | null
+    newValue: string | null
+  }> = []
+  const updateData: Prisma.PortingRequestUpdateInput = {}
+
+  if (body.correspondenceAddress !== undefined && body.correspondenceAddress !== current.correspondenceAddress) {
+    changes.push({
+      field: 'correspondenceAddress',
+      oldValue: current.correspondenceAddress,
+      newValue: body.correspondenceAddress,
+    })
+    updateData.correspondenceAddress = body.correspondenceAddress
+  }
+
+  if (body.contactChannel !== undefined && body.contactChannel !== current.contactChannel) {
+    changes.push({
+      field: 'contactChannel',
+      oldValue: current.contactChannel,
+      newValue: body.contactChannel,
+    })
+    updateData.contactChannel = body.contactChannel
+  }
+
+  if (body.internalNotes !== undefined) {
+    const normalizedNext = body.internalNotes === '' ? null : body.internalNotes
+    if (normalizedNext !== current.internalNotes) {
+      changes.push({
+        field: 'internalNotes',
+        oldValue: current.internalNotes,
+        newValue: normalizedNext,
+      })
+      updateData.internalNotes = normalizedNext
+    }
+  }
+
+  if (body.requestDocumentNumber !== undefined) {
+    const normalizedNext = body.requestDocumentNumber === '' ? null : body.requestDocumentNumber
+    if (normalizedNext !== current.requestDocumentNumber) {
+      changes.push({
+        field: 'requestDocumentNumber',
+        oldValue: current.requestDocumentNumber,
+        newValue: normalizedNext,
+      })
+      updateData.requestDocumentNumber = normalizedNext
+    }
+  }
+
+  if (changes.length === 0) {
+    return getPortingRequest(requestId, userRole)
+  }
+
+  const changedFieldLabels = changes.map((c) => DETAILS_EDIT_FIELD_LABELS[c.field]).join(', ')
+  const eventDescription = changes
+    .map((c) => {
+      const fieldLabel = DETAILS_EDIT_FIELD_LABELS[c.field]
+      const before = formatDetailsAuditValue(c.oldValue)
+      const after = formatDetailsAuditValue(c.newValue)
+      return `${fieldLabel}: ${before} -> ${after}`
+    })
+    .join(' | ')
+
+  await prisma.$transaction(async (tx) => {
+    await tx.portingRequest.update({
+      where: { id: requestId },
+      data: updateData,
+    })
+
+    await tx.portingRequestEvent.create({
+      data: {
+        request: { connect: { id: requestId } },
+        eventSource: 'INTERNAL',
+        eventType: 'NOTE',
+        title: `[DetailsEdit] Edycja danych sprawy: ${changedFieldLabels}`,
+        description: eventDescription,
+        createdBy: { connect: { id: userId } },
+      },
+    })
+  })
+
+  for (const change of changes) {
+    await logAuditEvent({
+      action: 'UPDATE',
+      userId,
+      entityType: 'porting_request',
+      entityId: requestId,
+      requestId,
+      fieldName: change.field,
+      oldValue: formatDetailsAuditValue(change.oldValue),
+      newValue: formatDetailsAuditValue(change.newValue),
+      ipAddress,
+      userAgent,
+    })
+  }
+
+  return getPortingRequest(requestId, userRole)
 }
 
 export async function listCommercialOwnerCandidates(): Promise<CommercialOwnerCandidatesResultDto> {
