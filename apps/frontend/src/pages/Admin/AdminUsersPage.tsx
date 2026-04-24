@@ -34,6 +34,7 @@ import {
   type AdminUserFormState,
   type AdminUsersListFilters,
 } from '@/components/admin-users'
+import { EmptyState, SectionCard } from '@/components/ui'
 
 type AdminUsersMode = 'LIST' | 'NEW' | 'DETAIL'
 
@@ -107,12 +108,12 @@ function validateCreateForm(form: AdminUserFormState): AdminUserFormErrors {
 function AdminUsersAccessDeniedState() {
   return (
     <div className="p-6">
-      <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Brak dostepu do administracji</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-          Ta sekcja jest dostepna tylko dla administratora systemu.
-        </p>
-      </div>
+      <SectionCard padding="sm">
+        <EmptyState
+          title="Brak dostępu do administracji"
+          description="Ta sekcja jest dostępna tylko dla administratora systemu."
+        />
+      </SectionCard>
     </div>
   )
 }

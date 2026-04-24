@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui'
+
 interface AdminUserDeactivateModalProps {
   isOpen: boolean
   email: string
@@ -19,45 +21,46 @@ export function AdminUserDeactivateModal({
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-950/40 px-4">
-      <div className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-lg rounded-panel border border-line bg-surface p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Potwierdź dezaktywację konta</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
+            <h2 className="text-xl font-semibold text-ink-900">Potwierdź dezaktywację konta</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-600">
               Konto <span className="font-medium">{email}</span> zostanie dezaktywowane, a
               użytkownik utraci możliwość logowania do aplikacji do czasu ponownej aktywacji.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            variant="ghost"
+            size="sm"
             disabled={isSaving}
             data-testid="admin-user-deactivate-close"
           >
             Zamknij
-          </button>
+          </Button>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button
+          <Button
             type="button"
             onClick={onClose}
-            className="btn-secondary"
             disabled={isSaving}
             data-testid="admin-user-deactivate-cancel"
           >
             Anuluj
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onConfirm}
-            className="btn-primary"
-            disabled={isSaving}
+            variant="primary"
+            isLoading={isSaving}
+            loadingLabel="Dezaktywowanie..."
             data-testid="admin-user-deactivate-confirm"
           >
-            {isSaving ? 'Dezaktywowanie...' : 'Potwierdź dezaktywację'}
-          </button>
+            Potwierdź dezaktywację
+          </Button>
         </div>
       </div>
     </div>

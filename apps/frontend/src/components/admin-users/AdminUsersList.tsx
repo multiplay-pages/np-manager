@@ -6,6 +6,15 @@ import {
   getAdminUserDisplayName,
   getAdminUserStatusLabel,
 } from '@/lib/adminUsers'
+import {
+  AlertBanner,
+  Badge,
+  Button,
+  EmptyState,
+  MetricCard,
+  PageHeader,
+  SectionCard,
+} from '@/components/ui'
 
 export type AdminUsersRoleFilter = 'ALL' | UserRole
 export type AdminUsersStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE'
@@ -59,52 +68,44 @@ export function AdminUsersList({
 
   return (
     <div className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Uzytkownicy</h1>
-          <p className="mt-3 text-sm leading-6 text-gray-600">
-            Zarzadzaj kontami aplikacji, rolami oraz stanem aktywnosci bez duplikowania logiki
-            bezpieczenstwa z backendu.
-          </p>
-        </div>
-
-        <button type="button" onClick={onCreate} className="btn-primary">
-          + Nowy uzytkownik
-        </button>
-      </header>
+      <PageHeader
+        eyebrow="Administracja"
+        title="Użytkownicy"
+        description="Zarządzaj kontami aplikacji, rolami oraz stanem aktywności bez duplikowania logiki bezpieczeństwa z backendu."
+        actions={
+          <Button type="button" onClick={onCreate} variant="primary">
+            Nowy użytkownik
+          </Button>
+        }
+      />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          label="Aktywni"
-          value={summary.activeCount}
+        <MetricCard
+          title="Aktywni"
+          value={formatAdminUsersSummaryValue(summary.activeCount, isLoading)}
           tone="success"
-          isLoading={isLoading}
-          testId="admin-users-summary-active"
         />
-        <SummaryCard
-          label="Nieaktywni"
-          value={summary.inactiveCount}
+        <MetricCard
+          title="Nieaktywni"
+          value={formatAdminUsersSummaryValue(summary.inactiveCount, isLoading)}
           tone="neutral"
-          isLoading={isLoading}
-          testId="admin-users-summary-inactive"
         />
-        <SummaryCard
-          label="Administratorzy"
-          value={summary.adminCount}
-          tone="primary"
-          isLoading={isLoading}
-          testId="admin-users-summary-admin"
+        <MetricCard
+          title="Administratorzy"
+          value={formatAdminUsersSummaryValue(summary.adminCount, isLoading)}
+          tone="brand"
         />
-        <SummaryCard
-          label="Konsultanci BOK"
-          value={summary.consultantCount}
+        <MetricCard
+          title="Konsultanci BOK"
+          value={formatAdminUsersSummaryValue(summary.consultantCount, isLoading)}
           tone="warning"
-          isLoading={isLoading}
-          testId="admin-users-summary-consultant"
         />
       </section>
 
-      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+      <SectionCard
+        title="Filtry"
+        description="Zawęź listę bez zmiany zasad pobierania danych z API."
+      >
         <div className="grid gap-4 lg:grid-cols-[1.4fr,0.9fr,0.9fr]">
           <label className="block">
             <span className="label">Wyszukaj</span>
@@ -149,88 +150,80 @@ export function AdminUsersList({
             </select>
           </label>
         </div>
-      </section>
+      </SectionCard>
 
-      {feedbackSuccess && <Banner tone="success">{feedbackSuccess}</Banner>}
+      {feedbackSuccess && <AlertBanner tone="success" title={feedbackSuccess} />}
 
-      {(feedbackError || error) && <Banner tone="danger">{feedbackError ?? error}</Banner>}
+      {(feedbackError || error) && <AlertBanner tone="danger" title={feedbackError ?? error} />}
 
-      <section className="rounded-3xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">Lista kont</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {hasActiveFilters
-                ? `${users.length} z ${totalUsersCount} kont spelnia aktywne filtry.`
-                : `${totalUsersCount} kont dostepnych w systemie.`}
-            </p>
-          </div>
-        </div>
-
+      <SectionCard
+        title="Lista kont"
+        description={
+          hasActiveFilters
+            ? `${users.length} z ${totalUsersCount} kont spełnia aktywne filtry.`
+            : `${totalUsersCount} kont dostępnych w systemie.`
+        }
+        padding="none"
+      >
         {isLoading ? (
-          <div className="px-6 py-14 text-center text-sm text-gray-600">
-            Ladowanie kont uzytkownikow...
-          </div>
+          <EmptyState title="Ładowanie kont użytkowników..." />
         ) : totalUsersCount === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <h3 className="text-xl font-semibold text-gray-900">Brak kont w systemie</h3>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-              Utworz pierwsze konto aplikacyjne, aby rozpoczec prace z panelem administracji
-              uzytkownikami.
-            </p>
-            <button type="button" onClick={onCreate} className="btn-primary mt-6">
-              Utworz pierwsze konto
-            </button>
+          <div className="p-5">
+            <EmptyState
+              title="Brak kont w systemie"
+              description="Utwórz pierwsze konto aplikacyjne, aby rozpocząć pracę z panelem administracji użytkownikami."
+              action={
+                <Button type="button" onClick={onCreate} variant="primary">
+                  Utwórz pierwsze konto
+                </Button>
+              }
+            />
           </div>
         ) : users.length === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <h3 className="text-xl font-semibold text-gray-900">Brak wynikow</h3>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-              Zmien kryteria filtrowania, aby zobaczyc inne konta.
-            </p>
+          <div className="p-5">
+            <EmptyState
+              title="Brak wyników"
+              description="Zmień kryteria filtrowania, aby zobaczyć inne konta."
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr className="border-b border-gray-200 text-left text-gray-600">
-                  <th className="px-5 py-3 font-medium">Uzytkownik</th>
+              <thead className="bg-ink-50">
+                <tr className="border-b border-line text-left text-ink-500">
+                  <th className="px-5 py-3 font-medium">Użytkownik</th>
                   <th className="px-5 py-3 font-medium">Rola</th>
                   <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium">Wymuszona zmiana hasla</th>
+                  <th className="px-5 py-3 font-medium">Wymuszona zmiana hasła</th>
                   <th className="px-5 py-3 font-medium">Utworzono</th>
                   <th className="px-5 py-3 font-medium text-right">Akcja</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line">
                 {users.map((user) => (
-                  <tr key={user.id} className="transition hover:bg-gray-50">
+                  <tr key={user.id} className="transition hover:bg-ink-50/70">
                     <td className="px-5 py-4">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-ink-900">
                         {getAdminUserDisplayName(user)}
                       </div>
-                      <div className="mt-1 text-sm text-gray-500">{user.email}</div>
+                      <div className="mt-1 text-sm text-ink-500">{user.email}</div>
                     </td>
-                    <td className="px-5 py-4 text-gray-700">{USER_ROLE_LABELS[user.role]}</td>
+                    <td className="px-5 py-4 text-ink-700">{USER_ROLE_LABELS[user.role]}</td>
                     <td className="px-5 py-4">
-                      <StatusPill active={user.isActive}>
+                      <Badge tone={user.isActive ? 'emerald' : 'neutral'} leadingDot>
                         {getAdminUserStatusLabel(user.isActive)}
-                      </StatusPill>
+                      </Badge>
                     </td>
-                    <td className="px-5 py-4 text-gray-700">
+                    <td className="px-5 py-4 text-ink-700">
                       {user.forcePasswordChange ? 'Tak' : 'Nie'}
                     </td>
-                    <td className="px-5 py-4 text-gray-700">
+                    <td className="px-5 py-4 text-ink-700">
                       {formatAdminUserDateTime(user.createdAt)}
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => onOpen(user.id)}
-                        className="btn-secondary"
-                      >
-                        Szczegoly
-                      </button>
+                      <Button type="button" onClick={() => onOpen(user.id)} size="sm">
+                        Szczegóły
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -238,65 +231,7 @@ export function AdminUsersList({
             </table>
           </div>
         )}
-      </section>
-    </div>
-  )
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone,
-  isLoading,
-  testId,
-}: {
-  label: string
-  value: number
-  tone: 'success' | 'neutral' | 'primary' | 'warning'
-  isLoading: boolean
-  testId: string
-}) {
-  const toneClasses = {
-    success: 'border-green-200 bg-green-50 text-green-800',
-    neutral: 'border-gray-200 bg-white text-gray-900',
-    primary: 'border-blue-200 bg-blue-50 text-blue-800',
-    warning: 'border-amber-200 bg-amber-50 text-amber-800',
-  } as const
-
-  return (
-    <div className={`rounded-3xl border p-5 shadow-sm ${toneClasses[tone]}`}>
-      <p className="text-sm font-medium">{label}</p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight" data-testid={`${testId}-value`}>
-        {formatAdminUsersSummaryValue(value, isLoading)}
-      </p>
-    </div>
-  )
-}
-
-function StatusPill({ active, children }: { active: boolean; children: React.ReactNode }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-        active
-          ? 'border-green-200 bg-green-50 text-green-700'
-          : 'border-gray-200 bg-gray-100 text-gray-600'
-      }`}
-    >
-      {children}
-    </span>
-  )
-}
-
-function Banner({ tone, children }: { tone: 'success' | 'danger'; children: React.ReactNode }) {
-  return (
-    <div
-      className={`rounded-2xl border px-4 py-3 text-sm ${
-        tone === 'success'
-          ? 'border-green-200 bg-green-50 text-green-700'
-          : 'border-red-200 bg-red-50 text-red-700'
-      }`}
-    >
-      {children}
+      </SectionCard>
     </div>
   )
 }
