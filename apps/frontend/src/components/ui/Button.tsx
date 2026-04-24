@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, AnchorHTMLAttributes } from 'react'
+import { forwardRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes } from 'react'
 import { Link, type LinkProps } from 'react-router-dom'
 import { cx } from './styles'
 
@@ -31,7 +31,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loadingLabel?: string
 }
 
-export function Button({
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   children,
   className,
   disabled,
@@ -41,9 +41,10 @@ export function Button({
   size = 'md',
   type = 'button',
   ...props
-}: ButtonProps) {
+}: ButtonProps, ref) {
   return (
     <button
+      ref={ref}
       type={type}
       disabled={disabled || isLoading}
       aria-busy={isLoading || undefined}
@@ -63,7 +64,7 @@ export function Button({
       )}
     </button>
   )
-}
+})
 
 export interface ButtonLinkProps
   extends LinkProps,
