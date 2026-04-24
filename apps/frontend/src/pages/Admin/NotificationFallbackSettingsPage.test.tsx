@@ -1,16 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  Badge,
   NotificationFallbackSettingsPage,
   computeReadiness,
+  shouldRequireEnableConfirmation,
+  validateFallbackForm,
 } from './NotificationFallbackSettingsPage'
 
-// ============================================================
-// Mocks
-// ============================================================
-
-const { authState, mockedUseAuthStore } = vi.hoisted(() => {
+const { authState, getSettingsMock, mockedUseAuthStore, updateSettingsMock } = vi.hoisted(() => {
   const state: {
     user: {
       id: string
@@ -37,7 +34,12 @@ const { authState, mockedUseAuthStore } = vi.hoisted(() => {
     getState: () => state,
   })
 
-  return { authState: state, mockedUseAuthStore: store }
+  return {
+    authState: state,
+    getSettingsMock: vi.fn(),
+    mockedUseAuthStore: store,
+    updateSettingsMock: vi.fn(),
+  }
 })
 
 vi.mock('@/stores/auth.store', () => ({
@@ -45,49 +47,53 @@ vi.mock('@/stores/auth.store', () => ({
 }))
 
 vi.mock('@/services/adminNotificationFallbackSettings.api', () => ({
-  getAdminNotificationFallbackSettings: vi.fn(),
-  updateAdminNotificationFallbackSettings: vi.fn(),
+  getAdminNotificationFallbackSettings: getSettingsMock,
+  updateAdminNotificationFallbackSettings: updateSettingsMock,
 }))
 
-// ============================================================
-// Testy strony (renderToStaticMarkup — synchroniczne, bez efektów)
-// ============================================================
-
-describe('NotificationFallbackSettingsPage', () => {
-  it('render — heading strony widoczny gdy user.role === ADMIN', () => {
-    authState.user = {
-      id: 'admin-1',
-      email: 'admin@np-manager.local',
-      firstName: 'Anna',
-      lastName: 'Admin',
-      role: 'ADMIN',
-      forcePasswordChange: false,
-    }
-
-    const html = renderToStaticMarkup(<NotificationFallbackSettingsPage />)
-
-    expect(html).toContain('Ustawienia fallback notyfikacji')
-    expect(html).toContain('Konfiguracja zapasowego odbiorcy dla nieudanych notyfikacji.')
-  })
-
-  it('loading — komunikat ladowania widoczny na wejsciu', () => {
-    authState.user = {
-      id: 'admin-1',
-      email: 'admin@np-manager.local',
-      firstName: 'Anna',
-      lastName: 'Admin',
-      role: 'ADMIN',
-      forcePasswordChange: false,
-    }
-
-    const html = renderToStaticMarkup(<NotificationFallbackSettingsPage />)
-
-    expect(html).toContain('Ladowanie ustawien...')
+beforeEach(() => {
+  authState.user = {
+    id: 'admin-1',
+    email: 'admin@np-manager.local',
+    firstName: 'Anna',
+    lastName: 'Admin',
+    role: 'ADMIN',
+    forcePasswordChange: false,
+  }
+  getSettingsMock.mockReset()
+  updateSettingsMock.mockReset()
+  getSettingsMock.mockResolvedValue({
+    fallbackEnabled: false,
+    fallbackRecipientEmail: '',
+    fallbackRecipientName: '',
+    applyToFailed: true,
+    applyToMisconfigured: true,
+    readiness: 'DISABLED',
   })
 })
 
-describe('NotificationFallbackSettingsPage — dostep', () => {
-  it('blokuje uzytkownika z rola BOK_CONSULTANT', () => {
+describe('NotificationFallbackSettingsPage', () => {
+  it('shows PageHeader and loading state for ADMIN user', () => {
+    authState.user = {
+      id: 'admin-1',
+      email: 'admin@np-manager.local',
+      firstName: 'Anna',
+      lastName: 'Admin',
+      role: 'ADMIN',
+      forcePasswordChange: false,
+    }
+
+    const html = renderToStaticMarkup(<NotificationFallbackSettingsPage />)
+
+    expect(html).toContain('Administracja')
+    expect(html).toContain('Fallback notyfikacji')
+    expect(html).toContain(
+      'Konfiguracja zapasowego odbiorcy dla błędów wysyłki wewnętrznych notyfikacji portingowych.',
+    )
+    expect(html).toContain('Ładowanie ustawień...')
+  })
+
+  it('blocks non-admin users with the DS empty state copy', () => {
     authState.user = {
       id: 'bok-1',
       email: 'bok@np-manager.local',
@@ -99,53 +105,14 @@ describe('NotificationFallbackSettingsPage — dostep', () => {
 
     const html = renderToStaticMarkup(<NotificationFallbackSettingsPage />)
 
-    expect(html).toContain('Brak dostepu do administracji')
-    expect(html).toContain('Ta sekcja jest dostepna tylko dla administratora systemu.')
+    expect(html).toContain('Brak dostępu do administracji')
+    expect(html).toContain('Ta sekcja jest dostępna tylko dla administratora systemu.')
   })
+
 })
-
-// ============================================================
-// Testy komponentu Badge (testy jednostkowe — renderToStaticMarkup)
-// ============================================================
-
-describe('Badge', () => {
-  it('badge DISABLED: renderuje etykiete "Fallback wylaczony" z tonem neutral', () => {
-    const html = renderToStaticMarkup(
-      <Badge tone="neutral">Fallback wyłączony</Badge>,
-    )
-
-    expect(html).toContain('Fallback wyłączony')
-    expect(html).toContain('bg-gray-100')
-    expect(html).toContain('text-gray-700')
-  })
-
-  it('badge READY: renderuje etykiete "Fallback aktywny" z tonem success', () => {
-    const html = renderToStaticMarkup(
-      <Badge tone="success">Fallback aktywny</Badge>,
-    )
-
-    expect(html).toContain('Fallback aktywny')
-    expect(html).toContain('bg-green-50')
-    expect(html).toContain('text-green-700')
-  })
-
-  it('badge INCOMPLETE: renderuje etykiete "Konfiguracja niekompletna" z tonem warning', () => {
-    const html = renderToStaticMarkup(
-      <Badge tone="warning">Konfiguracja niekompletna</Badge>,
-    )
-
-    expect(html).toContain('Konfiguracja niekompletna')
-    expect(html).toContain('bg-amber-50')
-    expect(html).toContain('text-amber-700')
-  })
-})
-
-// ============================================================
-// Testy computeReadiness (logika walidacji / stanu fallbacku)
-// ============================================================
 
 describe('computeReadiness', () => {
-  it('walidacja: fallbackEnabled=true i pusty email zwraca INCOMPLETE', () => {
+  it('returns INCOMPLETE when fallback is enabled without email', () => {
     const readiness = computeReadiness({
       fallbackEnabled: true,
       fallbackRecipientEmail: '',
@@ -157,7 +124,7 @@ describe('computeReadiness', () => {
     expect(readiness).toBe('INCOMPLETE')
   })
 
-  it('sukces: fallbackEnabled=true z wypelnionym emailem zwraca READY', () => {
+  it('returns READY when fallback is enabled with email', () => {
     const readiness = computeReadiness({
       fallbackEnabled: true,
       fallbackRecipientEmail: 'fallback@multiplay.pl',
@@ -169,15 +136,88 @@ describe('computeReadiness', () => {
     expect(readiness).toBe('READY')
   })
 
-  it('blad: fallbackEnabled=false zwraca DISABLED niezaleznie od emaila', () => {
+  it('returns DISABLED when fallback is off, regardless of email', () => {
     const readiness = computeReadiness({
       fallbackEnabled: false,
-      fallbackRecipientEmail: 'fallback@multiplay.pl',
+      fallbackRecipientEmail: 'not-an-email',
       fallbackRecipientName: '',
       applyToFailed: true,
       applyToMisconfigured: true,
     })
 
     expect(readiness).toBe('DISABLED')
+  })
+})
+
+describe('validateFallbackForm', () => {
+  it('does not block save for invalid email when fallback is off', () => {
+    const error = validateFallbackForm({
+      fallbackEnabled: false,
+      fallbackRecipientEmail: 'niepoprawny-email',
+      fallbackRecipientName: '',
+      applyToFailed: true,
+      applyToMisconfigured: true,
+    })
+
+    expect(error).toBeNull()
+  })
+
+  it('requires email when fallback is on', () => {
+    const error = validateFallbackForm({
+      fallbackEnabled: true,
+      fallbackRecipientEmail: '',
+      fallbackRecipientName: '',
+      applyToFailed: true,
+      applyToMisconfigured: true,
+    })
+
+    expect(error).toBe('Podaj adres e-mail odbiorcy fallbacku, gdy fallback jest włączony.')
+  })
+
+  it('requires valid email when fallback is on', () => {
+    const error = validateFallbackForm({
+      fallbackEnabled: true,
+      fallbackRecipientEmail: 'niepoprawny-email',
+      fallbackRecipientName: '',
+      applyToFailed: true,
+      applyToMisconfigured: true,
+    })
+
+    expect(error).toBe('Podaj poprawny adres e-mail.')
+  })
+})
+
+describe('shouldRequireEnableConfirmation', () => {
+  it('requires confirmation for OFF to ON transition', () => {
+    const saved = {
+      fallbackEnabled: false,
+      fallbackRecipientEmail: '',
+      fallbackRecipientName: '',
+      applyToFailed: true,
+      applyToMisconfigured: true,
+    }
+    const form = {
+      ...saved,
+      fallbackEnabled: true,
+      fallbackRecipientEmail: 'fallback@multiplay.pl',
+    }
+
+    expect(shouldRequireEnableConfirmation(saved, form)).toBe(true)
+  })
+
+  it('does not require confirmation when fallback was already enabled', () => {
+    const saved = {
+      fallbackEnabled: true,
+      fallbackRecipientEmail: 'fallback@multiplay.pl',
+      fallbackRecipientName: '',
+      applyToFailed: true,
+      applyToMisconfigured: true,
+    }
+    const form = {
+      ...saved,
+      fallbackRecipientEmail: 'nowy-fallback@multiplay.pl',
+    }
+
+    expect(shouldRequireEnableConfirmation(saved, form)).toBe(false)
   })
 })
