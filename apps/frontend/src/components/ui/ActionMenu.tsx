@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { Button } from './Button'
 import { cx } from './styles'
@@ -28,7 +28,32 @@ export function ActionMenu({
   triggerLabel = 'Akcje',
 }: ActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+
+  function updateMenuPosition() {
+    const trigger = triggerRef.current
+    if (!trigger) return
+
+    const rect = trigger.getBoundingClientRect()
+    const menuWidth = 220
+    const viewportPadding = 12
+    const horizontalLeft =
+      align === 'end'
+        ? Math.max(viewportPadding, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - viewportPadding))
+        : Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - menuWidth - viewportPadding))
+
+    const estimatedMenuHeight = Math.min(320, Math.max(56, items.length * 46 + 12))
+    const hasSpaceBelow = window.innerHeight - rect.bottom >= estimatedMenuHeight + viewportPadding
+
+    setMenuStyle({
+      left: horizontalLeft,
+      ...(hasSpaceBelow
+        ? { top: rect.bottom + 6, bottom: 'auto' }
+        : { top: 'auto', bottom: Math.max(viewportPadding, window.innerHeight - rect.top + 6) }),
+    })
+  }
 
   function closeWhenAllowed(result: void | boolean | Promise<void | boolean>) {
     if (result instanceof Promise) {
@@ -48,6 +73,8 @@ export function ActionMenu({
   useEffect(() => {
     if (!isOpen) return
 
+    updateMenuPosition()
+
     function handlePointerDown(event: MouseEvent) {
       if (!(event.target instanceof Node)) return
       if (menuRef.current?.contains(event.target)) return
@@ -62,23 +89,31 @@ export function ActionMenu({
 
     document.addEventListener('mousedown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
 
     return () => {
       document.removeEventListener('mousedown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
     }
-  }, [isOpen])
+  }, [align, isOpen, items.length])
 
   return (
     <div ref={menuRef} className={cx('relative inline-flex', className)}>
       <Button
+        ref={triggerRef}
         type="button"
         variant="ghost"
         size={triggerLabel ? 'sm' : 'icon'}
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-label={triggerAriaLabel ?? triggerLabel}
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => {
+          updateMenuPosition()
+          setIsOpen((current) => !current)
+        }}
       >
         <MoreHorizontal aria-hidden="true" className="h-4 w-4 shrink-0" />
         {triggerLabel}
@@ -87,9 +122,9 @@ export function ActionMenu({
       {isOpen && (
         <div
           role="menu"
+          style={menuStyle}
           className={cx(
-            'absolute top-10 z-30 min-w-[220px] rounded-ui border border-line bg-surface p-1.5 shadow-panel',
-            align === 'end' ? 'right-0' : 'left-0',
+            'fixed z-50 max-h-[min(320px,calc(100vh-24px))] min-w-[220px] overflow-y-auto rounded-ui border border-line bg-surface p-1.5 shadow-panel',
           )}
         >
           {items.map((item) => (

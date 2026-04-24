@@ -183,7 +183,7 @@ function StatusBadge({ status }: { status: PortingCaseStatus }) {
   const tone = toneByStatus[meta.tone]
 
   return (
-    <Badge tone={tone} className="min-h-7 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.06em]">
+    <Badge tone={tone} className="min-h-6 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.04em]">
       {meta.label}
     </Badge>
   )
@@ -205,15 +205,15 @@ function NotificationHealthBadge({ request }: { request: PortingRequestListItemD
   const config = statusConfig[notificationHealthStatus]
 
   if (notificationHealthStatus === 'OK') {
-    return <Badge tone={config.tone}>OK</Badge>
+    return <Badge tone={config.tone} className="px-2 text-[11px]">OK</Badge>
   }
 
   const lastFailureDate = notificationLastFailureAt ? formatDate(notificationLastFailureAt) : null
 
   return (
-    <div className="flex flex-col gap-1">
-      <Badge tone={config.tone}>{config.label}</Badge>
-      <span className="text-xs leading-5 text-ink-500">
+    <div className="flex min-w-[140px] flex-col gap-0.5">
+      <Badge tone={config.tone} className="w-fit px-2 text-[11px]">{config.label}</Badge>
+      <span className="text-[11px] leading-4 text-ink-500">
         {notificationFailureCount} {notificationFailureCount === 1 ? 'blad' : 'bledow'}
         {lastFailureDate ? `, ost. ${lastFailureDate}` : ''}
       </span>
@@ -319,35 +319,35 @@ export function RequestRow({
   return (
     <tr
       onClick={onClick}
-      className="cursor-pointer border-b border-line/80 transition-colors last:border-b-0 hover:bg-brand-50/60"
+      className="group cursor-pointer border-b border-line/70 transition-colors last:border-b-0 hover:bg-brand-50/50"
     >
-      <td className="px-5 py-5 align-top">
-        <div className="max-w-[220px] truncate font-mono text-base font-bold text-ink-900">
+      <td className="px-4 py-3.5 align-top">
+        <div className="max-w-[210px] truncate font-mono text-sm font-bold text-ink-900">
           {request.numberDisplay}
         </div>
-        <div className="mt-1 max-w-[220px] truncate text-sm font-semibold text-ink-800">
+        <div className="mt-0.5 max-w-[210px] truncate text-sm font-semibold leading-5 text-ink-800">
           {request.clientDisplayName}
         </div>
-        <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-ink-450">
+        <div className="mt-1 flex flex-col gap-0.5 text-[11px] leading-4 text-ink-450">
           <span className="font-mono font-semibold text-ink-550">{request.caseNumber}</span>
           <span>Utworzono {formatDateValue(request.createdAt)}</span>
         </div>
       </td>
-      <td className="px-5 py-5 align-top">
-        <div className="flex flex-col gap-2">
+      <td className="px-4 py-3.5 align-top">
+        <div className="flex min-w-[150px] flex-col gap-1.5">
           <StatusBadge status={request.statusInternal} />
-          <Badge tone={operationalHint.tone} className="w-fit text-[11px] font-medium">
+          <Badge tone={operationalHint.tone} className="w-fit px-2 text-[11px] font-medium">
             {operationalHint.label}
           </Badge>
         </div>
       </td>
-      <td className="px-5 py-5 align-top">
+      <td className="px-4 py-3.5 align-top">
         {portingDateLabel ? (
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-[135px] flex-col gap-0.5">
             <Badge
               tone={workPriority?.emphasized ? workPriority.tone : 'brand'}
               className={cx(
-                'w-fit font-mono text-xs font-semibold',
+                'w-fit px-2 font-mono text-[11px] font-semibold',
                 workPriority?.emphasized && 'ring-2',
               )}
             >
@@ -357,35 +357,35 @@ export function RequestRow({
               <Badge
                 tone={workPriority.tone}
                 className={cx(
-                  'w-fit text-[11px] font-semibold uppercase tracking-[0.04em]',
+                  'w-fit px-2 text-[11px] font-semibold uppercase tracking-[0.03em]',
                   workPriority.emphasized && 'ring-2',
                 )}
               >
                 {workPriority.label}
               </Badge>
             )}
-            <span className="text-[11px] text-ink-450">Data portowania</span>
+            <span className="text-[11px] leading-4 text-ink-450">Data portowania</span>
           </div>
         ) : (
-          <div className="flex flex-col gap-1">
-            <Badge tone="neutral" className="w-fit text-[11px] font-semibold uppercase tracking-[0.04em]">
+          <div className="flex min-w-[135px] flex-col gap-0.5">
+            <Badge tone="neutral" className="w-fit px-2 text-[11px] font-semibold uppercase tracking-[0.03em]">
               Bez daty
             </Badge>
-            <span className="text-sm font-semibold text-ink-600">Nie wyznaczono</span>
-            <span className="text-[11px] text-ink-450">Data portowania</span>
+            <span className="text-xs font-semibold text-ink-600">Nie wyznaczono</span>
+            <span className="text-[11px] leading-4 text-ink-450">Data portowania</span>
           </div>
         )}
       </td>
-      <td className="px-5 py-5 align-top">
-        <div className="max-w-[180px] truncate text-sm text-ink-650">{request.donorOperatorName}</div>
-        <div className="mt-1 text-xs font-semibold text-ink-400">
+      <td className="px-4 py-3.5 align-top">
+        <div className="max-w-[170px] truncate text-sm leading-5 text-ink-650">{request.donorOperatorName}</div>
+        <div className="mt-0.5 text-xs font-semibold text-ink-400">
           {PORTING_MODE_LABELS[request.portingMode]}
         </div>
       </td>
-      <td className="px-5 py-5 align-top">
+      <td className="px-4 py-3.5 align-top">
         <div
           className={cx(
-            'max-w-[220px] truncate text-sm font-medium',
+            'max-w-[190px] truncate text-sm font-medium leading-5',
             request.assignedUserSummary ? 'text-ink-700' : 'text-amber-700',
           )}
         >
@@ -394,33 +394,34 @@ export function RequestRow({
         {ownershipSignal && (
           <Badge
             tone={ownershipSignal.tone}
-            className="mt-1 w-fit text-[11px] font-semibold uppercase tracking-[0.04em]"
+            className="mt-1 w-fit px-2 text-[11px] font-semibold uppercase tracking-[0.03em]"
           >
             {ownershipSignal.label}
           </Badge>
         )}
-        <div className="mt-1 text-xs text-ink-400">BOK</div>
+        <div className="mt-0.5 text-xs text-ink-400">BOK</div>
       </td>
-      <td className="px-5 py-5 align-top">
+      <td className="px-4 py-3.5 align-top">
         <div
           className={cx(
-            'max-w-[260px] truncate text-sm font-semibold',
+            'max-w-[230px] truncate text-sm font-semibold leading-5',
             request.commercialOwnerSummary ? 'text-ink-800' : 'text-amber-800',
           )}
         >
           {ownerLabel}
         </div>
-        <div className="mt-1 text-xs text-ink-400">Opiekun handlowy</div>
+        <div className="mt-0.5 text-xs text-ink-400">Opiekun handlowy</div>
       </td>
-      <td className="px-5 py-5 align-top">
+      <td className="px-4 py-3.5 align-top">
         <NotificationHealthBadge request={request} />
       </td>
       <td
-        className="px-4 py-4 align-top"
+        className="px-3 py-3 align-top"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative flex flex-col items-start gap-2">
+        <div className="relative flex flex-col items-start gap-1.5">
           <ActionMenu
+            triggerLabel=""
             triggerAriaLabel={`Akcje dla sprawy ${request.caseNumber}`}
             items={[
               {
@@ -743,7 +744,7 @@ export function RequestsPage() {
       />
 
       {summary && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
           {summaryCards.map((card) => (
             <MetricCard
               key={card.id}
@@ -765,7 +766,7 @@ export function RequestsPage() {
         description="Operacyjne skroty do najczesciej obslugiwanych widokow."
       >
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+          <span className="mr-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
             <AppIcon icon={Flag} className="text-ink-400" />
             Widok
           </span>
@@ -811,14 +812,14 @@ export function RequestsPage() {
         padding="none"
         className="overflow-hidden"
       >
-        <div className="px-5 py-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-[260px] flex-1">
+        <div className="px-4 py-4 sm:px-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="relative sm:col-span-2 xl:col-span-2">
               <input
                 type="search"
                 value={localSearch}
                 onChange={(event) => handleSearchChange(event.target.value)}
-                className="input-field h-10 pl-10"
+                className="input-field h-10 w-full pl-10"
                 placeholder="Szukaj po numerze sprawy, telefonie lub kliencie..."
               />
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
@@ -832,7 +833,7 @@ export function RequestsPage() {
                 const nextStatus = event.target.value || null
                 setParam({ status: nextStatus, page: null })
               }}
-              className="input-field h-10 min-w-[180px] lg:max-w-[220px]"
+              className="input-field h-10 w-full"
             >
               <option value="">Wszystkie statusy</option>
               {(Object.values(PORTING_CASE_STATUSES) as PortingCaseStatus[]).map((status) => (
@@ -848,7 +849,7 @@ export function RequestsPage() {
                 const nextMode = event.target.value || null
                 setParam({ portingMode: nextMode, page: null })
               }}
-              className="input-field h-10 min-w-[170px] lg:max-w-[210px]"
+              className="input-field h-10 w-full"
             >
               <option value="">Wszystkie tryby</option>
               {PORTING_MODES.map((mode) => (
@@ -863,7 +864,7 @@ export function RequestsPage() {
               onChange={(event) => {
                 setParam({ donorOperatorId: event.target.value || null, page: null })
               }}
-              className="input-field h-10 min-w-[190px] lg:max-w-[250px]"
+              className="input-field h-10 w-full"
             >
               <option value="">Wszyscy dawcy</option>
               {operators.map((operator) => (
@@ -882,7 +883,7 @@ export function RequestsPage() {
                   page: null,
                 })
               }}
-              className="input-field h-10 min-w-[170px] lg:max-w-[210px]"
+              className="input-field h-10 w-full"
             >
               {commercialOwnerOptions.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -900,7 +901,7 @@ export function RequestsPage() {
                   page: null,
                 })
               }}
-              className="input-field h-10 min-w-[170px] lg:max-w-[220px]"
+              className="input-field h-10 w-full"
             >
               {notificationHealthOptions.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -919,7 +920,7 @@ export function RequestsPage() {
                   page: null,
                 })
               }}
-              className="input-field h-10 min-w-[180px] lg:max-w-[220px]"
+              className="input-field h-10 w-full"
             >
               {sortOptions.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -930,9 +931,9 @@ export function RequestsPage() {
 
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-line pt-3">
+          <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
                 Opiekun handlowy i zdrowie notyfikacji
               </span>
               {notificationQuickOptions.map((filter) => (
@@ -1033,18 +1034,18 @@ export function RequestsPage() {
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1260px] text-sm">
-              <thead className="bg-ink-50/80 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+          <div className="overflow-x-auto border-t border-line/70" role="region" aria-label="Przewijana lista spraw">
+            <table className="w-full min-w-[1120px] text-sm">
+              <thead className="bg-ink-50/80 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-500">
                 <tr>
-                  <th className="px-5 py-3.5 text-left">Numer i klient</th>
-                  <th className="px-5 py-3.5 text-left">Status</th>
-                  <th className="px-5 py-3.5 text-left">Data przeniesienia</th>
-                  <th className="px-5 py-3.5 text-left">Operator / tryb</th>
-                  <th className="px-5 py-3.5 text-left">Przypisanie</th>
-                  <th className="px-5 py-3.5 text-left">Opiekun handlowy</th>
-                  <th className="min-w-[130px] whitespace-nowrap px-5 py-3.5 text-left">Notyfikacje</th>
-                  <th className="min-w-[120px] whitespace-nowrap px-4 py-3.5 text-left">Akcje</th>
+                  <th className="px-4 py-3 text-left">Numer i klient</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Data przeniesienia</th>
+                  <th className="px-4 py-3 text-left">Operator / tryb</th>
+                  <th className="px-4 py-3 text-left">Przypisanie</th>
+                  <th className="px-4 py-3 text-left">Opiekun handlowy</th>
+                  <th className="min-w-[130px] whitespace-nowrap px-4 py-3 text-left">Notyfikacje</th>
+                  <th className="min-w-[64px] whitespace-nowrap px-3 py-3 text-left">Akcje</th>
                 </tr>
               </thead>
               <tbody>
