@@ -6,7 +6,7 @@ import { Bell, CalendarClock, ChevronDown, FileText, Info, TriangleAlert, Zap } 
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSystemCapabilities } from '@/hooks/useSystemCapabilities'
-import { AppIcon, Badge, Button, ButtonLink, type BadgeTone, cx } from '@/components/ui'
+import { AppIcon, Badge, Button, type BadgeTone, cx } from '@/components/ui'
 import {
   assignPortingRequestToMe,
   cancelPortingCommunication,
@@ -53,7 +53,6 @@ import {
   PLI_CBD_EXPORT_STATUS_LABELS,
   PORTED_NUMBER_KIND_LABELS,
   PORTING_CASE_STATUS_LABELS,
-  PORTING_MODE_LABELS,
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
   type CommunicationDeliveryAttemptsResultDto,
   type PliCbdAnyTechnicalPayloadBuildResultDto,
@@ -103,7 +102,6 @@ import { RequestDetailsHistoryPanel } from '@/components/RequestDetailsHistoryPa
 import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
 import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
-import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import { getPortingUrgency } from '@/lib/portingUrgency'
 import {
   getInternalNotificationRetryErrorMessage,
@@ -119,6 +117,11 @@ import {
   getWorkflowErrorEmptyStateMessage,
   shouldShowPliCbdOperationalMeta,
 } from './requestDetailCapabilities'
+import {
+  RequestAttentionStrip,
+  RequestCaseHero,
+  RequestMetaGrid,
+} from './RequestCommandCenter'
 
 const TECHNICAL_PAYLOAD_MESSAGE_TYPES = ['E03', 'E12', 'E18', 'E23'] as const
 
@@ -354,56 +357,11 @@ function WideField({ label, value }: { label: string; value: string | null | und
   )
 }
 
-function DetailMetric({
-  label,
-  value,
-  tone = 'neutral',
-  actionLabel,
-  onAction,
-}: {
-  label: string
-  value: string
-  tone?: BadgeTone
-  actionLabel?: string
-  onAction?: () => void
-}) {
-  return (
-    <div className="rounded-panel border border-line bg-surface px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-400">{label}</div>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <Badge tone={tone}>{value}</Badge>
-        {actionLabel && onAction && (
-          <button
-            type="button"
-            onClick={onAction}
-            className="rounded-ui bg-brand-50/70 px-2 py-1 text-xs font-semibold text-brand-800 underline-offset-4 transition-colors hover:bg-brand-100 hover:text-brand-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-          >
-            {actionLabel} {'>'}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function scrollToSection(sectionId: string) {
   document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 const TERMINAL_CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
-
-function getStatusTone(status: ReturnType<typeof getPortingStatusMeta>['tone']): BadgeTone {
-  const toneByStatus: Record<ReturnType<typeof getPortingStatusMeta>['tone'], BadgeTone> = {
-    gray: 'neutral',
-    blue: 'brand',
-    amber: 'amber',
-    green: 'green',
-    red: 'red',
-    emerald: 'emerald',
-  }
-
-  return toneByStatus[status]
-}
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('pl-PL', {
@@ -1890,7 +1848,6 @@ export function RequestDetailPage() {
     )
   }
 
-  const statusMeta = getPortingStatusMeta(request.statusInternal)
   const urgency = getPortingUrgency(request.confirmedPortDate)
   const assignedUserLabel = request.assignedUser
     ? `${request.assignedUser.displayName} (${request.assignedUser.email})`
@@ -1901,87 +1858,46 @@ export function RequestDetailPage() {
   const quickStatusActions = canManageStatus ? availableStatusActions.slice(0, 3) : []
   const hasQuickActions =
     quickStatusActions.length > 0 || canManageAssignment || availableCommunicationActions.length > 0
+  const workflowErrorMessage = getWorkflowErrorEmptyStateMessage(canUsePliCbdExternalActions)
 
   return (
     <div className="space-y-6">
-      <section className="panel overflow-hidden">
-        <div className="border-b border-line px-5 py-5">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0">
-              <Button
-                onClick={backToList}
-                variant="ghost"
-                size="sm"
-                className="mb-3 -ml-2"
-              >
-                ← Sprawy portowania
-              </Button>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone="neutral">{request.caseNumber}</Badge>
-                <Badge tone={getStatusTone(statusMeta.tone)}>{statusMeta.label}</Badge>
-                <Badge tone="brand">{PORTING_MODE_LABELS[request.portingMode]}</Badge>
-                <Badge
-                  tone={urgency.tone}
-                  className={urgency.emphasized ? 'ring-2' : undefined}
-                  aria-label={`Pilnosc sprawy: ${urgency.label}`}
-                >
-                  Pilnosc: {urgency.label}
-                </Badge>
-              </div>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink-900">
-                {request.client.displayName}
-              </h1>
-              <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-ink-500">
-                <span className="font-mono text-ink-700">{request.numberDisplay}</span>
-                <span>{request.subscriberDisplayName}</span>
-                <span>
-                  {request.donorOperator.name} {'->'} {request.recipientOperator.name}
-                </span>
-              </p>
-            </div>
+      <RequestCaseHero
+        request={request}
+        urgency={urgency}
+        copyLinkDone={copyLinkDone}
+        onBackToList={backToList}
+        onCopyLink={handleCopyLink}
+      />
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={handleCopyLink} variant="ghost" size="sm">
-                {copyLinkDone ? '✓ Skopiowano' : 'Kopiuj link'}
-              </Button>
-              <ButtonLink to={ROUTES.REQUEST_NEW} variant="secondary">
-                + Nowa sprawa
-              </ButtonLink>
-            </div>
-          </div>
-        </div>
+      <RequestAttentionStrip
+        request={request}
+        canManageAssignment={canManageAssignment}
+        canManageStatus={canManageStatus}
+        workflowErrorMessage={workflowErrorMessage}
+        onScrollToAssignment={() => scrollToSection('assignment-panel')}
+        onScrollToNotifications={() => scrollToSection('notification-panel')}
+        onScrollToPortingDates={() => scrollToSection('porting-terms-panel')}
+        onScrollToStatusActions={() => scrollToSection('workflow-actions')}
+      />
 
-        <div className="grid gap-3 bg-ink-50/70 px-5 py-4 md:grid-cols-2 xl:grid-cols-4">
-          <DetailMetric
-            label="Status"
-            value={statusMeta.label}
-            tone={getStatusTone(statusMeta.tone)}
-            actionLabel={canManageStatus ? 'Akcje' : undefined}
-            onAction={canManageStatus ? () => scrollToSection('workflow-actions') : undefined}
-          />
-          <DetailMetric
-            label="Przypisanie BOK"
-            value={request.assignedUser ? request.assignedUser.displayName : 'Nieprzypisana'}
-            tone={request.assignedUser ? 'brand' : 'amber'}
-            actionLabel={canManageAssignment ? 'Zmien' : 'Szczegoly'}
-            onAction={() => scrollToSection('assignment-panel')}
-          />
-          <DetailMetric
-            label="Opiekun handlowy"
-            value={request.commercialOwner ? request.commercialOwner.displayName : 'Brak opiekuna'}
-            tone={request.commercialOwner ? 'emerald' : 'amber'}
-            actionLabel={canManageCommercialOwner ? 'Zmien' : 'Szczegoly'}
-            onAction={() => scrollToSection('commercial-owner-panel')}
-          />
-          <DetailMetric
-            label="Notyfikacje"
-            value={request.notificationHealth.status === 'OK' ? 'OK' : `${request.notificationHealth.failureCount} bledow`}
-            tone={request.notificationHealth.status === 'OK' ? 'emerald' : 'red'}
-            actionLabel={request.notificationHealth.failureCount > 0 ? 'Sprawdz' : 'Historia'}
-            onAction={() => scrollToSection('notification-panel')}
-          />
-        </div>
-      </section>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)] xl:items-start">
+        <WhatsNextPanel
+          status={request.statusInternal}
+          availableStatusActions={availableStatusActions}
+          availableCommunicationActions={availableCommunicationActions}
+          assignedUser={request.assignedUser}
+          notificationHealth={request.notificationHealth}
+          canManageStatus={canManageStatus}
+          canManageAssignment={canManageAssignment}
+          onScrollToStatusActions={() => scrollToSection('workflow-actions')}
+          onScrollToCommunication={() => scrollToSection('communication-panel')}
+          onScrollToAssignment={() => scrollToSection('assignment-panel')}
+          onScrollToNotifications={() => scrollToSection('notification-panel')}
+        />
+
+        <RequestMetaGrid request={request} urgency={urgency} />
+      </div>
 
       {hasQuickActions && (
         <section className="panel p-4">
@@ -2032,25 +1948,7 @@ export function RequestDetailPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
         <div className="space-y-5">
           <SectionCard
-            title="Najwazniejsze informacje"
-            description="Dane potrzebne od razu po wejsciu w sprawe."
-            icon={FileText}
-          >
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Klient" value={request.client.displayName} />
-              <Field label="Abonent" value={request.subscriberDisplayName} />
-              <Field label="Typ uslugi" value={NUMBER_TYPE_LABELS[request.numberType]} />
-              <Field label="Typ numeracji" value={PORTED_NUMBER_KIND_LABELS[request.numberRangeKind]} />
-              <Field label="Numer / zakres" value={request.numberDisplay} mono />
-              <Field label="Status sprawy" value={PORTING_CASE_STATUS_LABELS[request.statusInternal]} />
-              <Field label="Operator oddajacy" value={request.donorOperator.name} />
-              <Field label="Operator bioracy" value={request.recipientOperator.name} />
-              <Field label="Numer dokumentu" value={request.requestDocumentNumber} mono />
-              <Field label="Kanal kontaktu" value={CONTACT_CHANNEL_LABELS[request.contactChannel]} />
-            </dl>
-          </SectionCard>
-
-          <SectionCard
+            id="porting-terms-panel"
             title="Porting i terminy"
             description="Daty oraz parametry potrzebne do operacyjnej obslugi portowania."
             icon={CalendarClock}
@@ -2080,15 +1978,6 @@ export function RequestDetailPage() {
             </SectionCard>
           )}
 
-          <SectionCard title="Dane klienta i kontakt" description="Tozsamosc abonenta i powiazania operatorskie.">
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Typ identyfikatora" value={SUBSCRIBER_IDENTITY_TYPE_LABELS[request.identityType]} />
-              <Field label="Wartosc identyfikatora" value={request.identityValue} mono />
-              <Field label="Usluga hurtowa po stronie biorcy" value={request.linkedWholesaleServiceOnRecipientSide ? 'Tak' : 'Nie'} />
-              <Field label="Operator infrastrukturalny" value={request.infrastructureOperator?.name} />
-            </dl>
-          </SectionCard>
-
           <SectionCard
             title="Dane kontaktowe i operacyjne"
             description="Edycja operacyjna v1: adres, kanal kontaktu, notatki, numer dokumentu."
@@ -2103,12 +1992,6 @@ export function RequestDetailPage() {
               onSave={handleUpdateOperationalDetails}
             />
           </SectionCard>
-
-          <RequestDetailsHistoryPanel
-            items={detailsHistoryItems}
-            isLoading={isDetailsHistoryLoading}
-            error={detailsHistoryError}
-          />
 
           <div id="communication-panel" className="scroll-mt-6">
             <PortingCommunicationPanel
@@ -2137,6 +2020,32 @@ export function RequestDetailPage() {
               onLoadDeliveryAttempts={(communicationId) => void handleLoadDeliveryAttempts(communicationId)}
             />
           </div>
+
+          <SectionCard
+            title="Dane identyfikacyjne"
+            description="Dane sprawy, abonenta i operatorow bez akcji operacyjnych."
+            icon={FileText}
+          >
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Klient" value={request.client.displayName} />
+              <Field label="Abonent" value={request.subscriberDisplayName} />
+              <Field label="Typ uslugi" value={NUMBER_TYPE_LABELS[request.numberType]} />
+              <Field label="Typ numeracji" value={PORTED_NUMBER_KIND_LABELS[request.numberRangeKind]} />
+              <Field label="Numer / zakres" value={request.numberDisplay} mono />
+              <Field label="Status sprawy" value={PORTING_CASE_STATUS_LABELS[request.statusInternal]} />
+              <Field label="Operator oddajacy" value={request.donorOperator.name} />
+              <Field label="Operator bioracy" value={request.recipientOperator.name} />
+              <Field label="Numer dokumentu" value={request.requestDocumentNumber} mono />
+              <Field label="Kanal kontaktu" value={CONTACT_CHANNEL_LABELS[request.contactChannel]} />
+              <Field label="Typ identyfikatora" value={SUBSCRIBER_IDENTITY_TYPE_LABELS[request.identityType]} />
+              <Field label="Wartosc identyfikatora" value={request.identityValue} mono />
+              <Field
+                label="Usluga hurtowa po stronie biorcy"
+                value={request.linkedWholesaleServiceOnRecipientSide ? 'Tak' : 'Nie'}
+              />
+              <Field label="Operator infrastrukturalny" value={request.infrastructureOperator?.name} />
+            </dl>
+          </SectionCard>
 
           <SectionCard
             id="notification-panel"
@@ -2178,6 +2087,12 @@ export function RequestDetailPage() {
               )}
             </div>
           </SectionCard>
+
+          <RequestDetailsHistoryPanel
+            items={detailsHistoryItems}
+            isLoading={isDetailsHistoryLoading}
+            error={detailsHistoryError}
+          />
 
           <SectionCard title="Historia operacyjna" description="Chronologia zmian statusu i zdarzen sprawy.">
             <PortingCaseHistory
@@ -2393,20 +2308,6 @@ export function RequestDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <WhatsNextPanel
-            status={request.statusInternal}
-            availableStatusActions={availableStatusActions}
-            availableCommunicationActions={availableCommunicationActions}
-            assignedUser={request.assignedUser}
-            notificationHealth={request.notificationHealth}
-            canManageStatus={canManageStatus}
-            canManageAssignment={canManageAssignment}
-            onScrollToStatusActions={() => scrollToSection('workflow-actions')}
-            onScrollToCommunication={() => scrollToSection('communication-panel')}
-            onScrollToAssignment={() => scrollToSection('assignment-panel')}
-            onScrollToNotifications={() => scrollToSection('notification-panel')}
-          />
-
           <div id="assignment-panel" className="scroll-mt-6">
             <PortingAssignmentPanel
               assignedUser={request.assignedUser}
