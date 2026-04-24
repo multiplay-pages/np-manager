@@ -64,6 +64,7 @@ import {
   parseQuickWorkFilter,
   type RequestsQuickWorkFilter,
 } from './requestsOperational'
+import { pluralizeRequests } from './pluralizeRequests'
 
 const PAGE_SIZE = 20
 const PORTING_MODES: PortingMode[] = ['DAY', 'END', 'EOP']
@@ -158,10 +159,6 @@ function formatDate(iso: string): string {
     month: '2-digit',
     year: 'numeric',
   })
-}
-
-function pluralizeRequests(total: number): string {
-  return total === 1 ? 'sprawa' : total < 5 ? 'sprawy' : 'spraw'
 }
 
 function getSummaryCardTone(cardId: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES') {
