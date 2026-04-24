@@ -1,7 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { Flag, Search, SlidersHorizontal } from 'lucide-react'
-import { AppIcon, Badge, Button, ButtonLink, FilterChip, MetricCard, PageHeader, cx } from '@/components/ui'
+import { Flag, Inbox, LoaderCircle, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import {
+  ActionMenu,
+  AlertBanner,
+  AppIcon,
+  Badge,
+  Button,
+  ButtonLink,
+  EmptyState,
+  FilterChip,
+  MetricCard,
+  PageHeader,
+  SectionCard,
+  cx,
+} from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
 import {
@@ -149,6 +162,14 @@ function pluralizeRequests(total: number): string {
   return total === 1 ? 'sprawa' : total < 5 ? 'sprawy' : 'spraw'
 }
 
+function getSummaryCardTone(cardId: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES') {
+  if (cardId === 'HAS_FAILURES') return 'danger'
+  if (cardId === 'WITHOUT_OWNER') return 'warning'
+  if (cardId === 'WITH_OWNER') return 'success'
+  if (cardId === 'MINE') return 'brand'
+  return 'neutral'
+}
+
 function StatusBadge({ status }: { status: PortingCaseStatus }) {
   const meta = getPortingStatusMeta(status)
   const toneByStatus = {
@@ -223,9 +244,7 @@ export function RequestRow({
   const isUnassigned = request.assignedUserSummary === null
   const canAssignToMe = canAssign && isUnassigned && currentUserId !== null
   const [isAssigning, setIsAssigning] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const portingDateLabel = request.confirmedPortDate
     ? formatDateValue(request.confirmedPortDate)
@@ -249,19 +268,6 @@ export function RequestRow({
   }, [])
 
   useEffect(() => {
-    if (!isMenuOpen) return
-
-    function handlePointerDown(event: MouseEvent | globalThis.MouseEvent) {
-      if (!(event.target instanceof Node)) return
-      if (menuRef.current?.contains(event.target)) return
-      setIsMenuOpen(false)
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [isMenuOpen])
-
-  useEffect(() => {
     return () => {
       if (feedbackTimeoutRef.current) {
         clearTimeout(feedbackTimeoutRef.current)
@@ -269,56 +275,53 @@ export function RequestRow({
     }
   }, [])
 
-  async function handleAssignToMe(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation()
+  async function handleAssignToMe() {
     setIsAssigning(true)
     try {
       await onAssignToMe(request.id)
       setTimedFeedback('success', 'Przypisano sprawę do Ciebie.')
-      setIsMenuOpen(false)
+      return true
     } catch {
       setTimedFeedback('error', 'Nie udało się przypisać sprawy.')
+      return false
     } finally {
       setIsAssigning(false)
     }
   }
 
-  async function handleCopyCase(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation()
+  async function handleCopyCase() {
     try {
       await navigator.clipboard.writeText(request.caseNumber)
       setTimedFeedback('success', 'Skopiowano numer sprawy.')
-      setIsMenuOpen(false)
+      return true
     } catch {
       setTimedFeedback('error', 'Nie udało się skopiować numeru sprawy.')
+      return false
     }
   }
 
-  async function handleCopyLink(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation()
-
+  async function handleCopyLink() {
     try {
       const canonicalLink = window.location.origin + requestPath
       await navigator.clipboard.writeText(canonicalLink)
       setTimedFeedback('success', 'Skopiowano link do sprawy.')
-      setIsMenuOpen(false)
+      return true
     } catch {
       setTimedFeedback('error', 'Nie udało się skopiować linku do sprawy.')
+      return false
     }
   }
 
-  function handleOpenRequest(event: MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation()
-    setIsMenuOpen(false)
+  function handleOpenRequest() {
     onClick()
   }
 
   return (
     <tr
       onClick={onClick}
-      className="cursor-pointer border-b border-line transition-colors last:border-b-0 hover:bg-brand-50/70"
+      className="cursor-pointer border-b border-line/80 transition-colors last:border-b-0 hover:bg-brand-50/60"
     >
-      <td className="px-5 py-4 align-top">
+      <td className="px-5 py-5 align-top">
         <div className="max-w-[220px] truncate font-mono text-base font-bold text-ink-900">
           {request.numberDisplay}
         </div>
@@ -330,7 +333,7 @@ export function RequestRow({
           <span>Utworzono {formatDateValue(request.createdAt)}</span>
         </div>
       </td>
-      <td className="px-5 py-4 align-top">
+      <td className="px-5 py-5 align-top">
         <div className="flex flex-col gap-2">
           <StatusBadge status={request.statusInternal} />
           <Badge tone={operationalHint.tone} className="w-fit text-[11px] font-medium">
@@ -338,7 +341,7 @@ export function RequestRow({
           </Badge>
         </div>
       </td>
-      <td className="px-5 py-4 align-top">
+      <td className="px-5 py-5 align-top">
         {portingDateLabel ? (
           <div className="flex flex-col gap-1">
             <Badge
@@ -373,13 +376,13 @@ export function RequestRow({
           </div>
         )}
       </td>
-      <td className="px-5 py-4 align-top">
+      <td className="px-5 py-5 align-top">
         <div className="max-w-[180px] truncate text-sm text-ink-650">{request.donorOperatorName}</div>
         <div className="mt-1 text-xs font-semibold text-ink-400">
           {PORTING_MODE_LABELS[request.portingMode]}
         </div>
       </td>
-      <td className="px-5 py-4 align-top">
+      <td className="px-5 py-5 align-top">
         <div
           className={cx(
             'max-w-[220px] truncate text-sm font-medium',
@@ -398,7 +401,7 @@ export function RequestRow({
         )}
         <div className="mt-1 text-xs text-ink-400">BOK</div>
       </td>
-      <td className="px-5 py-4 align-top">
+      <td className="px-5 py-5 align-top">
         <div
           className={cx(
             'max-w-[260px] truncate text-sm font-semibold',
@@ -409,75 +412,44 @@ export function RequestRow({
         </div>
         <div className="mt-1 text-xs text-ink-400">Opiekun handlowy</div>
       </td>
-      <td className="px-5 py-4 align-top">
+      <td className="px-5 py-5 align-top">
         <NotificationHealthBadge request={request} />
       </td>
       <td
-        className="px-4 py-3 align-top"
+        className="px-4 py-4 align-top"
         onClick={(event) => event.stopPropagation()}
       >
-        <div ref={menuRef} className="relative flex flex-col items-start gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={isMenuOpen}
-            onClick={(event) => {
-              event.stopPropagation()
-              setIsMenuOpen((prev) => !prev)
-            }}
-            data-testid={`row-actions-trigger-${request.id}`}
-          >
-            Akcje
-          </Button>
-
-          {isMenuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 top-10 z-20 min-w-[200px] rounded-ui border border-line bg-white p-1.5 shadow-panel"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
-                onClick={handleOpenRequest}
-                data-testid={`row-action-open-${request.id}`}
-              >
-                Otworz sprawe
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
-                onClick={handleCopyCase}
-                data-testid={`row-action-copy-case-${request.id}`}
-              >
-                Kopiuj numer sprawy
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
-                onClick={handleCopyLink}
-                data-testid={`row-action-copy-link-${request.id}`}
-              >
-                Kopiuj link
-              </button>
-              {canAssignToMe && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-700 transition-colors hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={handleAssignToMe}
-                  disabled={isAssigning}
-                  data-testid={`row-action-assign-to-me-${request.id}`}
-                >
-                  {isAssigning ? 'Przypisywanie...' : 'Przypisz do mnie'}
-                </button>
-              )}
-            </div>
-          )}
+        <div className="relative flex flex-col items-start gap-2">
+          <ActionMenu
+            triggerAriaLabel={`Akcje dla sprawy ${request.caseNumber}`}
+            items={[
+              {
+                id: `open-${request.id}`,
+                label: 'Otworz sprawe',
+                onClick: handleOpenRequest,
+              },
+              {
+                id: `copy-case-${request.id}`,
+                label: 'Kopiuj numer sprawy',
+                onClick: handleCopyCase,
+              },
+              {
+                id: `copy-link-${request.id}`,
+                label: 'Kopiuj link',
+                onClick: handleCopyLink,
+              },
+              ...(canAssignToMe
+                ? [
+                    {
+                      id: `assign-${request.id}`,
+                      label: isAssigning ? 'Przypisywanie...' : 'Przypisz do mnie',
+                      disabled: isAssigning,
+                      onClick: handleAssignToMe,
+                    },
+                  ]
+                : []),
+            ]}
+          />
 
           {feedback && (
             <span
@@ -752,19 +724,20 @@ export function RequestsPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Operacje"
-        title="Sprawy portowania"
+        title="Kolejka spraw portowania"
         description={
           pagination ? (
             <>
-              {pagination.total} {pluralizeRequests(pagination.total)} w aktualnym widoku.
+              {pagination.total} {pluralizeRequests(pagination.total)} w aktualnym widoku pracy.
             </>
           ) : (
-            'Lista operacyjna spraw z filtrami przypisania, statusu i zdrowia notyfikacji.'
+            'Przeglad spraw do obslugi z filtrami przypisania, statusu i zdrowia notyfikacji.'
           )
         }
         actions={
           <ButtonLink to={ROUTES.REQUEST_NEW} variant="primary">
-            + Nowa sprawa
+            <AppIcon icon={Plus} />
+            Nowa sprawa
           </ButtonLink>
         }
       />
@@ -777,18 +750,24 @@ export function RequestsPage() {
               title={card.title}
               value={card.value}
               active={card.isActive}
-              detail={card.id === 'HAS_FAILURES' ? 'Wymaga kontroli operacyjnej' : 'Szybki filtr listy'}
+              tone={getSummaryCardTone(card.id)}
+              detail={card.id === 'HAS_FAILURES' ? 'Wymaga kontroli operacyjnej' : 'Kliknij, aby zawezic kolejke'}
               onClick={() => setParam(card.filterUpdates)}
             />
           ))}
         </div>
       )}
 
-      <section role="region" aria-label="Szybkie filtry pracy" className="panel px-5 py-4">
+      <SectionCard
+        role="region"
+        aria-label="Szybkie filtry pracy"
+        title="Szybka kolejka pracy"
+        description="Operacyjne skroty do najczesciej obslugiwanych widokow."
+      >
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
             <AppIcon icon={Flag} className="text-ink-400" />
-            Szybka kolejka pracy
+            Widok
           </span>
           {quickWorkFilterOptions.map((filter) => {
             const count =
@@ -812,14 +791,27 @@ export function RequestsPage() {
             )
           })}
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-line px-5 py-4">
-          <div className="mb-3 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+      <SectionCard
+        title={
+          <span className="inline-flex items-center gap-2">
             <AppIcon icon={SlidersHorizontal} className="text-ink-400" />
             Filtry operacyjne
-          </div>
+          </span>
+        }
+        description="Doprecyzuj liste bez zmiany sposobu sortowania i paginacji."
+        action={
+          hasActiveFilters ? (
+            <Button onClick={clearFilters} variant="ghost" className="h-10">
+              Wyczysc filtry
+            </Button>
+          ) : null
+        }
+        padding="none"
+        className="overflow-hidden"
+      >
+        <div className="px-5 py-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-[260px] flex-1">
               <input
@@ -936,11 +928,6 @@ export function RequestsPage() {
               ))}
             </select>
 
-            {hasActiveFilters && (
-              <Button onClick={clearFilters} variant="ghost" className="h-10">
-                Wyczysc filtry
-              </Button>
-            )}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-line pt-3">
@@ -993,61 +980,71 @@ export function RequestsPage() {
             </div>
           )}
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="panel overflow-hidden">
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <div>
-            <h2 className="text-sm font-semibold text-ink-900">Lista spraw</h2>
-            <p className="mt-1 text-xs text-ink-500">
-              Status, opiekun i zdrowie notyfikacji sa widoczne bez wchodzenia w szczegoly.
-            </p>
-          </div>
-          {pagination && (
+      <SectionCard
+        title="Lista spraw"
+        description="Status, opiekun i zdrowie notyfikacji sa widoczne bez wchodzenia w szczegoly."
+        action={
+          pagination ? (
             <Badge tone="neutral">
               {pagination.total} {pluralizeRequests(pagination.total)}
             </Badge>
-          )}
-        </div>
-
+          ) : null
+        }
+        padding="none"
+        className="overflow-hidden"
+      >
         {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-sm font-medium text-ink-500">
+          <div className="flex items-center justify-center gap-2 py-16 text-sm font-medium text-ink-500">
+            <AppIcon icon={LoaderCircle} className="animate-spin text-ink-400" />
             Ladowanie listy spraw...
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <p className="text-sm font-medium text-red-600">{error}</p>
-            <Button onClick={() => void loadData()} variant="secondary" size="sm">
-              Sprobuj ponownie
-            </Button>
+          <div className="p-5">
+            <AlertBanner
+              tone="danger"
+              title="Nie udalo sie zaladowac kolejki"
+              description={error}
+              action={
+                <Button onClick={() => void loadData()} variant="secondary" size="sm">
+                  Sprobuj ponownie
+                </Button>
+              }
+            />
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <p className="text-sm font-semibold text-ink-800">Brak spraw portowania</p>
-            <p className="max-w-md text-sm leading-6 text-ink-500">
-              {hasActiveFilters
-                ? 'Zadna sprawa nie pasuje do podanych kryteriow.'
-                : 'Utworz pierwsza sprawe przyciskiem powyzej.'}
-            </p>
-            {hasActiveFilters && (
-              <Button onClick={clearFilters} variant="secondary" size="sm">
-                Wyczysc filtry
-              </Button>
-            )}
+          <div className="p-5">
+            <EmptyState
+              icon={<AppIcon icon={Inbox} />}
+              title="Brak spraw portowania"
+              description={
+                hasActiveFilters
+                  ? 'Zadna sprawa nie pasuje do podanych kryteriow.'
+                  : 'Utworz pierwsza sprawe przyciskiem powyzej.'
+              }
+              action={
+                hasActiveFilters ? (
+                  <Button onClick={clearFilters} variant="secondary" size="sm">
+                    Wyczysc filtry
+                  </Button>
+                ) : null
+              }
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1260px] text-sm">
-              <thead className="bg-ink-50 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+              <thead className="bg-ink-50/80 text-xs font-semibold uppercase tracking-[0.08em] text-ink-500">
                 <tr>
-                  <th className="px-5 py-3 text-left">Numer i klient</th>
-                  <th className="px-5 py-3 text-left">Status</th>
-                  <th className="px-5 py-3 text-left">Data przeniesienia</th>
-                  <th className="px-5 py-3 text-left">Operator / tryb</th>
-                  <th className="px-5 py-3 text-left">Przypisanie</th>
-                  <th className="px-5 py-3 text-left">Opiekun handlowy</th>
-                  <th className="min-w-[130px] whitespace-nowrap px-5 py-3 text-left">Notyfikacje</th>
-                  <th className="min-w-[120px] whitespace-nowrap px-4 py-3 text-left">Akcje</th>
+                  <th className="px-5 py-3.5 text-left">Numer i klient</th>
+                  <th className="px-5 py-3.5 text-left">Status</th>
+                  <th className="px-5 py-3.5 text-left">Data przeniesienia</th>
+                  <th className="px-5 py-3.5 text-left">Operator / tryb</th>
+                  <th className="px-5 py-3.5 text-left">Przypisanie</th>
+                  <th className="px-5 py-3.5 text-left">Opiekun handlowy</th>
+                  <th className="min-w-[130px] whitespace-nowrap px-5 py-3.5 text-left">Notyfikacje</th>
+                  <th className="min-w-[120px] whitespace-nowrap px-4 py-3.5 text-left">Akcje</th>
                 </tr>
               </thead>
               <tbody>
@@ -1071,7 +1068,7 @@ export function RequestsPage() {
             </table>
           </div>
         )}
-      </section>
+      </SectionCard>
 
       {pagination && pagination.totalPages > 1 && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
