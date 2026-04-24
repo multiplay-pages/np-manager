@@ -3,7 +3,6 @@ import { ROUTES } from '@/constants/routes'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import type { PortingUrgency } from '@/lib/portingUrgency'
 import {
-  PORTING_CASE_STATUS_LABELS,
   PORTING_MODE_LABELS,
   type NotificationHealthDiagnosticsDto,
   type PortingRequestDetailDto,
@@ -185,9 +184,9 @@ function OwnerValue({
   }
 
   return (
-    <span className="block space-y-0.5">
-      <span className="block font-semibold text-ink-900">{name}</span>
-      {email && <span className="block text-xs font-normal text-ink-500">{email}</span>}
+    <span className="block min-w-0 space-y-0.5">
+      <span className="block break-words font-semibold text-ink-900">{name}</span>
+      {email && <span className="block break-all text-xs font-normal text-ink-500">{email}</span>}
     </span>
   )
 }
@@ -203,7 +202,7 @@ export function RequestCaseHero({
   const healthBadge = getNotificationHealthBadge(request.notificationHealth)
 
   return (
-    <section className="overflow-hidden rounded-panel border border-line bg-surface shadow-sm">
+    <section className="min-w-0 overflow-hidden rounded-panel border border-line bg-surface shadow-sm">
       <div className="border-b border-line px-5 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button onClick={onBackToList} variant="ghost" size="sm" className="-ml-2 self-start">
@@ -221,8 +220,8 @@ export function RequestCaseHero({
         </div>
       </div>
 
-      <div className="grid gap-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
-        <div className="px-5 py-5">
+      <div className="grid min-w-0 gap-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
+        <div className="min-w-0 px-5 py-5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={getStatusTone(statusMeta.tone)} leadingDot>
               {statusMeta.label}
@@ -238,20 +237,20 @@ export function RequestCaseHero({
             <Badge tone={healthBadge.tone}>Notyfikacje: {healthBadge.label}</Badge>
           </div>
 
-          <div className="mt-4 max-w-4xl">
+          <div className="mt-4 max-w-4xl min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">
               Sprawa
             </p>
             <h1 className="mt-1 break-words font-mono text-3xl font-semibold tracking-tight text-ink-950 md:text-4xl">
               {request.caseNumber}
             </h1>
-            <p className="mt-3 text-2xl font-semibold tracking-tight text-ink-900">
+            <p className="mt-3 break-words text-2xl font-semibold tracking-tight text-ink-900">
               {request.client.displayName}
             </p>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-ink-500">
-              <span className="font-mono text-ink-800">{request.numberDisplay}</span>
-              <span>{request.subscriberDisplayName}</span>
-              <span>
+              <span className="min-w-0 break-all font-mono text-ink-800">{request.numberDisplay}</span>
+              <span className="min-w-0 break-words">{request.subscriberDisplayName}</span>
+              <span className="min-w-0 break-words">
                 {request.donorOperator.name} {'->'} {request.recipientOperator.name}
               </span>
             </p>
@@ -300,7 +299,7 @@ export function RequestCaseHero({
             <DataField
               className="pt-3"
               label="Status procesu"
-              value={PORTING_CASE_STATUS_LABELS[request.statusInternal]}
+              value={statusMeta.label}
               variant="compact"
             />
           </dl>
@@ -345,6 +344,7 @@ export function RequestAttentionStrip(props: RequestAttentionStripProps) {
 }
 
 export function RequestMetaGrid({ request, urgency }: RequestMetaGridProps) {
+  const statusMeta = getPortingStatusMeta(request.statusInternal)
   const healthBadge = getNotificationHealthBadge(request.notificationHealth)
 
   return (
@@ -356,7 +356,7 @@ export function RequestMetaGrid({ request, urgency }: RequestMetaGridProps) {
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <DataField
           label="Status"
-          value={PORTING_CASE_STATUS_LABELS[request.statusInternal]}
+          value={statusMeta.label}
           variant="compact"
         />
         <DataField
