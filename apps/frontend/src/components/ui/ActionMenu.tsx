@@ -6,6 +6,7 @@ import { cx } from './styles'
 export interface ActionMenuItem {
   id?: string
   label: string
+  icon?: ReactNode
   description?: ReactNode
   disabled?: boolean
   tone?: 'normal' | 'danger'
@@ -134,7 +135,7 @@ export function ActionMenu({
               role="menuitem"
               disabled={item.disabled}
               className={cx(
-                'flex w-full flex-col rounded-ui px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                'flex w-full items-start gap-2 rounded-ui px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
                 item.tone === 'danger'
                   ? 'text-red-700 hover:bg-red-50'
                   : 'text-ink-700 hover:bg-brand-50 hover:text-brand-700',
@@ -144,10 +145,17 @@ export function ActionMenu({
                 closeWhenAllowed(item.onClick())
               }}
             >
-              <span className="text-sm font-semibold">{item.label}</span>
-              {item.description && (
-                <span className="mt-0.5 text-xs leading-5 text-ink-500">{item.description}</span>
+              {item.icon && (
+                <span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+                  {item.icon}
+                </span>
               )}
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{item.label}</span>
+                {item.description && (
+                  <span className="mt-0.5 block text-xs leading-5 text-ink-500">{item.description}</span>
+                )}
+              </span>
             </button>
           ))}
         </div>

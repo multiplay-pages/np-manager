@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { Flag, Inbox, LoaderCircle, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { LoaderCircle, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import {
   ActionMenu,
   AlertBanner,
   AppIcon,
+  AppIconAsset,
   Badge,
   Button,
   ButtonLink,
@@ -14,6 +15,7 @@ import {
   PageHeader,
   SectionCard,
   cx,
+  type AppIconAssetName,
 } from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
@@ -85,13 +87,13 @@ const notificationQuickOptions: Array<{ id: 'ALL' | 'HAS_FAILURES'; label: strin
   { id: 'HAS_FAILURES', label: 'Bledy notyfikacji' },
 ]
 
-const quickWorkFilterOptions: Array<{ id: RequestsQuickWorkFilter; label: string }> = [
-  { id: 'ALL', label: 'Wszystkie' },
-  { id: 'MINE', label: 'Moje' },
-  { id: 'UNASSIGNED', label: 'Nieprzypisane' },
-  { id: 'URGENT', label: 'Pilne' },
-  { id: 'NO_DATE', label: 'Bez daty' },
-  { id: 'NEEDS_ACTION_TODAY', label: 'Wymaga reakcji dzis' },
+const quickWorkFilterOptions: Array<{ id: RequestsQuickWorkFilter; label: string; icon: AppIconAssetName }> = [
+  { id: 'ALL', label: 'Wszystkie', icon: 'request-queue' },
+  { id: 'MINE', label: 'Moje', icon: 'assign-user' },
+  { id: 'UNASSIGNED', label: 'Nieprzypisane', icon: 'assign-user' },
+  { id: 'URGENT', label: 'Pilne', icon: 'urgent' },
+  { id: 'NO_DATE', label: 'Bez daty', icon: 'no-date' },
+  { id: 'NEEDS_ACTION_TODAY', label: 'Wymaga reakcji dzis', icon: 'needs-action-today' },
 ]
 
 const commercialOwnerFilterLabels: Record<CommercialOwnerFilter, string> = {
@@ -427,16 +429,19 @@ export function RequestRow({
               {
                 id: `open-${request.id}`,
                 label: 'Otworz sprawe',
+                icon: <AppIconAsset name="open-request" />,
                 onClick: handleOpenRequest,
               },
               {
                 id: `copy-case-${request.id}`,
                 label: 'Kopiuj numer sprawy',
+                icon: <AppIconAsset name="copy" />,
                 onClick: handleCopyCase,
               },
               {
                 id: `copy-link-${request.id}`,
                 label: 'Kopiuj link',
+                icon: <AppIconAsset name="copy-link" />,
                 onClick: handleCopyLink,
               },
               ...(canAssignToMe
@@ -444,6 +449,7 @@ export function RequestRow({
                     {
                       id: `assign-${request.id}`,
                       label: isAssigning ? 'Przypisywanie...' : 'Przypisz do mnie',
+                      icon: <AppIconAsset name="assign-user" />,
                       disabled: isAssigning,
                       onClick: handleAssignToMe,
                     },
@@ -725,6 +731,7 @@ export function RequestsPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Operacje"
+        icon={<AppIconAsset name="request-queue" size="xl" />}
         title="Kolejka spraw portowania"
         description={
           pagination ? (
@@ -767,10 +774,11 @@ export function RequestsPage() {
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
-            <AppIcon icon={Flag} className="text-ink-400" />
+            <AppIconAsset name="request-queue" className="opacity-80" />
             Widok
           </span>
           {quickWorkFilterOptions.map((filter) => {
+            const active = quickWorkFilter === filter.id
             const count =
               summary && filter.id === 'URGENT'
                 ? summary.quickWorkCounts.urgent
@@ -782,12 +790,16 @@ export function RequestsPage() {
             return (
               <FilterChip
                 key={filter.id}
-                active={quickWorkFilter === filter.id}
-                aria-pressed={quickWorkFilter === filter.id}
-                className="h-8 px-3 text-xs"
+                active={active}
+                aria-pressed={active}
+                className="h-8 gap-1.5 px-3 text-xs"
                 onClick={() => setQuickWorkFilter(filter.id)}
               >
-                {count !== null ? `${filter.label} (${count})` : filter.label}
+                <AppIconAsset
+                  name={filter.icon}
+                  className={active ? 'brightness-0 invert' : undefined}
+                />
+                <span>{count !== null ? `${filter.label} (${count})` : filter.label}</span>
               </FilterChip>
             )
           })}
@@ -1005,7 +1017,12 @@ export function RequestsPage() {
           <div className="p-5">
             <AlertBanner
               tone="danger"
-              title="Nie udalo sie zaladowac kolejki"
+              title={
+                <span className="inline-flex items-center gap-2">
+                  <AppIconAsset name="warning" />
+                  Nie udalo sie zaladowac kolejki
+                </span>
+              }
               description={error}
               action={
                 <Button onClick={() => void loadData()} variant="secondary" size="sm">
@@ -1017,7 +1034,7 @@ export function RequestsPage() {
         ) : items.length === 0 ? (
           <div className="p-5">
             <EmptyState
-              icon={<AppIcon icon={Inbox} />}
+              icon={<AppIconAsset name="empty-state" size="lg" />}
               title="Brak spraw portowania"
               description={
                 hasActiveFilters

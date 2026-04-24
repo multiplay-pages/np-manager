@@ -1,27 +1,32 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, Settings, Users, Zap } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import { USER_ROLE_LABELS } from '@np-manager/shared'
-import { AppIcon, Button, cx } from '@/components/ui'
+import { AppIconAsset, Button, cx, type AppIconAssetName } from '@/components/ui'
 
 interface NavItem {
   label: string
   description: string
   path: string
-  icon: ReactNode
+  icon: AppIconAssetName
   roles?: string[]
   exact?: boolean
 }
 
 const primaryNavItems: NavItem[] = [
-  { label: 'Dashboard', description: 'Pulpit operacyjny', path: ROUTES.DASHBOARD, icon: 'D', exact: true },
-  { label: 'Sprawy', description: 'Portowanie numerow', path: ROUTES.REQUESTS, icon: 'S' },
-  { label: 'Klienci', description: 'Kartoteka klientow', path: ROUTES.CLIENTS, icon: 'K' },
-  { label: 'Zadania', description: 'Praca zespolu', path: ROUTES.TASKS, icon: 'Z' },
-  { label: 'Raporty', description: 'Kontrola i wyniki', path: ROUTES.REPORTS, icon: 'R', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
-  { label: 'Operatorzy', description: 'Slownik operatorow', path: ROUTES.OPERATORS, icon: 'O' },
+  { label: 'Dashboard', description: 'Pulpit operacyjny', path: ROUTES.DASHBOARD, icon: 'dashboard', exact: true },
+  { label: 'Sprawy', description: 'Portowanie numerow', path: ROUTES.REQUESTS, icon: 'request-queue' },
+  { label: 'Klienci', description: 'Kartoteka klientow', path: ROUTES.CLIENTS, icon: 'clients' },
+  { label: 'Zadania', description: 'Praca zespolu', path: ROUTES.TASKS, icon: 'tasks' },
+  {
+    label: 'Raporty',
+    description: 'Kontrola i wyniki',
+    path: ROUTES.REPORTS,
+    icon: 'reports',
+    roles: ['ADMIN', 'MANAGER', 'AUDITOR'],
+  },
+  { label: 'Operatorzy', description: 'Slownik operatorow', path: ROUTES.OPERATORS, icon: 'operators' },
 ]
 
 const adminNavItems: NavItem[] = [
@@ -29,39 +34,44 @@ const adminNavItems: NavItem[] = [
     label: 'Uzytkownicy',
     description: 'Role i dostep',
     path: ROUTES.ADMIN_USERS,
-    icon: <AppIcon icon={Users} className="h-[18px] w-[18px]" />,
+    icon: 'users',
   },
-  { label: 'Operatorzy', description: 'Administracja slownika', path: ROUTES.ADMIN_OPERATORS, icon: 'O' },
-  { label: 'Szablony komunikatow', description: 'Tresci klienta', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
+  { label: 'Operatorzy', description: 'Administracja slownika', path: ROUTES.ADMIN_OPERATORS, icon: 'operators' },
+  {
+    label: 'Szablony komunikatow',
+    description: 'Tresci klienta',
+    path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES,
+    icon: 'templates',
+  },
   {
     label: 'Tryb systemu',
     description: 'Tryb pracy systemu',
     path: ROUTES.ADMIN_SYSTEM_MODE_SETTINGS,
-    icon: <AppIcon icon={Zap} className="h-[18px] w-[18px]" />,
+    icon: 'system-mode',
   },
   {
     label: 'Powiadomienia portingu',
     description: 'Routing zespolowy',
     path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS,
-    icon: <AppIcon icon={Bell} className="h-[18px] w-[18px]" />,
+    icon: 'notifications',
   },
   {
     label: 'Fallback notyfikacji',
     description: 'Obsluga bledow',
     path: ROUTES.ADMIN_NOTIFICATION_FALLBACK_SETTINGS,
-    icon: <AppIcon icon={Settings} className="h-[18px] w-[18px]" />,
+    icon: 'notification-fallback',
   },
   {
     label: 'Proby notyfikacji',
     description: 'Diagnostyka dostarczen',
     path: ROUTES.NOTIFICATION_ATTEMPTS,
-    icon: <AppIcon icon={Bell} className="h-[18px] w-[18px]" />,
+    icon: 'notification-attempts',
   },
   {
     label: 'Bledy notyfikacji',
     description: 'Kolejka diagnostyczna',
     path: ROUTES.NOTIFICATION_FAILURES,
-    icon: <AppIcon icon={Bell} className="h-[18px] w-[18px]" />,
+    icon: 'notification-errors',
   },
 ]
 
@@ -88,7 +98,11 @@ function SidebarLink({ item, sidebarCollapsed }: { item: NavItem; sidebarCollaps
               isActive ? 'bg-white/18 text-white' : 'bg-ink-100 text-ink-650 group-hover:bg-white',
             )}
           >
-            {item.icon}
+            <AppIconAsset
+              name={item.icon}
+              size="md"
+              className={isActive ? 'brightness-0 invert' : undefined}
+            />
           </span>
           {!sidebarCollapsed && (
             <span className="min-w-0">
