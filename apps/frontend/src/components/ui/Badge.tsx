@@ -1,4 +1,4 @@
-import type { HTMLAttributes } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { cx } from './styles'
 
 export type BadgeTone = 'neutral' | 'brand' | 'green' | 'emerald' | 'amber' | 'red' | 'orange'
@@ -15,17 +15,30 @@ const toneClasses: Record<BadgeTone, string> = {
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: BadgeTone
+  icon?: ReactNode
+  leadingDot?: boolean
 }
 
-export function Badge({ className, tone = 'neutral', ...props }: BadgeProps) {
+export function Badge({
+  children,
+  className,
+  icon,
+  leadingDot = false,
+  tone = 'neutral',
+  ...props
+}: BadgeProps) {
   return (
     <span
       className={cx(
-        'inline-flex min-h-6 items-center rounded-ui px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset',
+        'inline-flex min-h-6 items-center gap-1.5 rounded-ui px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset',
         toneClasses[tone],
         className,
       )}
       {...props}
-    />
+    >
+      {leadingDot && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />}
+      {icon}
+      {children}
+    </span>
   )
 }

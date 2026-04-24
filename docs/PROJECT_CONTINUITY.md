@@ -30,6 +30,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | Etap 2A.2 | Frontend redesign RequestDetailPage                              | DONE   |
 | Etap 2A.3 | Operacyjny UX polish po review                                  | DONE   |
 | Etap 2A.4 | Final micro-polish przed zamknieciem 2A                         | DONE   |
+| Etap 2A.5 | Ikony frontend v1 przez `lucide-react`                         | DONE   |
 | Etap 2B   | Routing/deeplinks/nawigacja lista-detail (canonical URL, UUID redirect, filtr po powrocie) | DONE |
 | Etap 2C   | Auth return-to-target, 404/error polish, copy-link — domkniecie Etapu 2                    | DONE |
 | Etap 3A   | Assignment closeout: visual polish PortingAssignmentPanel + usun martwy kod filterPortingRequestsByOwnership | DONE |
@@ -317,6 +318,18 @@ Etap 2A.4:
 - Skrocono naglowek kolumny notyfikacji na liscie do `Notyfikacje`.
 - Lekko wzmocniono mikro-linki w gornych kartach detail (`Akcje`, `Zmien`, `Historia`) bez robienia z nich duzych CTA.
 - Routing po `caseNumber` zrealizowany w Etapie 2B.
+
+Etap 2A.5:
+- Decyzja implementacyjna: ikony UI wdrazamy przez `lucide-react`, bez kopiowania lokalnych plikow SVG do repo i bez osobnego katalogu assets.
+- Zakres pozostaje swiadomie maly i operacyjny:
+  - admin/nav: pierwsze ikony dla obszarow users / notifications / system mode / fallback settings,
+  - `RequestsPage`: ikona wyszukiwania oraz lekkie oznaczenie blokow szybkiej kolejki i filtrow,
+  - `RequestDetailPage`: ikony tylko dla kilku naglowkow sekcji (`Najwazniejsze informacje`, `Porting i terminy`, `Dane portowania`, `Stan notyfikacji`, `PLI CBD`) oraz dla istniejacych blokow statusowo-ostrzegawczych.
+- Dodano maly helper UI dla spojnego rozmiaru i klas ikon; celowo bez ciezkiego icon registry.
+- Inwarianty:
+  - brak zmian logiki biznesowej, endpointow i DTO,
+  - brak dekoracyjnego oznaczania kazdej etykiety i kazdego badge'a,
+  - zachowane istniejace kolory systemowe i kompaktowy, operacyjny charakter interfejsu.
 
 ### Etap 2B - routing/deeplinks/nawigacja lista-detail
 

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import type { LucideIcon } from 'lucide-react'
+import { Bell, CalendarClock, ChevronDown, FileText, Info, TriangleAlert, Zap } from 'lucide-react'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSystemCapabilities } from '@/hooks/useSystemCapabilities'
-import { Badge, Button, ButtonLink, type BadgeTone, cx } from '@/components/ui'
+import { AppIcon, Badge, Button, ButtonLink, type BadgeTone, cx } from '@/components/ui'
 import {
   assignPortingRequestToMe,
   cancelPortingCommunication,
@@ -244,18 +246,33 @@ function SectionCard({
   description,
   children,
   compact = false,
+  icon,
 }: {
   id?: string
   title: string
   description?: string
   children: React.ReactNode
   compact?: boolean
+  icon?: LucideIcon
 }) {
   return (
     <section id={id} className={cx('panel scroll-mt-6', compact ? 'p-4' : 'p-5')}>
-      <div className={compact ? 'mb-3' : 'mb-4'}>
-        <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
-        {description && <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>}
+      <div className={cx('flex items-start gap-3', compact ? 'mb-3' : 'mb-4')}>
+        {icon && (
+          <span
+            aria-hidden="true"
+            className={cx(
+              'mt-0.5 inline-flex shrink-0 items-center justify-center rounded-ui border border-line bg-ink-50 text-ink-500',
+              compact ? 'h-8 w-8' : 'h-9 w-9',
+            )}
+          >
+            <AppIcon icon={icon} size={compact ? 'sm' : 'md'} />
+          </span>
+        )}
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
+          {description && <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>}
+        </div>
       </div>
       {children}
     </section>
@@ -267,11 +284,13 @@ function DisclosureCard({
   title,
   description,
   children,
+  icon,
 }: {
   id?: string
   title: string
   description: string
   children: React.ReactNode
+  icon?: LucideIcon
 }) {
   return (
     <details id={id} className="panel group scroll-mt-6 overflow-hidden">
@@ -279,15 +298,25 @@ function DisclosureCard({
         onClick={(event) => event.currentTarget.focus()}
         className="flex w-full cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset group-open:bg-ink-50/50 [&::-webkit-details-marker]:hidden"
       >
-        <div className="min-w-0 pr-4">
-          <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>
+        <div className="flex min-w-0 items-start gap-3 pr-4">
+          {icon && (
+            <span
+              aria-hidden="true"
+              className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-ui border border-line bg-ink-50 text-ink-500"
+            >
+              <AppIcon icon={icon} size="md" />
+            </span>
+          )}
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
+            <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>
+          </div>
         </div>
         <span
           aria-hidden="true"
           className="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-ui border border-line bg-surface text-sm font-semibold text-ink-500 transition-transform group-open:rotate-180"
         >
-          v
+          <AppIcon icon={ChevronDown} className="h-4 w-4" />
         </span>
       </summary>
       <div className="border-t border-line px-5 py-5">{children}</div>
@@ -418,27 +447,35 @@ function buildAdminTransportBanner(result: PliCbdManualExportResultDto) {
 function NotificationHealthPanel({ health }: { health: NotificationHealthDiagnosticsDto }) {
   const statusConfig: Record<
     NotificationHealthDiagnosticsDto['status'],
-    { label: string; tone: BadgeTone; panelClass: string }
+    { label: string; tone: BadgeTone; panelClass: string; icon: LucideIcon; iconClass: string }
   > = {
     OK: {
       label: 'OK — brak bledow notyfikacji',
       tone: 'emerald',
       panelClass: 'border-emerald-200 bg-emerald-50/70',
+      icon: Info,
+      iconClass: 'text-emerald-700',
     },
     FAILED: {
       label: 'Blad wysylki',
       tone: 'red',
       panelClass: 'border-red-200 bg-red-50/80',
+      icon: TriangleAlert,
+      iconClass: 'text-red-700',
     },
     MISCONFIGURED: {
       label: 'Blad konfiguracji',
       tone: 'amber',
       panelClass: 'border-amber-200 bg-amber-50/80',
+      icon: TriangleAlert,
+      iconClass: 'text-amber-700',
     },
     MIXED: {
       label: 'Bledy mieszane',
       tone: 'orange',
       panelClass: 'border-orange-200 bg-orange-50/80',
+      icon: TriangleAlert,
+      iconClass: 'text-orange-700',
     },
   }
 
@@ -447,7 +484,10 @@ function NotificationHealthPanel({ health }: { health: NotificationHealthDiagnos
   return (
     <div className={`rounded-panel border p-4 ${config.panelClass}`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-ink-800">Zdrowie powiadomien wewnetrznych</h3>
+        <div className="flex items-center gap-2">
+          <AppIcon icon={config.icon} className={config.iconClass} />
+          <h3 className="text-sm font-semibold text-ink-800">Zdrowie powiadomien wewnetrznych</h3>
+        </div>
         <Badge tone={config.tone}>{config.label}</Badge>
       </div>
       {health.status !== 'OK' && (
@@ -1991,7 +2031,11 @@ export function RequestDetailPage() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
         <div className="space-y-5">
-          <SectionCard title="Najwazniejsze informacje" description="Dane potrzebne od razu po wejsciu w sprawe.">
+          <SectionCard
+            title="Najwazniejsze informacje"
+            description="Dane potrzebne od razu po wejsciu w sprawe."
+            icon={FileText}
+          >
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Klient" value={request.client.displayName} />
               <Field label="Abonent" value={request.subscriberDisplayName} />
@@ -2006,7 +2050,11 @@ export function RequestDetailPage() {
             </dl>
           </SectionCard>
 
-          <SectionCard title="Porting i terminy" description="Daty oraz parametry potrzebne do operacyjnej obslugi portowania.">
+          <SectionCard
+            title="Porting i terminy"
+            description="Daty oraz parametry potrzebne do operacyjnej obslugi portowania."
+            icon={CalendarClock}
+          >
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Wnioskowany dzien przeniesienia" value={request.requestedPortDate} mono />
               <Field label="Najwczesniejsza akceptowalna data" value={request.earliestAcceptablePortDate} mono />
@@ -2021,6 +2069,7 @@ export function RequestDetailPage() {
             <SectionCard
               title="Dane portowania"
               description="Reczne uzupelnienie wyznaczonej daty przeniesienia numeru (tryb manualny)."
+              icon={CalendarClock}
             >
               <RequestPortDatePanel
                 confirmedPortDate={request.confirmedPortDate}
@@ -2093,6 +2142,7 @@ export function RequestDetailPage() {
             id="notification-panel"
             title="Stan notyfikacji"
             description="Widok problemow transportu i historii wewnetrznych powiadomien."
+            icon={Bell}
           >
             <div className="space-y-4">
               <NotificationHealthPanel health={request.notificationHealth} />
@@ -2142,6 +2192,7 @@ export function RequestDetailPage() {
               id="pli-cbd-panel"
               title="PLI CBD"
               description="Sekcja administracyjna z eksportem, synchronizacja i statusem procesu PLI CBD."
+              icon={Zap}
             >
               <div className="space-y-4">
                 <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
@@ -2208,8 +2259,11 @@ export function RequestDetailPage() {
               description="Podglady techniczne, XML i historia integracji. Schowane domyslnie."
             >
               <div className="space-y-4">
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Diagnostyka jest widoczna tylko dla administratora i sluzy do weryfikacji danych technicznych przed operacjami PLI CBD.
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <AppIcon icon={TriangleAlert} className="mt-0.5 text-amber-700" />
+                  <p>
+                    Diagnostyka jest widoczna tylko dla administratora i sluzy do weryfikacji danych technicznych przed operacjami PLI CBD.
+                  </p>
                 </div>
 
                 {canUsePliCbdExport && (

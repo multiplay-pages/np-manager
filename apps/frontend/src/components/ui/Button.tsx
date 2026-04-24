@@ -3,7 +3,7 @@ import { Link, type LinkProps } from 'react-router-dom'
 import { cx } from './styles'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
-type ButtonSize = 'sm' | 'md'
+type ButtonSize = 'sm' | 'md' | 'icon'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
@@ -18,6 +18,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 const sizeClasses: Record<ButtonSize, string> = {
   sm: 'h-8 px-3 text-xs',
   md: 'h-10 px-4 text-sm',
+  icon: 'h-9 w-9 p-0 text-sm',
 }
 
 const baseClasses =
@@ -26,10 +27,16 @@ const baseClasses =
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
   size?: ButtonSize
+  isLoading?: boolean
+  loadingLabel?: string
 }
 
 export function Button({
+  children,
   className,
+  disabled,
+  isLoading = false,
+  loadingLabel = 'Ladowanie',
   variant = 'secondary',
   size = 'md',
   type = 'button',
@@ -38,9 +45,23 @@ export function Button({
   return (
     <button
       type={type}
+      disabled={disabled || isLoading}
+      aria-busy={isLoading || undefined}
       className={cx(baseClasses, variantClasses[variant], sizeClasses[size], className)}
       {...props}
-    />
+    >
+      {isLoading ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-r-transparent opacity-80"
+          />
+          <span className={cx(size === 'icon' && 'sr-only')}>{loadingLabel}</span>
+        </>
+      ) : (
+        children
+      )}
+    </button>
   )
 }
 

@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Bell, Settings, Users, Zap } from 'lucide-react'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import { USER_ROLE_LABELS } from '@np-manager/shared'
-import { Button, cx } from '@/components/ui'
+import { AppIcon, Button, cx } from '@/components/ui'
 
 interface NavItem {
   label: string
   description: string
   path: string
-  icon: string
+  icon: ReactNode
   roles?: string[]
   exact?: boolean
 }
@@ -24,14 +25,44 @@ const primaryNavItems: NavItem[] = [
 ]
 
 const adminNavItems: NavItem[] = [
-  { label: 'Uzytkownicy', description: 'Role i dostep', path: ROUTES.ADMIN_USERS, icon: 'U' },
+  {
+    label: 'Uzytkownicy',
+    description: 'Role i dostep',
+    path: ROUTES.ADMIN_USERS,
+    icon: <AppIcon icon={Users} className="h-[18px] w-[18px]" />,
+  },
   { label: 'Operatorzy', description: 'Administracja slownika', path: ROUTES.ADMIN_OPERATORS, icon: 'O' },
   { label: 'Szablony komunikatow', description: 'Tresci klienta', path: ROUTES.ADMIN_COMMUNICATION_TEMPLATES, icon: 'T' },
-  { label: 'Tryb systemu', description: 'Tryb pracy systemu', path: ROUTES.ADMIN_SYSTEM_MODE_SETTINGS, icon: 'M' },
-  { label: 'Powiadomienia portingu', description: 'Routing zespolowy', path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS, icon: 'P' },
-  { label: 'Fallback notyfikacji', description: 'Obsluga bledow', path: ROUTES.ADMIN_NOTIFICATION_FALLBACK_SETTINGS, icon: 'F' },
-  { label: 'Proby notyfikacji', description: 'Diagnostyka dostarczen', path: ROUTES.NOTIFICATION_ATTEMPTS, icon: 'N' },
-  { label: 'Bledy notyfikacji', description: 'Kolejka diagnostyczna', path: ROUTES.NOTIFICATION_FAILURES, icon: '!' },
+  {
+    label: 'Tryb systemu',
+    description: 'Tryb pracy systemu',
+    path: ROUTES.ADMIN_SYSTEM_MODE_SETTINGS,
+    icon: <AppIcon icon={Zap} className="h-[18px] w-[18px]" />,
+  },
+  {
+    label: 'Powiadomienia portingu',
+    description: 'Routing zespolowy',
+    path: ROUTES.ADMIN_PORTING_NOTIFICATION_SETTINGS,
+    icon: <AppIcon icon={Bell} className="h-[18px] w-[18px]" />,
+  },
+  {
+    label: 'Fallback notyfikacji',
+    description: 'Obsluga bledow',
+    path: ROUTES.ADMIN_NOTIFICATION_FALLBACK_SETTINGS,
+    icon: <AppIcon icon={Settings} className="h-[18px] w-[18px]" />,
+  },
+  {
+    label: 'Proby notyfikacji',
+    description: 'Diagnostyka dostarczen',
+    path: ROUTES.NOTIFICATION_ATTEMPTS,
+    icon: <AppIcon icon={Bell} className="h-[18px] w-[18px]" />,
+  },
+  {
+    label: 'Bledy notyfikacji',
+    description: 'Kolejka diagnostyczna',
+    path: ROUTES.NOTIFICATION_FAILURES,
+    icon: <AppIcon icon={Bell} className="h-[18px] w-[18px]" />,
+  },
 ]
 
 function SidebarLink({ item, sidebarCollapsed }: { item: NavItem; sidebarCollapsed: boolean }) {
