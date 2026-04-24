@@ -119,6 +119,15 @@ describe('ui foundation components', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+  it('keeps ActionMenu open when action returns false', () => {
+    render(<ActionMenu items={[{ label: 'Kopiuj', onClick: () => false }]} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Akcje' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Kopiuj' }))
+
+    expect(screen.getByRole('menu')).not.toBeNull()
+  })
+
   it('closes ActionMenu on Escape', () => {
     render(<ActionMenu items={[{ label: 'Otworz', onClick: vi.fn() }]} />)
 

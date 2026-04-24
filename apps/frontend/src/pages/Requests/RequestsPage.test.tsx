@@ -155,6 +155,12 @@ function renderRow(
   )
 }
 
+function openRowActions() {
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Akcje dla sprawy FNP-20260409-ABC123' }),
+  )
+}
+
 describe('RequestRow', () => {
   beforeEach(() => {
     cleanup()
@@ -233,7 +239,7 @@ describe('RequestRow', () => {
   it('shows row actions menu with the v1 action set', () => {
     renderRow()
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
 
     expect(screen.getByRole('menuitem', { name: 'Otworz sprawe' })).not.toBeNull()
     expect(screen.getByRole('menuitem', { name: 'Kopiuj numer sprawy' })).not.toBeNull()
@@ -254,7 +260,7 @@ describe('RequestRow', () => {
       },
     )
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
 
     expect(screen.queryByRole('menuitem', { name: 'Przypisz do mnie' })).toBeNull()
   })
@@ -262,7 +268,7 @@ describe('RequestRow', () => {
   it('hides assign-to-me for user without assignment rights', () => {
     renderRow({ canAssign: false, currentUserId: 'sales-1' }, { assignedUserSummary: null })
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
 
     expect(screen.queryByRole('menuitem', { name: 'Przypisz do mnie' })).toBeNull()
   })
@@ -270,7 +276,7 @@ describe('RequestRow', () => {
   it('copies case number and shows lightweight feedback', async () => {
     renderRow()
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Kopiuj numer sprawy' }))
 
     await waitFor(() => {
@@ -282,7 +288,7 @@ describe('RequestRow', () => {
   it('copies request link and shows lightweight feedback', async () => {
     renderRow()
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Kopiuj link' }))
 
     await waitFor(() => {
@@ -522,7 +528,7 @@ describe('RequestsPage quick work filters', () => {
 
   it('maps the "Moje" quick filter to existing ownership semantics', async () => {
     renderPage()
-    await screen.findByText('Sprawy portowania')
+    await screen.findByText('Kolejka spraw portowania')
 
     const quickFilters = within(
       screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
@@ -542,7 +548,7 @@ describe('RequestsPage quick work filters', () => {
 
   it('selects "Priorytet pracy" sort, syncs to URL and survives refresh', async () => {
     const { unmount } = renderPage()
-    await screen.findByText('Sprawy portowania')
+    await screen.findByText('Kolejka spraw portowania')
 
     fireEvent.change(screen.getByLabelText('Sortowanie listy'), {
       target: { value: 'WORK_PRIORITY' },
@@ -601,9 +607,9 @@ describe('RequestsPage quick work filters', () => {
 
   it('opens request action using canonical caseNumber route and preserves list search state', async () => {
     renderPageWithDetail('/requests?quickWorkFilter=URGENT&page=2&status=SUBMITTED')
-    await screen.findByText('Sprawy portowania')
+    await screen.findByText('Kolejka spraw portowania')
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Otworz sprawe' }))
 
     await waitFor(() => {
@@ -638,9 +644,9 @@ describe('RequestsPage quick work filters', () => {
       })
 
     renderPage('/requests?quickWorkFilter=UNASSIGNED&page=2&sort=WORK_PRIORITY&status=SUBMITTED')
-    await screen.findByText('Sprawy portowania')
+    await screen.findByText('Kolejka spraw portowania')
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Przypisz do mnie' }))
 
     await waitFor(() => {
@@ -675,7 +681,7 @@ describe('RequestsPage quick work filters', () => {
     })
 
     renderPage()
-    await screen.findByText('Sprawy portowania')
+    await screen.findByText('Kolejka spraw portowania')
 
     const quickFilters = within(
       screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
@@ -695,9 +701,9 @@ describe('RequestsPage quick work filters', () => {
     assignPortingRequestToMeMock.mockRejectedValueOnce(new Error('forbidden'))
 
     renderPage()
-    await screen.findByText('Sprawy portowania')
+    await screen.findByText('Kolejka spraw portowania')
 
-    fireEvent.click(screen.getByTestId('row-actions-trigger-request-1'))
+    openRowActions()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Przypisz do mnie' }))
 
     await waitFor(() => {

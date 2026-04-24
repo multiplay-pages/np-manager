@@ -9,7 +9,7 @@ export interface ActionMenuItem {
   description?: ReactNode
   disabled?: boolean
   tone?: 'normal' | 'danger'
-  onClick: () => void
+  onClick: () => void | boolean | Promise<void | boolean>
 }
 
 export interface ActionMenuProps {
@@ -29,6 +29,21 @@ export function ActionMenu({
 }: ActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+
+  function closeWhenAllowed(result: void | boolean | Promise<void | boolean>) {
+    if (result instanceof Promise) {
+      void result.then((shouldClose) => {
+        if (shouldClose !== false) {
+          setIsOpen(false)
+        }
+      }).catch(() => {})
+      return
+    }
+
+    if (result !== false) {
+      setIsOpen(false)
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -91,8 +106,7 @@ export function ActionMenu({
               )}
               onClick={() => {
                 if (item.disabled) return
-                item.onClick()
-                setIsOpen(false)
+                closeWhenAllowed(item.onClick())
               }}
             >
               <span className="text-sm font-semibold">{item.label}</span>
