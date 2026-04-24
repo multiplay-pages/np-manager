@@ -273,8 +273,8 @@ function SectionCard({
           </span>
         )}
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
-          {description && <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>}
+          <h2 className="break-words text-sm font-semibold text-ink-900">{title}</h2>
+          {description && <p className="mt-1 break-words text-sm leading-6 text-ink-500">{description}</p>}
         </div>
       </div>
       {children}
@@ -288,15 +288,17 @@ function DisclosureCard({
   description,
   children,
   icon,
+  badgeLabel = 'Sekcja techniczna',
 }: {
   id?: string
   title: string
   description: string
   children: React.ReactNode
   icon?: LucideIcon
+  badgeLabel?: string
 }) {
   return (
-    <details id={id} className="panel group scroll-mt-6 overflow-hidden">
+    <details id={id} className="panel group scroll-mt-6 overflow-hidden border-dashed">
       <summary
         onClick={(event) => event.currentTarget.focus()}
         className="flex w-full cursor-pointer list-none items-start justify-between gap-4 px-5 py-4 transition-colors hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset group-open:bg-ink-50/50 [&::-webkit-details-marker]:hidden"
@@ -311,15 +313,16 @@ function DisclosureCard({
             </span>
           )}
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
-            <p className="mt-1 text-sm leading-6 text-ink-500">{description}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="break-words text-sm font-semibold text-ink-900">{title}</h2>
+              <Badge tone="neutral">{badgeLabel}</Badge>
+            </div>
+            <p className="mt-1 break-words text-sm leading-6 text-ink-500">{description}</p>
           </div>
         </div>
-        <span
-          aria-hidden="true"
-          className="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-ui border border-line bg-surface text-sm font-semibold text-ink-500 transition-transform group-open:rotate-180"
-        >
-          <AppIcon icon={ChevronDown} className="h-4 w-4" />
+        <span className="mt-1 inline-flex shrink-0 items-center gap-2 rounded-ui border border-line bg-surface px-2 py-1 text-xs font-medium text-ink-500">
+          <span>Rozwiń</span>
+          <AppIcon aria-hidden="true" icon={ChevronDown} className="h-4 w-4 transition-transform group-open:rotate-180" />
         </span>
       </summary>
       <div className="border-t border-line px-5 py-5">{children}</div>
@@ -339,7 +342,7 @@ function Field({
   return (
     <div className="min-w-0">
       <dt className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">{label}</dt>
-      <dd className={cx('break-words text-sm font-medium text-ink-800', mono && 'font-mono')}>
+      <dd className={cx('text-sm font-medium text-ink-800', mono ? 'break-all font-mono' : 'break-words')}>
         {value ?? <span className="font-normal text-ink-400">-</span>}
       </dd>
     </div>
@@ -1862,8 +1865,8 @@ export function RequestDetailPage() {
   const workflowActionsSection = (
     <SectionCard
       id="workflow-actions"
-      title="ZmieĹ„ status"
-      description="DostÄ™pne przejĹ›cia wynikajÄ… z aktualnego statusu sprawy i uprawnieĹ„ operatora."
+      title="Akcje statusu"
+      description="Dostępne przejścia wynikają z aktualnego statusu sprawy i uprawnień operatora."
       compact
     >
       {canManageStatus ? (
@@ -2183,8 +2186,8 @@ export function RequestDetailPage() {
         <div className="space-y-5">
           <SectionCard
             id="porting-terms-panel"
-            title="Porting i terminy"
-            description="Daty oraz parametry potrzebne do operacyjnej obslugi portowania."
+            title="Dane portowania i terminy"
+            description="Daty i parametry potrzebne do obsługi przeniesienia numeru."
             icon={CalendarClock}
           >
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2200,7 +2203,7 @@ export function RequestDetailPage() {
           {isManualMode && (
             <SectionCard
               title="Dane portowania"
-              description="Reczne uzupelnienie wyznaczonej daty przeniesienia numeru (tryb manualny)."
+              description="Ręczne uzupełnienie potwierdzonej daty przeniesienia w trybie manualnym."
               icon={CalendarClock}
             >
               <RequestPortDatePanel
@@ -2244,7 +2247,7 @@ export function RequestDetailPage() {
 
           <SectionCard
             title="Dane kontaktowe i operacyjne"
-            description="Edycja operacyjna v1: adres, kanal kontaktu, notatki, numer dokumentu."
+            description="Adres korespondencyjny, kanał kontaktu, notatki i numer dokumentu sprawy."
           >
             <RequestOperationalDetailsPanel
               correspondenceAddress={request.correspondenceAddress}
@@ -2258,8 +2261,8 @@ export function RequestDetailPage() {
           </SectionCard>
 
           <SectionCard
-            title="Dane identyfikacyjne"
-            description="Dane sprawy, abonenta i operatorow bez akcji operacyjnych."
+            title="Dane klienta i operatorów"
+            description="Identyfikacja abonenta, zakres numeracji oraz operatorzy procesu."
             icon={FileText}
           >
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2289,7 +2292,7 @@ export function RequestDetailPage() {
             error={detailsHistoryError}
           />
 
-          <SectionCard title="Historia operacyjna" description="Chronologia zmian statusu i zdarzen sprawy.">
+          <SectionCard title="Historia operacyjna" description="Chronologia zmian statusu i zdarzeń sprawy.">
             <PortingCaseHistory
               items={caseHistoryItems}
               isLoading={isCaseHistoryLoading}
@@ -2299,8 +2302,8 @@ export function RequestDetailPage() {
 
           <SectionCard
             id="notification-panel"
-            title="Historia powiadomien wewnetrznych"
-            description="Historia routingu i audytu wewnetrznych powiadomien dla sprawy."
+            title="Historia powiadomień wewnętrznych"
+            description="Routing, odbiorcy i audyt wewnętrznych powiadomień dla tej sprawy."
             icon={Bell}
           >
             <div className="space-y-4">
@@ -2315,7 +2318,7 @@ export function RequestDetailPage() {
           {canUseInternalNotificationDiagnostics && (
             <DisclosureCard
               title="Diagnostyka notyfikacji"
-              description="Zdrowie transportu, problemy i proby dostarczenia. Rozwijane, zeby nie dominowalo widoku operacyjnego."
+              description="Zdrowie transportu, problemy i próby dostarczenia. Rozwijane, żeby nie dominowało widoku operacyjnego."
               icon={Bell}
             >
               <div className="space-y-4">
@@ -2349,7 +2352,7 @@ export function RequestDetailPage() {
             <DisclosureCard
               id="pli-cbd-panel"
               title="PLI CBD"
-              description="Sekcja administracyjna z eksportem, synchronizacja i statusem procesu PLI CBD."
+              description="Eksport, synchronizacja i status procesu w PLI CBD."
               icon={Zap}
             >
               <div className="space-y-4">
@@ -2413,8 +2416,9 @@ export function RequestDetailPage() {
           {canShowPliCbdDiagnostics && (
             <DisclosureCard
               id="diagnostics-panel"
-              title="Diagnostyka"
-              description="Podglady techniczne, XML i historia integracji. Schowane domyslnie."
+              title="Techniczne dane PLI CBD"
+              description="Podglądy payload/XML i historia integracji. Schowane domyślnie."
+              icon={TriangleAlert}
             >
               <div className="space-y-4">
                 <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
