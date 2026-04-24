@@ -30,7 +30,7 @@ describe('AdminUsersPage', () => {
   it('blocks non-admin users from admin users views', () => {
     const html = renderToStaticMarkup(<AdminUsersPage />)
 
-    expect(html).toContain('Brak dostepu do administracji')
-    expect(html).toContain('Ta sekcja jest dostepna tylko dla administratora systemu.')
+    expect(html).toContain('Brak dostępu do administracji')
+    expect(html).toContain('Ta sekcja jest dostępna tylko dla administratora systemu.')
   })
 })

@@ -1,3 +1,5 @@
+import { AlertBanner, Button } from '@/components/ui'
+
 interface AdminUserPasswordResetModalProps {
   isOpen: boolean
   email: string
@@ -25,54 +27,52 @@ export function AdminUserPasswordResetModal({
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-950/40 px-4">
-      <div className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-lg rounded-panel border border-line bg-surface p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Reset hasla</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              Ustaw nowe haslo tymczasowe dla konta <span className="font-medium">{email}</span>.
+            <h2 className="text-xl font-semibold text-ink-900">Reset hasła</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-600">
+              Ustaw nowe hasło tymczasowe dla konta <span className="font-medium">{email}</span>.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-          >
+          <Button type="button" onClick={onClose} variant="ghost" size="sm">
             Zamknij
-          </button>
+          </Button>
         </div>
 
         <label className="mt-6 block">
-          <span className="label">Haslo tymczasowe</span>
+          <span className="label">Hasło tymczasowe</span>
           <input
             type="password"
             value={temporaryPassword}
             onChange={(event) => onTemporaryPasswordChange(event.target.value)}
             className={`input-field ${error ? 'input-error' : ''}`}
-            placeholder="Minimum 8 znakow"
+            placeholder="Minimum 8 znaków"
             autoComplete="new-password"
             disabled={isSaving}
             data-testid="admin-user-reset-password"
           />
         </label>
 
-        <p className="mt-3 text-xs leading-5 text-gray-500">
-          Haslo nie jest wyswietlane po zapisaniu i nie trafia do historii administracyjnej.
+        <p className="mt-3 text-xs leading-5 text-ink-500">
+          Hasło nie jest wyświetlane po zapisaniu i nie trafia do historii administracyjnej.
         </p>
 
-        {error && (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <AlertBanner className="mt-4" tone="danger" title={error} />}
 
         <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="btn-secondary" disabled={isSaving}>
+          <Button type="button" onClick={onClose} disabled={isSaving}>
             Anuluj
-          </button>
-          <button type="button" onClick={onSubmit} className="btn-primary" disabled={isSaving}>
-            {isSaving ? 'Resetowanie...' : 'Zresetuj haslo'}
-          </button>
+          </Button>
+          <Button
+            type="button"
+            onClick={onSubmit}
+            variant="primary"
+            isLoading={isSaving}
+            loadingLabel="Resetowanie..."
+          >
+            Zresetuj hasło
+          </Button>
         </div>
       </div>
     </div>

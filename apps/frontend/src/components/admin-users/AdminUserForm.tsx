@@ -1,4 +1,5 @@
 import { USER_ROLE_LABELS, type UserRole } from '@np-manager/shared'
+import { AlertBanner, Button, PageHeader, SectionCard } from '@/components/ui'
 
 export interface AdminUserFormState {
   email: string
@@ -33,21 +34,26 @@ export function AdminUserForm({
 }: AdminUserFormProps) {
   return (
     <div className="space-y-6 p-6">
-      <header className="max-w-3xl">
-        <button type="button" onClick={onCancel} className="mb-4 text-sm font-medium text-blue-700">
-          {'<'} Wroc do listy
-        </button>
-        <h1 className="text-3xl font-semibold tracking-tight text-gray-900">Nowy uzytkownik</h1>
-        <p className="mt-3 text-sm leading-6 text-gray-600">
-          Utworz konto aplikacyjne z haslem tymczasowym. Backend ustawi wymuszenie zmiany hasla
-          przy pierwszym logowaniu.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Administracja"
+        title="Nowy użytkownik"
+        description="Utwórz konto aplikacyjne z hasłem tymczasowym. Backend ustawi wymuszenie zmiany hasła przy pierwszym logowaniu."
+        actions={
+          <Button type="button" onClick={onCancel} variant="ghost">
+            Wróć do listy
+          </Button>
+        }
+      />
 
-      {feedbackSuccess && <Banner tone="success">{feedbackSuccess}</Banner>}
-      {(feedbackError || errors._root) && <Banner tone="danger">{feedbackError ?? errors._root}</Banner>}
+      {feedbackSuccess && <AlertBanner tone="success" title={feedbackSuccess} />}
+      {(feedbackError || errors._root) && (
+        <AlertBanner tone="danger" title={feedbackError ?? errors._root} />
+      )}
 
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <SectionCard
+        title="Dane konta"
+        description="Wypełnij dane wymagane przez istniejący flow tworzenia użytkownika."
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Adres e-mail" error={errors.email}>
             <input
@@ -77,7 +83,7 @@ export function AdminUserForm({
             </select>
           </FormField>
 
-          <FormField label="Imie" error={errors.firstName}>
+          <FormField label="Imię" error={errors.firstName}>
             <input
               value={form.firstName}
               onChange={(event) => onChange('firstName', event.target.value)}
@@ -101,36 +107,43 @@ export function AdminUserForm({
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-[1.2fr,0.8fr]">
-          <FormField label="Haslo tymczasowe" error={errors.temporaryPassword}>
+          <FormField label="Hasło tymczasowe" error={errors.temporaryPassword}>
             <input
               type="password"
               value={form.temporaryPassword}
               onChange={(event) => onChange('temporaryPassword', event.target.value)}
               className={`input-field ${errors.temporaryPassword ? 'input-error' : ''}`}
-              placeholder="Minimum 8 znakow"
+              placeholder="Minimum 8 znaków"
               autoComplete="new-password"
               disabled={isSaving}
               data-testid="admin-user-create-password"
             />
           </FormField>
 
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <div className="rounded-ui border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
             <p className="font-medium">Po utworzeniu konta:</p>
             <p className="mt-2 leading-6">
-              konto bedzie aktywne, a flaga wymagania zmiany hasla zostanie ustawiona przez backend.
+              konto będzie aktywne, a flaga wymagania zmiany hasła zostanie ustawiona przez
+              backend.
             </p>
           </div>
         </div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button type="button" onClick={onCancel} className="btn-secondary" disabled={isSaving}>
+          <Button type="button" onClick={onCancel} disabled={isSaving}>
             Anuluj
-          </button>
-          <button type="button" onClick={onSubmit} className="btn-primary" disabled={isSaving}>
-            {isSaving ? 'Tworzenie...' : 'Utworz konto'}
-          </button>
+          </Button>
+          <Button
+            type="button"
+            onClick={onSubmit}
+            variant="primary"
+            isLoading={isSaving}
+            loadingLabel="Tworzenie..."
+          >
+            Utwórz konto
+          </Button>
         </div>
-      </section>
+      </SectionCard>
     </div>
   )
 }
@@ -150,19 +163,5 @@ function FormField({
       {children}
       {error && <p className="error-message">{error}</p>}
     </label>
-  )
-}
-
-function Banner({ tone, children }: { tone: 'success' | 'danger'; children: React.ReactNode }) {
-  return (
-    <div
-      className={`rounded-2xl border px-4 py-3 text-sm ${
-        tone === 'success'
-          ? 'border-green-200 bg-green-50 text-green-700'
-          : 'border-red-200 bg-red-50 text-red-700'
-      }`}
-    >
-      {children}
-    </div>
   )
 }
