@@ -17,6 +17,7 @@
     "@np-manager/shared": "*",
     "axios": "^1.14.0",
     "fastify": "5.8.5",
+    "lucide-react": "^1.9.0",
     "nodemailer": "8.0.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

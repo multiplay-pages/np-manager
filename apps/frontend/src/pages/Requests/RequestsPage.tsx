@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { Badge, Button, ButtonLink, FilterChip, MetricCard, PageHeader, cx } from '@/components/ui'
+import { Flag, Search, SlidersHorizontal } from 'lucide-react'
+import { AppIcon, Badge, Button, ButtonLink, FilterChip, MetricCard, PageHeader, cx } from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useOperators } from '@/hooks/useOperators'
 import {
@@ -785,7 +786,8 @@ export function RequestsPage() {
 
       <section role="region" aria-label="Szybkie filtry pracy" className="panel px-5 py-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+            <AppIcon icon={Flag} className="text-ink-400" />
             Szybka kolejka pracy
           </span>
           {quickWorkFilterOptions.map((filter) => {
@@ -814,6 +816,10 @@ export function RequestsPage() {
 
       <section className="panel overflow-hidden">
         <div className="border-b border-line px-5 py-4">
+          <div className="mb-3 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+            <AppIcon icon={SlidersHorizontal} className="text-ink-400" />
+            Filtry operacyjne
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-[260px] flex-1">
               <input
@@ -823,8 +829,8 @@ export function RequestsPage() {
                 className="input-field h-10 pl-10"
                 placeholder="Szukaj po numerze sprawy, telefonie lub kliencie..."
               />
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-400">
-                S
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">
+                <AppIcon icon={Search} className="h-4 w-4" />
               </span>
             </div>
 
