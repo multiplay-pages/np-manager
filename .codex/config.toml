@@ -1,0 +1,8 @@
+approval_policy = "untrusted"
+sandbox_mode = "workspace-write"
+allow_login_shell = false
+default_permissions = "workspace"
+
+[permissions.workspace.filesystem]
+":project_roots" = { "." = "write", "**/*.env" = "none" }
+glob_scan_max_depth = 4

@@ -64,3 +64,6 @@ apps/frontend/.vite/
 
 # Claude Code worktrees (git-managed, must not be tracked as gitlinks)
 .claude/worktrees/
+
+# Claude Code session scratchpad (local task tracking, not for commits)
+scratchpad/

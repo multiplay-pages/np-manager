@@ -68,6 +68,31 @@ npx tsc --noEmit                  # Sprawdz typy TypeScript
 
 ## Zasady pracy
 
+### Token-Save Operating Mode
+
+- Start kazdego zadania:
+  - `git status --short`
+  - `git diff --stat`
+- Search before Read:
+  - uzywaj `rg` jako pierwszego wyboru,
+  - na Windows, gdy `rg` jest niedostepne lub zablokowane, uzyj `Get-ChildItem -Recurse -File | Select-String`.
+- Nie czytaj calych duzych plikow, jesli nie jest to jasno potrzebne.
+- Inspektuj tylko funkcje, komponenty, endpointy, DTO, testy lub trasy zwiazane z zadaniem.
+- Nie analizuj `node_modules`, `dist`, `build`, coverage ani roboczych worktree `.claude/worktrees`, chyba ze zadanie tego wprost wymaga.
+- Trzymaj diff waski i reviewowalny.
+- Nie dotykaj plikow poza zadeklarowanym zakresem.
+- Nie refaktoruj oportunistycznie.
+- Nie edytuj `AGENTS.md` dla jednorazowych instrukcji zadania.
+- Dla wiekszych zadan uzywaj `scratchpad/active-task.md`.
+- Najpierw uruchamiaj testy skupione na zmianie.
+- Szersze testy uruchamiaj, gdy uzasadnia to zakres lub ryzyko zmiany.
+- Raport koncowy powinien byc krotki:
+  - status,
+  - zmienione pliki,
+  - testy,
+  - ryzyka,
+  - nastepny krok.
+
 ### Przed zakonczeniem zadania ZAWSZE
 
 1. Uruchom `npx vitest run` w `apps/backend` - wszystkie testy musza przejsc
