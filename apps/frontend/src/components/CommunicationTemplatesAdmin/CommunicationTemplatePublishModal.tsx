@@ -1,3 +1,5 @@
+import { AlertBanner, Button } from '@/components/ui'
+
 interface CommunicationTemplatePublishModalProps {
   isOpen: boolean
   versionLabel: string
@@ -22,32 +24,43 @@ export function CommunicationTemplatePublishModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 px-4 py-6">
-      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
-        <h2 className="text-xl font-semibold text-gray-900">Opublikowac te wersje?</h2>
-        <p className="mt-3 text-sm leading-6 text-gray-600">
-          Po publikacji ta wersja stanie sie aktywnym szablonem uzywanym przez system przy
-          tworzeniu nowych draftow komunikacji. Poprzednia opublikowana wersja zostanie zastapiona.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/50 px-4 py-6">
+      <div className="w-full max-w-xl rounded-panel bg-surface p-6 shadow-2xl">
+        <h2 className="text-xl font-semibold text-ink-900">Opublikować tę wersję?</h2>
+        <p className="mt-3 text-sm leading-6 text-ink-600">
+          Po publikacji ta wersja stanie się aktywnym szablonem używanym przez system przy
+          przygotowywaniu nowych komunikatów. Poprzednia opublikowana wersja zostanie zastąpiona.
         </p>
 
-        <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-          <div className="text-sm font-medium text-gray-900">{templateName}</div>
-          <div className="mt-1 text-sm text-gray-600">{versionLabel}</div>
+        <AlertBanner
+          tone="warning"
+          title="Publikacja wpływa na przyszłe komunikaty"
+          description="Przed zatwierdzeniem upewnij się, że temat, treść i placeholdery zostały sprawdzone w podglądzie."
+          className="mt-5"
+        />
+
+        <div className="mt-5 rounded-panel border border-line bg-ink-50/60 px-4 py-4">
+          <div className="text-sm font-medium text-ink-900">{templateName}</div>
+          <div className="mt-1 text-sm text-ink-600">{versionLabel}</div>
         </div>
 
         {publishError && (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {publishError}
-          </div>
+          <AlertBanner tone="danger" title="Nie udało się opublikować wersji" description={publishError} className="mt-5" />
         )}
 
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button type="button" onClick={onCancel} className="btn-secondary" disabled={isPublishing}>
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button type="button" onClick={onCancel} disabled={isPublishing}>
             Anuluj
-          </button>
-          <button type="button" onClick={onConfirm} className="btn-primary" disabled={isPublishing}>
-            {isPublishing ? 'Publikowanie...' : 'Publikuj wersje'}
-          </button>
+          </Button>
+          <Button
+            type="button"
+            onClick={onConfirm}
+            variant="primary"
+            isLoading={isPublishing}
+            loadingLabel="Publikowanie..."
+          >
+            Publikuj wersję
+          </Button>
         </div>
       </div>
     </div>

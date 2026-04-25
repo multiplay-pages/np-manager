@@ -4,6 +4,7 @@ import {
   type CommunicationTemplatePreviewResult,
 } from '@/lib/communicationTemplates'
 import { createPreviewModalKeydownHandler as createEscapeHandler } from '@/lib/communicationTemplateAdmin'
+import { AlertBanner, Badge, Button, DataField, SectionCard } from '@/components/ui'
 
 interface CommunicationTemplatePreviewModalProps {
   isOpen: boolean
@@ -60,50 +61,42 @@ export function CommunicationTemplatePreviewModal({
   const placeholders = getCommunicationTemplatePlaceholderItems()
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-950/50 px-4 py-6">
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-950/50 px-4 py-6">
+      <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-panel bg-surface shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <h2 className="text-xl font-semibold text-ink-900">{title}</h2>
+            <p className="mt-2 text-sm text-ink-600">
               {subtitle ??
-                'Sprawdz temat, tresc oraz placeholdery przed zapisaniem lub publikacja wersji.'}
+                'Sprawdź temat, treść oraz placeholdery przed zapisaniem lub publikacją wersji.'}
             </p>
           </div>
 
-          <button type="button" onClick={onClose} className="btn-secondary">
+          <Button type="button" onClick={onClose}>
             Zamknij
-          </button>
+          </Button>
         </div>
 
-        <div className="border-b border-gray-200 px-6 py-4">
+        <div className="border-b border-line px-6 py-4">
           <div className="flex flex-wrap gap-3">
-            <button
+            <Button
               type="button"
               onClick={() => onModeChange('TEST')}
-              className={`rounded-full px-4 py-2 text-sm font-medium ${
-                mode === 'TEST'
-                  ? 'bg-blue-600 text-white'
-                  : 'border border-gray-200 bg-white text-gray-700'
-              }`}
+              variant={mode === 'TEST' ? 'primary' : 'secondary'}
             >
               Dane testowe
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => onModeChange('REAL')}
-              className={`rounded-full px-4 py-2 text-sm font-medium ${
-                mode === 'REAL'
-                  ? 'bg-blue-600 text-white'
-                  : 'border border-gray-200 bg-white text-gray-700'
-              }`}
+              variant={mode === 'REAL' ? 'primary' : 'secondary'}
             >
               Realna sprawa
-            </button>
+            </Button>
           </div>
 
           {mode === 'REAL' && (
-            <div className="mt-4 space-y-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
+            <div className="mt-4 space-y-4 rounded-panel border border-line bg-ink-50/60 px-4 py-4">
               <div className="grid gap-3 lg:grid-cols-[1.4fr,auto]">
                 <label className="block">
                   <span className="label">Numer sprawy lub ID sprawy</span>
@@ -118,34 +111,33 @@ export function CommunicationTemplatePreviewModal({
                 </label>
 
                 <div className="flex items-end">
-                  <button
+                  <Button
                     type="button"
                     onClick={onRunRealCasePreview}
-                    className="btn-primary"
+                    variant="primary"
                     disabled={!isRealCaseAvailable || isRealCaseLoading}
+                    isLoading={isRealCaseLoading}
+                    loadingLabel="Ładowanie..."
                   >
-                    {isRealCaseLoading ? 'Ladowanie...' : 'Uruchom preview'}
-                  </button>
+                    Uruchom podgląd
+                  </Button>
                 </div>
               </div>
 
               {!isRealCaseAvailable && (
-                <div className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-sm text-gray-600">
-                  {realCaseHelpText ??
-                    'Preview na realnej sprawie jest dostepny dla zapisanych wersji backendowych.'}
-                </div>
+                <AlertBanner
+                  tone="neutral"
+                  title="Podgląd na realnej sprawie jest niedostępny"
+                  description={realCaseHelpText ?? 'Podgląd na realnej sprawie jest dostępny dla zapisanych wersji.'}
+                />
               )}
 
               {isRealCaseAvailable && realCaseHelpText && (
-                <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
-                  {realCaseHelpText}
-                </div>
+                <AlertBanner tone="info" title="Podgląd na realnej sprawie" description={realCaseHelpText} />
               )}
 
               {realCaseError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {realCaseError}
-                </div>
+                <AlertBanner tone="danger" title="Nie udało się przygotować podglądu" description={realCaseError} />
               )}
             </div>
           )}
@@ -154,144 +146,110 @@ export function CommunicationTemplatePreviewModal({
         <div className="grid max-h-[calc(90vh-180px)] gap-6 overflow-y-auto px-6 py-6 lg:grid-cols-[1.45fr,0.95fr]">
           <div className="space-y-5">
             {mode === 'REAL' && preview.previewContextSummary && (
-              <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-                <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700">
-                  Preview realnej sprawy
-                </h3>
-                <div className="mt-3 grid gap-3 text-sm text-blue-900 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
-                      Sprawa
-                    </div>
-                    <div className="mt-1">{preview.previewContextSummary.caseNumber}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
-                      Klient
-                    </div>
-                    <div className="mt-1">{preview.previewContextSummary.clientName}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
-                      Dawca
-                    </div>
-                    <div className="mt-1">{preview.previewContextSummary.donorOperatorName}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
-                      Planowana data
-                    </div>
-                    <div className="mt-1">{preview.previewContextSummary.plannedPortDate ?? 'Brak danych'}</div>
-                  </div>
-                </div>
-                <p className="mt-3 text-sm text-blue-800">
-                  Preview uruchomiono na: {realCaseLabel}
-                </p>
-              </section>
+              <SectionCard title="Podgląd na realnej sprawie" description={`Uruchomiono na: ${realCaseLabel}`}>
+                <dl className="grid gap-3 text-sm md:grid-cols-2">
+                  <DataField label="Sprawa" value={preview.previewContextSummary.caseNumber} />
+                  <DataField label="Klient" value={preview.previewContextSummary.clientName} />
+                  <DataField label="Dawca" value={preview.previewContextSummary.donorOperatorName} />
+                  <DataField label="Planowana data" value={preview.previewContextSummary.plannedPortDate ?? 'Brak danych'} />
+                </dl>
+              </SectionCard>
             )}
 
-            <section className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">
-                Temat
-              </h3>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-800">
+            <SectionCard title="Temat">
+              <p className="whitespace-pre-wrap text-sm leading-6 text-ink-800">
                 {preview.renderedSubject || 'Brak tematu.'}
               </p>
-            </section>
+            </SectionCard>
 
-            <section className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">
-                Tresc
-              </h3>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-800">
-                {preview.renderedBody || 'Brak tresci.'}
+            <SectionCard title="Treść">
+              <p className="whitespace-pre-wrap text-sm leading-6 text-ink-800">
+                {preview.renderedBody || 'Brak treści.'}
               </p>
-            </section>
+            </SectionCard>
           </div>
 
           <div className="space-y-5">
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">
-                Stan renderowania
-              </h3>
-              <div
-                className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
+            <SectionCard title="Stan renderowania">
+              <AlertBanner
+                tone={preview.isRenderable ? 'success' : 'warning'}
+                title={
                   preview.isRenderable
-                    ? 'border-green-200 bg-green-50 text-green-700'
-                    : 'border-amber-200 bg-amber-50 text-amber-800'
-                }`}
-              >
-                {preview.isRenderable
-                  ? mode === 'REAL'
-                    ? 'Szablon jest renderowalny na wskazanej sprawie.'
-                    : 'Szablon jest renderowalny na danych testowych.'
-                  : 'Szablon wymaga poprawek przed publikacja.'}
-              </div>
-            </section>
+                    ? mode === 'REAL'
+                      ? 'Szablon renderuje się na wskazanej sprawie.'
+                      : 'Szablon renderuje się na danych testowych.'
+                    : 'Szablon wymaga poprawek przed publikacją.'
+                }
+              />
+            </SectionCard>
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">
-                Uzyte placeholdery
-              </h3>
+            <SectionCard title="Użyte placeholdery">
               <div className="mt-3 flex flex-wrap gap-2">
                 {preview.usedPlaceholders.length > 0 ? (
                   preview.usedPlaceholders.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
-                    >
+                    <Badge key={item} tone="neutral">
                       {`{{${item}}}`}
-                    </span>
+                    </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-gray-500">Brak placeholderow.</span>
+                  <span className="text-sm text-ink-500">Brak placeholderów.</span>
                 )}
               </div>
-            </section>
+            </SectionCard>
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">
-                Problemy
-              </h3>
-              <div className="mt-3 space-y-3 text-sm">
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700">
-                  {preview.unknownPlaceholders.length > 0
-                    ? `Nieznane placeholdery: ${preview.unknownPlaceholders.map((item) => `{{${item}}}`).join(', ')}`
-                    : 'Brak nieznanych placeholderow.'}
-                </div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700">
-                  {preview.missingPlaceholders.length > 0
-                    ? `Brakujace dane: ${preview.missingPlaceholders.map((item) => `{{${item}}}`).join(', ')}`
-                    : mode === 'REAL'
-                      ? 'Brak brakujacych danych w wybranej sprawie.'
-                      : 'Brak brakujacych danych testowych.'}
-                </div>
+            <SectionCard title="Problemy">
+              <div className="space-y-3 text-sm">
+                <AlertBanner
+                  tone={preview.unknownPlaceholders.length > 0 ? 'warning' : 'neutral'}
+                  title={preview.unknownPlaceholders.length > 0 ? 'Nieznane placeholdery' : 'Brak nieznanych placeholderów.'}
+                  description={
+                    preview.unknownPlaceholders.length > 0
+                      ? preview.unknownPlaceholders.map((item) => `{{${item}}}`).join(', ')
+                      : undefined
+                  }
+                />
+                <AlertBanner
+                  tone={preview.missingPlaceholders.length > 0 ? 'warning' : 'neutral'}
+                  title={
+                    preview.missingPlaceholders.length > 0
+                      ? 'Brakujące dane'
+                      : mode === 'REAL'
+                        ? 'Brak brakujących danych w wybranej sprawie.'
+                        : 'Brak brakujących danych testowych.'
+                  }
+                  description={
+                    preview.missingPlaceholders.length > 0
+                      ? preview.missingPlaceholders.map((item) => `{{${item}}}`).join(', ')
+                      : undefined
+                  }
+                />
                 {preview.warnings.length > 0 && (
-                  <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-orange-700">
-                    <ul className="space-y-1">
-                      {preview.warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  <AlertBanner
+                    tone="warning"
+                    title="Uwagi"
+                    description={
+                      <ul className="space-y-1">
+                        {preview.warnings.map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    }
+                  />
                 )}
               </div>
-            </section>
+            </SectionCard>
 
-            <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-gray-500">
-                Sciaga placeholderow
-              </h3>
+            <SectionCard title="Ściąga placeholderów">
               <div className="mt-3 space-y-2">
                 {placeholders.map((item) => (
-                  <div key={item.placeholder} className="text-sm text-gray-600">
-                    <span className="font-mono text-xs text-gray-900">{`{{${item.placeholder}}}`}</span>
+                  <div key={item.placeholder} className="text-sm text-ink-600">
+                    <span className="font-mono text-xs text-ink-900">{`{{${item.placeholder}}}`}</span>
                     {' - '}
                     {item.label}
                   </div>
                 ))}
               </div>
-            </section>
+            </SectionCard>
           </div>
         </div>
       </div>

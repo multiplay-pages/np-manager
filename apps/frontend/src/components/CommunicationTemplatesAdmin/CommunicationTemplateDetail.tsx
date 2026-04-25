@@ -1,4 +1,6 @@
+import { CONTACT_CHANNEL_LABELS } from '@np-manager/shared'
 import type { CommunicationTemplateGroupView, CommunicationTemplateVersionView } from '@/lib/communicationTemplates'
+import { AlertBanner, Badge, Button, DataField, EmptyState, PageHeader, SectionCard } from '@/components/ui'
 import { CommunicationTemplatePlaceholdersCard } from './CommunicationTemplatePlaceholdersCard'
 import { CommunicationTemplateVersionCard } from './CommunicationTemplateVersionCard'
 
@@ -50,9 +52,9 @@ export function CommunicationTemplateDetail({
   if (isLoading) {
     return (
       <div className="p-6">
-        <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-600">
-          Ladowanie szczegolow szablonu...
-        </div>
+        <SectionCard padding="none">
+          <EmptyState title="Ładowanie szczegółów szablonu..." />
+        </SectionCard>
       </div>
     )
   }
@@ -60,12 +62,10 @@ export function CommunicationTemplateDetail({
   if (error) {
     return (
       <div className="space-y-6 p-6">
-        <button type="button" onClick={onBack} className="btn-secondary">
-          Wroc do listy
-        </button>
-        <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-6 text-sm text-red-700">
-          {error}
-        </div>
+        <Button type="button" onClick={onBack}>
+          Wróć do listy
+        </Button>
+        <AlertBanner tone="danger" title="Nie udało się pobrać szablonu" description={error} />
       </div>
     )
   }
@@ -73,68 +73,60 @@ export function CommunicationTemplateDetail({
   if (!group) {
     return (
       <div className="space-y-6 p-6">
-        <button type="button" onClick={onBack} className="btn-secondary">
-          Wroc do listy
-        </button>
-        <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-          <h1 className="text-xl font-semibold text-gray-900">Nie znaleziono szablonu</h1>
-          <p className="mt-3 text-sm text-gray-600">
-            Wybrany kod komunikatu nie istnieje albo nie ma jeszcze zadnych wersji.
-          </p>
-        </div>
+        <Button type="button" onClick={onBack}>
+          Wróć do listy
+        </Button>
+        <SectionCard padding="none">
+          <EmptyState
+            title="Nie znaleziono szablonu"
+            description="Wybrany kod komunikatu nie istnieje albo nie ma jeszcze żadnych wersji."
+          />
+        </SectionCard>
       </div>
     )
   }
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <button type="button" onClick={onBack} className="btn-secondary">
-            Wroc do listy
-          </button>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-gray-900">{group.name}</h1>
-          <p className="mt-2 text-sm font-medium text-gray-600">{group.code}</p>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">
-            {group.description || 'Brak opisu operacyjnego dla tego szablonu.'}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
-            <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 font-medium text-green-700">
-              {group.publishedVersion ? 'Opublikowana' : 'Brak opublikowanej wersji'}
-            </span>
-            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-medium">
-              {group.publishedVersion
-                ? `Wersja aktywna: v${group.publishedVersion.versionNumber}`
-                : 'Wersja aktywna: brak'}
-            </span>
-          </div>
-        </div>
+      <PageHeader
+        eyebrow="Szablon komunikatu"
+        title={group.name}
+        description={group.description || 'Brak opisu operacyjnego dla tego szablonu.'}
+        actions={
+          <>
+            <Button type="button" onClick={onBack}>
+              Wróć do listy
+            </Button>
+            <Button type="button" onClick={() => onCreateDraft(group)} variant="primary">
+              Utwórz nową wersję roboczą
+            </Button>
+          </>
+        }
+      />
 
-        <button type="button" onClick={() => onCreateDraft(group)} className="btn-primary">
-          Utworz nowa wersje robocza
-        </button>
+      <div className="flex flex-wrap gap-2">
+        <Badge tone={group.publishedVersion ? 'green' : 'amber'} leadingDot>
+          {group.publishedVersion ? 'Opublikowana' : 'Brak opublikowanej wersji'}
+        </Badge>
+        <Badge tone="brand">
+          {group.publishedVersion
+            ? `Wersja aktywna: v${group.publishedVersion.versionNumber}`
+            : 'Wersja aktywna: brak'}
+        </Badge>
       </div>
 
       {feedbackSuccess && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {feedbackSuccess}
-        </div>
+        <AlertBanner tone="success" title="Zapisano zmianę" description={feedbackSuccess} />
       )}
 
       {feedbackError && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {feedbackError}
-        </div>
+        <AlertBanner tone="danger" title="Nie udało się wykonać akcji" description={feedbackError} />
       )}
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Aktualnie uzywane operacyjnie</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            To ta wersja jest obecnie wykorzystywana przez system przy tworzeniu nowych draftow komunikacji.
-          </p>
-        </div>
-
+      <SectionCard
+        title="Aktualnie opublikowana wersja"
+        description="Ta wersja jest obecnie używana przez system przy przygotowywaniu komunikacji."
+      >
         {group.publishedVersion ? (
           <CommunicationTemplateVersionCard
             version={group.publishedVersion}
@@ -146,20 +138,17 @@ export function CommunicationTemplateDetail({
             onDetails={onDetailsVersion}
           />
         ) : (
-          <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-8 text-sm text-gray-600">
-            Brak opublikowanej wersji tego szablonu.
-          </div>
+          <EmptyState
+            title="Brak opublikowanej wersji"
+            description="Utwórz wersję roboczą, sprawdź podgląd i opublikuj ją dopiero po weryfikacji treści."
+          />
         )}
-      </section>
+      </SectionCard>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Wersje robocze</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Zmiany przygotowujesz w wersjach roboczych. Opublikowanej wersji nie edytujemy bezposrednio.
-          </p>
-        </div>
-
+      <SectionCard
+        title="Wersje robocze"
+        description="Tutaj przygotowujesz zmiany. Opublikowana wersja pozostaje aktywna do momentu świadomej publikacji."
+      >
         {group.draftVersions.length > 0 ? (
           <div className="space-y-4">
             {group.draftVersions.map((version) => (
@@ -178,35 +167,44 @@ export function CommunicationTemplateDetail({
             ))}
           </div>
         ) : (
-          <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-8 text-sm text-gray-600">
-            Brak wersji roboczych. Aby przygotowac zmiany, utworz nowa wersje robocza na podstawie aktualnie opublikowanego szablonu.
-          </div>
+          <EmptyState
+            title="Brak wersji roboczych"
+            description="Aby przygotować zmianę treści, utwórz nową wersję roboczą na podstawie istniejącego szablonu."
+          />
         )}
-      </section>
+      </SectionCard>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Historia wersji</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Lista wszystkich wersji od najnowszej do najstarszej, z widocznym statusem i szybkim podgladem.
-          </p>
-        </div>
+      <SectionCard
+        title="Wersje archiwalne"
+        description="Historia poprzednich wersji jest dostępna do wglądu i klonowania, bez wpływu na aktywną komunikację."
+      >
+        {group.archivedVersions.length > 0 ? (
+          <div className="space-y-4">
+            {group.archivedVersions.map((version) => (
+              <CommunicationTemplateVersionCard
+                key={version.id}
+                version={version}
+                title={`${group.name} - v${version.versionNumber}`}
+                subtitle={`Utworzono ${formatDateTime(version.createdAt)} · ostatnia zmiana ${formatDateTime(version.updatedAt)}.`}
+                onPreview={onPreviewVersion}
+                onClone={onCloneVersion}
+                onDetails={onDetailsVersion}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="Brak wersji archiwalnych" description="Ten szablon nie ma jeszcze starszych wersji." />
+        )}
+      </SectionCard>
 
-        <div className="space-y-4">
-          {group.versions.map((version) => (
-            <CommunicationTemplateVersionCard
-              key={version.id}
-              version={version}
-              title={`${group.name} - v${version.versionNumber}`}
-              subtitle={`Utworzono ${formatDateTime(version.createdAt)} · ostatnia zmiana ${formatDateTime(version.updatedAt)}.`}
-              onPreview={onPreviewVersion}
-              onArchive={version.status === 'DRAFT' ? onArchiveVersion : undefined}
-              onClone={onCloneVersion}
-              onDetails={onDetailsVersion}
-            />
-          ))}
-        </div>
-      </section>
+      <SectionCard title="Metadane szablonu" description="Informacje porządkujące szablon w administracji.">
+        <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <DataField label="Kod komunikatu" value={group.code} mono />
+          <DataField label="Kanał" value={CONTACT_CHANNEL_LABELS[group.channel]} />
+          <DataField label="Wersje łącznie" value={group.versions.length} />
+          <DataField label="Ostatnia aktualizacja" value={formatDateTime(group.lastUpdatedAt)} />
+        </dl>
+      </SectionCard>
 
       <CommunicationTemplatePlaceholdersCard code={group.code} />
     </div>

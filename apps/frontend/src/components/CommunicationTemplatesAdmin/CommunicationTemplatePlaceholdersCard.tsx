@@ -1,5 +1,6 @@
 import type { CommunicationTemplateCode } from '@np-manager/shared'
 import { getCommunicationTemplatePlaceholderItems } from '@/lib/communicationTemplates'
+import { DataField, SectionCard } from '@/components/ui'
 
 interface CommunicationTemplatePlaceholdersCardProps {
   code?: CommunicationTemplateCode
@@ -9,32 +10,31 @@ interface CommunicationTemplatePlaceholdersCardProps {
 
 export function CommunicationTemplatePlaceholdersCard({
   code,
-  title = 'Dostepne placeholdery',
-  description = 'Uzyj placeholderow w temacie lub tresci, aby system uzupelnil dane sprawy podczas tworzenia komunikatu.',
+  title = 'Dostępne placeholdery',
+  description = 'Użyj placeholderów w temacie lub treści, aby system uzupełnił dane sprawy podczas tworzenia komunikatu.',
 }: CommunicationTemplatePlaceholdersCardProps) {
   const placeholders = getCommunicationTemplatePlaceholderItems()
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-gray-600">
+    <SectionCard
+      title={title}
+      description={
+        <>
           {description}
-          {code ? ` Dla kodu ${code} pelna walidacja per typ bedzie rozszerzana w kolejnym etapie.` : ''}
-        </p>
-      </div>
-
+          {code ? ` Dla kodu ${code} pełna walidacja per typ będzie rozszerzana w kolejnym etapie.` : ''}
+        </>
+      }
+    >
       <div className="space-y-3">
         {placeholders.map((item) => (
           <div
             key={item.placeholder}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+            className="rounded-panel border border-line bg-ink-50/60 px-4 py-3"
           >
-            <div className="font-mono text-xs text-gray-900">{`{{${item.placeholder}}}`}</div>
-            <p className="mt-1 text-sm text-gray-600">{item.label}</p>
+            <DataField label={`{{${item.placeholder}}}`} value={item.label} mono />
           </div>
         ))}
       </div>
-    </section>
+    </SectionCard>
   )
 }

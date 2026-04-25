@@ -23,7 +23,7 @@ describe('CommunicationTemplatesAdminPage', () => {
   it('blocks non-admin users from admin templates views', () => {
     const html = renderToStaticMarkup(<CommunicationTemplatesAdminPage />)
 
-    expect(html).toContain('Szablony komunikatow')
-    expect(html).toContain('Ten widok jest dostepny wylacznie dla administratora.')
+    expect(html).toContain('Brak dostępu do administracji')
+    expect(html).toContain('Ten widok jest dostępny wyłącznie dla administratora.')
   })
 })
