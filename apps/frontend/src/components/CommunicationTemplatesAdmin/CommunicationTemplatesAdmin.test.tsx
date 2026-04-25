@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CommunicationTemplateDto, CommunicationTemplateListItemDto } from '@np-manager/shared'
 import {
   buildCommunicationTemplateDetailView,
@@ -111,6 +113,10 @@ const TEMPLATE_LIST_ITEMS: CommunicationTemplateListItemDto[] = [
     },
   },
 ]
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('Communication templates admin UX', () => {
   it('renders list view with summary cards and backend-driven statuses', () => {
@@ -319,5 +325,114 @@ describe('Communication templates admin UX', () => {
     expect(realHtml).toContain('Podgląd na realnej sprawie')
     expect(realHtml).toContain('FNP-SEED-COMM-DRAFT-001')
     expect(realHtml).toContain('Nie znaleziono wskazanej sprawy do podglądu szablonu.')
+  })
+})
+
+describe('CommunicationTemplatePublishModal — risky UX confirmation', () => {
+  const BASE_PROPS = {
+    isOpen: true,
+    versionLabel: 'v4',
+    templateName: 'Potwierdzenie przyjecia sprawy',
+    isPublishing: false,
+    publishError: null,
+    onConfirm: vi.fn(),
+    onCancel: vi.fn(),
+  }
+
+  it('shows template name and version in summary', () => {
+    const html = renderToStaticMarkup(<CommunicationTemplatePublishModal {...BASE_PROPS} />)
+    expect(html).toContain('Potwierdzenie przyjecia sprawy')
+    expect(html).toContain('v4')
+    expect(html).toContain('Szablon:')
+    expect(html).toContain('Wersja:')
+  })
+
+  it('shows warning about publish consequences', () => {
+    const html = renderToStaticMarkup(<CommunicationTemplatePublishModal {...BASE_PROPS} />)
+    expect(html).toContain('Publikacja wpływa na przyszłe komunikaty')
+    expect(html).toContain('Ta wersja stanie się aktywna dla kolejnych komunikatów tego typu.')
+  })
+
+  it('shows confirm checkbox and confirmation label', () => {
+    const html = renderToStaticMarkup(<CommunicationTemplatePublishModal {...BASE_PROPS} />)
+    expect(html).toContain('Rozumiem, że ta wersja będzie używana w kolejnych komunikatach.')
+    expect(html).toContain('type="checkbox"')
+  })
+
+  it('renders publish button as disabled when checkbox is unchecked (initial state)', () => {
+    render(<CommunicationTemplatePublishModal {...BASE_PROPS} onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    expect((screen.getByTestId('publish-confirm-button') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('checking the checkbox enables the publish button', () => {
+    render(<CommunicationTemplatePublishModal {...BASE_PROPS} onConfirm={vi.fn()} onCancel={vi.fn()} />)
+    const button = screen.getByTestId('publish-confirm-button') as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+
+    fireEvent.click(screen.getByTestId('publish-confirm-checkbox'))
+    expect(button.disabled).toBe(false)
+  })
+
+  it('clicking publish button after confirmation calls onConfirm', () => {
+    const onConfirm = vi.fn()
+    render(<CommunicationTemplatePublishModal {...BASE_PROPS} onConfirm={onConfirm} onCancel={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('publish-confirm-checkbox'))
+    fireEvent.click(screen.getByTestId('publish-confirm-button'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('clicking cancel calls onCancel', () => {
+    const onCancel = vi.fn()
+    render(<CommunicationTemplatePublishModal {...BASE_PROPS} onConfirm={vi.fn()} onCancel={onCancel} />)
+
+    fireEvent.click(screen.getByTestId('publish-cancel-button'))
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('reopening modal resets checkbox to unchecked', () => {
+    const { rerender } = render(
+      <CommunicationTemplatePublishModal {...BASE_PROPS} onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByTestId('publish-confirm-checkbox'))
+    expect((screen.getByTestId('publish-confirm-checkbox') as HTMLInputElement).checked).toBe(true)
+
+    rerender(
+      <CommunicationTemplatePublishModal
+        {...BASE_PROPS}
+        isOpen={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    rerender(
+      <CommunicationTemplatePublishModal {...BASE_PROPS} onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
+    expect((screen.getByTestId('publish-confirm-checkbox') as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('shows publishError via AlertBanner when provided', () => {
+    const html = renderToStaticMarkup(
+      <CommunicationTemplatePublishModal
+        {...BASE_PROPS}
+        publishError="Błąd serwera. Spróbuj ponownie."
+      />,
+    )
+    expect(html).toContain('Nie udało się opublikować wersji')
+    expect(html).toContain('Błąd serwera. Spróbuj ponownie.')
+  })
+
+  it('disables both buttons and shows loading label while publishing', () => {
+    render(
+      <CommunicationTemplatePublishModal
+        {...BASE_PROPS}
+        isPublishing
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect((screen.getByTestId('publish-confirm-button') as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByTestId('publish-cancel-button') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByTestId('publish-confirm-button').textContent).toContain('Publikowanie...')
   })
 })
