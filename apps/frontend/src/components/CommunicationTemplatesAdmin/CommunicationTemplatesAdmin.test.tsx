@@ -131,10 +131,12 @@ describe('Communication templates admin UX', () => {
       />,
     )
 
-    expect(html).toContain('Szablony komunikatow')
-    expect(html).toContain('Lacznie szablonow')
+    expect(html).toContain('Szablony komunikatów')
+    expect(html).toContain('Łącznie szablonów')
+    expect(html).toContain('Filtry')
     expect(html).toContain('Wersja aktywna: v3')
     expect(html).toContain('Opublikowana v3 i 1 robocza')
+    expect(html).toContain('Otwórz')
   })
 
   it('renders a friendly empty state when there are no templates', () => {
@@ -155,8 +157,8 @@ describe('Communication templates admin UX', () => {
       />,
     )
 
-    expect(html).toContain('Brak szablonow komunikatow')
-    expect(html).toContain('Utworz pierwszy szablon')
+    expect(html).toContain('Brak szablonów komunikatów')
+    expect(html).toContain('Utwórz pierwszy szablon')
   })
 
   it('renders detail sections for operational version, drafts, history and placeholders', () => {
@@ -179,10 +181,11 @@ describe('Communication templates admin UX', () => {
       />,
     )
 
-    expect(html).toContain('Aktualnie uzywane operacyjnie')
+    expect(html).toContain('Aktualnie opublikowana wersja')
     expect(html).toContain('Wersje robocze')
-    expect(html).toContain('Historia wersji')
-    expect(html).toContain('Dostepne placeholdery')
+    expect(html).toContain('Wersje archiwalne')
+    expect(html).toContain('Metadane szablonu')
+    expect(html).toContain('Dostępne placeholdery')
     expect(html).toContain('Archiwizuj')
   })
 
@@ -244,7 +247,7 @@ describe('Communication templates admin UX', () => {
     expect(editorHtml).toContain('Wykryto nieznane placeholdery')
     expect(editorHtml).toContain('Wersja nie jest gotowa do publikacji.')
     expect(editorHtml).not.toContain('Nazwa biznesowa jest wymagana.')
-    expect(modalHtml).toContain('Opublikowac te wersje?')
+    expect(modalHtml).toContain('Opublikować tę wersję?')
   })
 
   it('renders preview modal with real-case context and keeps test preview flow intact', () => {
@@ -274,7 +277,7 @@ describe('Communication templates admin UX', () => {
     const testHtml = renderToStaticMarkup(
       <CommunicationTemplatePreviewModal
         isOpen
-        title="Podglad testowy"
+        title="Podgląd testowy"
         subtitle="Dane testowe"
         preview={testPreview}
         mode="TEST"
@@ -283,7 +286,7 @@ describe('Communication templates admin UX', () => {
         isRealCaseAvailable={false}
         isRealCaseLoading={false}
         realCaseError={null}
-        realCaseHelpText="Zapisz wersje robocza, aby uruchomic preview na realnej sprawie."
+        realCaseHelpText="Zapisz wersję roboczą, aby uruchomić podgląd na realnej sprawie."
         onModeChange={vi.fn()}
         onRealCaseReferenceChange={vi.fn()}
         onRunRealCasePreview={vi.fn()}
@@ -294,7 +297,7 @@ describe('Communication templates admin UX', () => {
     const realHtml = renderToStaticMarkup(
       <CommunicationTemplatePreviewModal
         isOpen
-        title="Podglad real-case"
+        title="Podgląd na realnej sprawie"
         subtitle="Realna sprawa"
         preview={realPreview}
         mode="REAL"
@@ -302,8 +305,8 @@ describe('Communication templates admin UX', () => {
         realCaseLabel="FNP-SEED-COMM-DRAFT-001"
         isRealCaseAvailable
         isRealCaseLoading={false}
-        realCaseError="Nie znaleziono wskazanej sprawy do preview szablonu."
-        realCaseHelpText="Preview real-case nie zapisuje komunikacji."
+        realCaseError="Nie znaleziono wskazanej sprawy do podglądu szablonu."
+        realCaseHelpText="Podgląd na realnej sprawie nie zapisuje komunikacji."
         onModeChange={vi.fn()}
         onRealCaseReferenceChange={vi.fn()}
         onRunRealCasePreview={vi.fn()}
@@ -313,8 +316,8 @@ describe('Communication templates admin UX', () => {
 
     expect(testHtml).toContain('Dane testowe')
     expect(testHtml).toContain('Temat FNP-ADMIN-001')
-    expect(realHtml).toContain('Preview realnej sprawy')
+    expect(realHtml).toContain('Podgląd na realnej sprawie')
     expect(realHtml).toContain('FNP-SEED-COMM-DRAFT-001')
-    expect(realHtml).toContain('Nie znaleziono wskazanej sprawy do preview szablonu.')
+    expect(realHtml).toContain('Nie znaleziono wskazanej sprawy do podglądu szablonu.')
   })
 })

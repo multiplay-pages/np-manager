@@ -7,6 +7,7 @@ import {
 } from '@np-manager/shared'
 import type { CommunicationTemplatePreviewResult } from '@/lib/communicationTemplates'
 import { getSupportedCommunicationTemplateChannelOptions } from '@/lib/communicationTemplateAdmin'
+import { AlertBanner, Badge, Button, DataField, PageHeader, SectionCard } from '@/components/ui'
 import { CommunicationTemplatePlaceholdersCard } from './CommunicationTemplatePlaceholdersCard'
 import { CommunicationTemplateValidationPanel } from './CommunicationTemplateValidationPanel'
 import type {
@@ -64,8 +65,8 @@ export function CommunicationTemplateEditor({
     bodyTemplate: false,
   })
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
-  const subjectError = !form.subjectTemplate.trim() ? 'Temat wiadomosci jest wymagany.' : null
-  const bodyError = !form.bodyTemplate.trim() ? 'Tresc wiadomosci jest wymagana.' : null
+  const subjectError = !form.subjectTemplate.trim() ? 'Temat wiadomości jest wymagany.' : null
+  const bodyError = !form.bodyTemplate.trim() ? 'Treść wiadomości jest wymagana.' : null
   const nameError = !form.name.trim() ? 'Nazwa biznesowa jest wymagana.' : null
   const shouldShowNameError = !!nameError && (hasAttemptedSubmit || touchedFields.name)
   const shouldShowSubjectError = !!subjectError && (hasAttemptedSubmit || touchedFields.subjectTemplate)
@@ -78,7 +79,7 @@ export function CommunicationTemplateEditor({
       return null
     }
 
-    return 'Uzupelnij wymagane pola przed zapisem lub publikacja.'
+    return 'Uzupełnij wymagane pola przed zapisem lub publikacją.'
   }, [hasAttemptedSubmit, hasRequiredFieldErrors])
 
   useEffect(() => {
@@ -119,39 +120,32 @@ export function CommunicationTemplateEditor({
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl font-semibold tracking-tight text-gray-900">{title}</h1>
-          <p className="mt-3 text-sm leading-6 text-gray-600">{subtitle}</p>
-        </div>
-
-        <button type="button" onClick={onCancel} className="btn-secondary">
-          Anuluj
-        </button>
-      </div>
+      <PageHeader
+        eyebrow="Edycja szablonu"
+        title={title}
+        description={subtitle}
+        actions={
+          <Button type="button" onClick={onCancel}>
+            Anuluj
+          </Button>
+        }
+      />
 
       {feedbackSuccess && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {feedbackSuccess}
-        </div>
+        <AlertBanner tone="success" title="Wersja robocza zapisana" description={feedbackSuccess} />
       )}
 
       {(feedbackError || validationFeedbackError) && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {feedbackError ?? validationFeedbackError}
-        </div>
+        <AlertBanner tone="danger" title="Nie można kontynuować" description={feedbackError ?? validationFeedbackError} />
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1.45fr,0.95fr]">
         <div className="space-y-6">
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Dane podstawowe</h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Te dane identyfikuja szablon i porzadkuja komunikacje po stronie administracyjnej.
-              </p>
-            </div>
-
+          <SectionCard
+            title="Dane podstawowe"
+            description="Te dane identyfikują szablon i porządkują komunikację po stronie administracyjnej."
+            padding="md"
+          >
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="block">
                 <span className="label">Nazwa biznesowa</span>
@@ -161,7 +155,7 @@ export function CommunicationTemplateEditor({
                   onChange={(event) => onChange('name', event.target.value)}
                   onBlur={() => markFieldTouched('name')}
                   className={`input-field ${shouldShowNameError ? 'input-error' : ''}`}
-                  placeholder="Np. Potwierdzenie przyjecia sprawy"
+                  placeholder="Np. Potwierdzenie przyjęcia sprawy"
                 />
                 {shouldShowNameError && <p className="error-message">{nameError}</p>}
               </label>
@@ -183,7 +177,7 @@ export function CommunicationTemplateEditor({
               </label>
 
               <label className="block">
-                <span className="label">Kanal</span>
+                <span className="label">Kanał</span>
                 <select
                   value={form.channel}
                   onChange={(event) => onChange('channel', event.target.value as ContactChannel)}
@@ -199,25 +193,21 @@ export function CommunicationTemplateEditor({
               </label>
 
               <label className="block">
-                <span className="label">Opis wewnetrzny</span>
+                <span className="label">Opis wewnętrzny</span>
                 <textarea
                   value={form.description}
                   onChange={(event) => onChange('description', event.target.value)}
                   className="input-field min-h-[108px]"
-                  placeholder="Krotki opis dla administratora i QA"
+                  placeholder="Krótki opis dla administratora i QA"
                 />
               </label>
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Temat wiadomosci</h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Mozesz uzywac placeholderow, np. {'{{portedNumber}}'} lub {'{{plannedPortDate}}'}.
-              </p>
-            </div>
-
+          <SectionCard
+            title="Temat wiadomości"
+            description={<>Możesz używać placeholderów, np. {'{{portedNumber}}'} lub {'{{plannedPortDate}}'}.</>}
+          >
             <textarea
               value={form.subjectTemplate}
               onChange={(event) => onChange('subjectTemplate', event.target.value)}
@@ -226,110 +216,91 @@ export function CommunicationTemplateEditor({
               placeholder="Np. Sprawa {{caseNumber}} - aktualizacja procesu"
             />
             {shouldShowSubjectError && <p className="error-message">{subjectError}</p>}
-          </section>
+          </SectionCard>
 
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Tresc wiadomosci</h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Tresc zostanie wyrenderowana z danymi sprawy podczas tworzenia draftu.
-              </p>
-            </div>
-
+          <SectionCard
+            title="Treść wiadomości"
+            description="Treść zostanie wyrenderowana z danymi sprawy podczas przygotowania komunikatu."
+          >
             <textarea
               value={form.bodyTemplate}
               onChange={(event) => onChange('bodyTemplate', event.target.value)}
               onBlur={() => markFieldTouched('bodyTemplate')}
               className={`input-field min-h-[340px] font-mono ${shouldShowBodyError ? 'input-error' : ''}`}
-              placeholder={'Dzien dobry {{clientName}},\n\nnumer sprawy: {{caseNumber}}'}
+              placeholder={'Dzień dobry {{clientName}},\n\nnumer sprawy: {{caseNumber}}'}
             />
             {shouldShowBodyError && <p className="error-message">{bodyError}</p>}
 
             <div className="mt-5 space-y-3">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                {preview.usedPlaceholders.length > 0 ? (
-                  <>
-                    Wykryte placeholdery:{' '}
-                    {preview.usedPlaceholders.map((item) => `{{${item}}}`).join(', ')}
-                  </>
-                ) : (
-                  'W tej wersji nie wykryto placeholderow.'
-                )}
-              </div>
+                <AlertBanner
+                  tone="neutral"
+                  title="Placeholdery w tej wersji"
+                  description={
+                    preview.usedPlaceholders.length > 0
+                      ? preview.usedPlaceholders.map((item) => `{{${item}}}`).join(', ')
+                      : 'W tej wersji nie wykryto placeholderów.'
+                  }
+                />
 
               {preview.unknownPlaceholders.length > 0 && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Wykryto nieznane placeholdery:{' '}
-                  {preview.unknownPlaceholders.map((item) => `{{${item}}}`).join(', ')}
-                </div>
+                <AlertBanner
+                  tone="warning"
+                  title="Nieznane placeholdery"
+                  description={preview.unknownPlaceholders.map((item) => `{{${item}}}`).join(', ')}
+                />
               )}
             </div>
-          </section>
+          </SectionCard>
 
-          <div className="sticky bottom-0 z-10 rounded-3xl border border-gray-200 bg-white/95 p-4 shadow-xl backdrop-blur">
+          <div className="sticky bottom-0 z-10 rounded-panel border border-line bg-surface/95 p-4 shadow-panel backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-ink-600">
+                <Badge tone={isPublishReady ? 'green' : 'amber'} leadingDot>
+                  {isPublishReady ? 'Gotowa do publikacji' : 'Wymaga uwagi'}
+                </Badge>
                 {isPublishReady
                   ? 'Wersja jest gotowa do publikacji.'
-                  : 'Przed publikacja popraw walidacje widoczne po prawej stronie.'}
+                  : 'Przed publikacją popraw walidację widoczną po prawej stronie.'}
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                <button
+              <div className="flex flex-wrap gap-2">
+                <Button
                   type="button"
                   onClick={handleSaveClick}
-                  className="btn-secondary"
-                  disabled={isSaving || isPublishing}
+                  disabled={isPublishing}
+                  isLoading={isSaving}
+                  loadingLabel="Zapisywanie..."
                 >
-                  {isSaving ? 'Zapisywanie...' : 'Zapisz draft'}
-                </button>
-                <button type="button" onClick={onPreview} className="btn-secondary" disabled={isSaving || isPublishing}>
-                  Podglad
-                </button>
-                <button
+                  Zapisz wersję roboczą
+                </Button>
+                <Button type="button" onClick={onPreview} disabled={isSaving || isPublishing}>
+                  Podgląd
+                </Button>
+                <Button
                   type="button"
                   onClick={handlePublishClick}
-                  className="btn-primary"
+                  variant="primary"
                   disabled={!isPublishReady || isSaving || isPublishing}
                 >
-                  {isPublishing ? 'Publikowanie...' : 'Publikuj'}
-                </button>
-                <button type="button" onClick={onCancel} className="btn-secondary" disabled={isSaving || isPublishing}>
+                  Publikuj
+                </Button>
+                <Button type="button" onClick={onCancel} disabled={isSaving || isPublishing}>
                   Anuluj
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
-              Status wersji
-            </h2>
-            <div className="mt-4 space-y-3 text-sm text-gray-700">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Wersja</div>
-                <div className="mt-1 text-base font-medium text-gray-900">{statusInfo.versionLabel}</div>
-              </div>
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Status</div>
-                <div className="mt-1 text-base font-medium text-gray-900">{statusInfo.statusLabel}</div>
-              </div>
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Ostatnia edycja</div>
-                <div className="mt-1 text-base font-medium text-gray-900">
-                  {statusInfo.lastEditedAt ?? 'Jeszcze nie zapisano'}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Autor</div>
-                <div className="mt-1 text-base font-medium text-gray-900">
-                  {statusInfo.lastEditedByDisplayName ?? 'Biezacy administrator'}
-                </div>
-              </div>
-            </div>
-          </section>
+          <SectionCard title="Status wersji" description="Bieżący stan edytowanej wersji szablonu.">
+            <dl className="space-y-3">
+              <DataField label="Wersja" value={statusInfo.versionLabel} />
+              <DataField label="Status" value={statusInfo.statusLabel} />
+              <DataField label="Ostatnia edycja" value={statusInfo.lastEditedAt ?? 'Jeszcze nie zapisano'} />
+              <DataField label="Autor" value={statusInfo.lastEditedByDisplayName ?? 'Bieżący administrator'} />
+            </dl>
+          </SectionCard>
 
           <CommunicationTemplatePlaceholdersCard code={form.code} />
 
@@ -340,30 +311,27 @@ export function CommunicationTemplateEditor({
             showRequiredFieldIssues={hasAttemptedSubmit}
           />
 
-          <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-500">
-              Szybki podglad
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              Podglad korzysta z testowych danych biznesowych i pomaga ocenic tonalnosc komunikatu.
-            </p>
-            <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Temat</div>
-              <p className="mt-2 text-sm text-gray-800">
+          <SectionCard
+            title="Szybki podgląd"
+            description="Podgląd korzysta z testowych danych biznesowych i pomaga ocenić ton komunikatu."
+          >
+            <div className="rounded-panel border border-line bg-ink-50/60 px-4 py-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">Temat</div>
+              <p className="mt-2 text-sm text-ink-800">
                 {preview.renderedSubject || 'Brak tematu.'}
               </p>
             </div>
-            <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Tresc</div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-800">
-                {preview.renderedBody.slice(0, 280) || 'Brak tresci.'}
+            <div className="mt-4 rounded-panel border border-line bg-ink-50/60 px-4 py-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">Treść</div>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-800">
+                {preview.renderedBody.slice(0, 280) || 'Brak treści.'}
                 {preview.renderedBody.length > 280 ? '...' : ''}
               </p>
             </div>
-            <button type="button" onClick={onPreview} className="btn-secondary mt-4">
-              Otworz pelny podglad
-            </button>
-          </section>
+            <Button type="button" onClick={onPreview} className="mt-4">
+              Otwórz pełny podgląd
+            </Button>
+          </SectionCard>
         </div>
       </div>
     </div>

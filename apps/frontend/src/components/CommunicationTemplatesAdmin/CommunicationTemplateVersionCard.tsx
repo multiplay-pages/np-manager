@@ -1,10 +1,10 @@
 import { CONTACT_CHANNEL_LABELS, type ContactChannel } from '@np-manager/shared'
 import {
-  getCommunicationTemplateStatusClasses,
   getCommunicationTemplateStatusLabel,
   type CommunicationTemplateUiStatus,
   type CommunicationTemplateVersionView,
 } from '@/lib/communicationTemplates'
+import { Badge, Button, DataField, type BadgeTone } from '@/components/ui'
 
 interface CommunicationTemplateVersionCardProps {
   version: CommunicationTemplateVersionView
@@ -37,14 +37,11 @@ function getChannelLabel(channel: ContactChannel): string {
   return CONTACT_CHANNEL_LABELS[channel] ?? channel
 }
 
-function StatusBadge({ status }: { status: CommunicationTemplateUiStatus }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getCommunicationTemplateStatusClasses(status)}`}
-    >
-      {getCommunicationTemplateStatusLabel(status)}
-    </span>
-  )
+function getStatusTone(status: CommunicationTemplateUiStatus): BadgeTone {
+  if (status === 'PUBLISHED') return 'green'
+  if (status === 'DRAFT') return 'amber'
+  if (status === 'ARCHIVED') return 'neutral'
+  return 'orange'
 }
 
 export function CommunicationTemplateVersionCard({
@@ -61,80 +58,70 @@ export function CommunicationTemplateVersionCard({
 }: CommunicationTemplateVersionCardProps) {
   return (
     <article
-      className={`rounded-3xl border p-5 shadow-sm ${
-        highlight ? 'border-green-200 bg-green-50/60' : 'border-gray-200 bg-white'
+      className={`rounded-panel border p-5 ${
+        highlight ? 'border-emerald-200 bg-emerald-50/50' : 'border-line bg-surface'
       }`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
-            <StatusBadge status={version.uiStatus} />
-            <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">
-              v{version.versionNumber}
-            </span>
+            {title && <h3 className="text-lg font-semibold text-ink-900">{title}</h3>}
+            <Badge tone={getStatusTone(version.uiStatus)} leadingDot>
+              {getCommunicationTemplateStatusLabel(version.uiStatus)}
+            </Badge>
+            <Badge tone="brand">v{version.versionNumber}</Badge>
           </div>
-          {subtitle && <p className="mt-2 text-sm leading-6 text-gray-600">{subtitle}</p>}
+          {subtitle && <p className="mt-2 text-sm leading-6 text-ink-600">{subtitle}</p>}
         </div>
 
-        <button type="button" onClick={() => onPreview?.(version)} className="btn-secondary">
-          Podglad
-        </button>
+        {onPreview && (
+          <Button type="button" onClick={() => onPreview(version)} size="sm">
+            Podgląd
+          </Button>
+        )}
       </div>
 
-      <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Kanal</dt>
-          <dd className="mt-1 text-gray-800">{getChannelLabel(version.channel)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Ostatnia zmiana</dt>
-          <dd className="mt-1 text-gray-800">{formatDateTime(version.updatedAt)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Autor</dt>
-          <dd className="mt-1 text-gray-800">{version.updatedByDisplayName ?? 'Brak danych'}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Temat</dt>
-          <dd className="mt-1 line-clamp-2 text-gray-800">{version.subjectTemplate || 'Brak tematu'}</dd>
-        </div>
+      <dl className="mt-5 grid gap-4 rounded-panel border border-line bg-ink-50/60 p-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+        <DataField label="Kanał" value={getChannelLabel(version.channel)} />
+        <DataField label="Ostatnia zmiana" value={formatDateTime(version.updatedAt)} />
+        <DataField label="Autor" value={version.updatedByDisplayName ?? 'Brak danych'} />
+        <DataField label="Temat" value={version.subjectTemplate || 'Brak tematu'} />
       </dl>
 
-      <div className="mt-5 rounded-2xl border border-gray-200 bg-white px-4 py-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Fragment tresci</div>
-        <p className="mt-2 text-sm leading-6 text-gray-700">{version.excerpt || 'Brak tresci.'}</p>
+      <div className="mt-5 rounded-panel border border-line bg-surface px-4 py-4">
+        <div className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-400">Fragment treści</div>
+        <p className="mt-2 text-sm leading-6 text-ink-700">{version.excerpt || 'Brak treści.'}</p>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-3">
+      <div className="mt-5 flex flex-wrap gap-2">
         {onEdit && version.uiStatus === 'DRAFT' && (
-          <button type="button" onClick={() => onEdit(version)} className="btn-primary">
+          <Button type="button" onClick={() => onEdit(version)} variant="primary" size="sm">
             Edytuj
-          </button>
+          </Button>
         )}
 
         {onPublish && version.uiStatus === 'DRAFT' && (
-          <button type="button" onClick={() => onPublish(version)} className="btn-primary">
+          <Button type="button" onClick={() => onPublish(version)} variant="primary" size="sm">
             Publikuj
-          </button>
+          </Button>
         )}
 
         {onArchive && version.uiStatus === 'DRAFT' && (
-          <button type="button" onClick={() => onArchive(version)} className="btn-secondary">
+          <Button type="button" onClick={() => onArchive(version)} size="sm">
             Archiwizuj
-          </button>
+          </Button>
         )}
 
         {onClone && (
-          <button type="button" onClick={() => onClone(version)} className="btn-secondary">
-            Sklonuj do nowej wersji roboczej
-          </button>
+          <Button type="button" onClick={() => onClone(version)} size="sm">
+            Sklonuj do wersji roboczej
+          </Button>
         )}
 
         {onDetails && (
-          <button type="button" onClick={() => onDetails(version)} className="btn-secondary">
-            Szczegoly
-          </button>
+          <Button type="button" onClick={() => onDetails(version)} size="sm">
+            Szczegóły
+          </Button>
         )}
       </div>
     </article>

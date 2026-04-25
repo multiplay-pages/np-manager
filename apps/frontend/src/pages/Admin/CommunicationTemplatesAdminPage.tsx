@@ -46,6 +46,7 @@ import {
   type CommunicationTemplateEditorFormState,
   type CommunicationTemplateEditorStatusInfo,
 } from '@/components/CommunicationTemplatesAdmin'
+import { EmptyState, SectionCard } from '@/components/ui'
 
 type AdminMode = 'LIST' | 'DETAIL' | 'NEW' | 'EDIT'
 
@@ -204,13 +205,13 @@ function createInitialPublishState(): PublishModalState {
 function AdminAccessDeniedState() {
   return (
     <div className="p-6">
-      <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Szablony komunikatow</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-          Ten widok jest dostepny wylacznie dla administratora. Jesli potrzebujesz dostepu,
-          skontaktuj sie z wlascicielem systemu.
-        </p>
-      </div>
+      <SectionCard padding="none">
+        <EmptyState
+          title="Brak dostępu do administracji"
+          description="Ten widok jest dostępny wyłącznie dla administratora. Jeśli potrzebujesz dostępu, skontaktuj się z właścicielem systemu."
+          className="border-0 bg-transparent"
+        />
+      </SectionCard>
     </div>
   )
 }
@@ -304,7 +305,7 @@ export function CommunicationTemplatesAdminPage() {
       setPageError(null)
     } catch (error) {
       setTemplateItems([])
-      setPageError(getTemplateErrorMessage(error, 'Nie udalo sie pobrac szablonow komunikatow.'))
+      setPageError(getTemplateErrorMessage(error, 'Nie udało się pobrać szablonów komunikatów.'))
     } finally {
       setIsListLoading(false)
     }
@@ -320,7 +321,7 @@ export function CommunicationTemplatesAdminPage() {
       return template
     } catch (error) {
       setSelectedTemplate(null)
-      setPageError(getTemplateErrorMessage(error, 'Nie udalo sie pobrac szczegolow szablonu komunikatu.'))
+      setPageError(getTemplateErrorMessage(error, 'Nie udało się pobrać szczegółów szablonu komunikatu.'))
       return null
     } finally {
       setIsDetailLoading(false)
@@ -446,7 +447,7 @@ export function CommunicationTemplatesAdminPage() {
     if (!reference) {
       setPreviewState((current) => ({
         ...current,
-        realCaseError: 'Podaj numer sprawy albo ID sprawy do preview real-case.',
+        realCaseError: 'Podaj numer sprawy albo ID sprawy do podglądu na realnej sprawie.',
       }))
       return
     }
@@ -473,7 +474,7 @@ export function CommunicationTemplatesAdminPage() {
       setPreviewState((current) => ({
         ...current,
         isRealCaseLoading: false,
-        realCaseError: getTemplateErrorMessage(error, 'Nie udalo sie przygotowac preview dla wskazanej sprawy.'),
+        realCaseError: getTemplateErrorMessage(error, 'Nie udało się przygotować podglądu dla wskazanej sprawy.'),
       }))
     }
   }
@@ -517,7 +518,7 @@ export function CommunicationTemplatesAdminPage() {
     } catch (error) {
       setFeedback({
         success: null,
-        error: getTemplateErrorMessage(error, 'Nie udalo sie utworzyc nowej wersji roboczej.'),
+        error: getTemplateErrorMessage(error, 'Nie udało się utworzyć nowej wersji roboczej.'),
       })
     }
   }
@@ -557,7 +558,7 @@ export function CommunicationTemplatesAdminPage() {
     } catch (error) {
       setFeedback({
         success: null,
-        error: getTemplateErrorMessage(error, 'Nie udalo sie sklonowac wersji do nowego draftu.'),
+        error: getTemplateErrorMessage(error, 'Nie udało się sklonować wersji do nowej wersji roboczej.'),
       })
     }
   }
@@ -575,19 +576,19 @@ export function CommunicationTemplatesAdminPage() {
     } catch (error) {
       setFeedback({
         success: null,
-        error: getTemplateErrorMessage(error, 'Nie udalo sie zarchiwizowac wersji.'),
+        error: getTemplateErrorMessage(error, 'Nie udało się zarchiwizować wersji.'),
       })
     }
   }
 
   const handleOpenVersionPreview = (version: CommunicationTemplateVersionView) => {
     openPreview({
-      title: `${version.name} - podglad`,
+      title: `${version.name} - podgląd`,
       subtitle: `Wersja v${version.versionNumber} · ${version.status === 'PUBLISHED' ? 'opublikowana' : version.status === 'DRAFT' ? 'robocza' : 'archiwalna'}`,
       subjectTemplate: version.subjectTemplate,
       bodyTemplate: version.bodyTemplate,
       versionId: version.id,
-      realCaseHelpText: 'Preview real-case nie zapisuje komunikacji i sluzy tylko do bezpiecznego sprawdzenia renderu.',
+      realCaseHelpText: 'Podgląd na realnej sprawie nie zapisuje komunikacji i służy tylko do bezpiecznego sprawdzenia treści.',
     })
   }
 
@@ -673,7 +674,7 @@ export function CommunicationTemplatesAdminPage() {
     } catch (error) {
       setFeedback({
         success: null,
-        error: getTemplateErrorMessage(error, 'Nie udalo sie zapisac wersji roboczej.'),
+        error: getTemplateErrorMessage(error, 'Nie udało się zapisać wersji roboczej.'),
       })
     } finally {
       setIsSaving(false)
@@ -682,14 +683,14 @@ export function CommunicationTemplatesAdminPage() {
 
   const handleOpenEditorPreview = () => {
     openPreview({
-      title: editorForm.name.trim() || 'Podglad wersji roboczej',
-      subtitle: 'Podglad na danych testowych. Dla zapisanych wersji mozesz uruchomic tez preview na realnej sprawie.',
+      title: editorForm.name.trim() || 'Podgląd wersji roboczej',
+      subtitle: 'Podgląd na danych testowych. Dla zapisanych wersji możesz uruchomić też podgląd na realnej sprawie.',
       subjectTemplate: editorForm.subjectTemplate,
       bodyTemplate: editorForm.bodyTemplate,
       versionId: editorForm.id,
       realCaseHelpText: editorForm.id
-        ? 'Preview real-case sprawdza zapisany stan wersji backendowej.'
-        : 'Zapisz wersje robocza, aby uruchomic preview na realnej sprawie.',
+        ? 'Podgląd na realnej sprawie sprawdza zapisany stan wersji.'
+        : 'Zapisz wersję roboczą, aby uruchomić podgląd na realnej sprawie.',
     })
   }
 
@@ -719,7 +720,7 @@ export function CommunicationTemplatesAdminPage() {
     if (isInvalid) {
       setFeedback({
         success: null,
-        error: 'Nie mozna opublikowac wersji z bledami walidacji.',
+        error: 'Nie można opublikować wersji z błędami walidacji.',
       })
       return
     }
@@ -741,7 +742,7 @@ export function CommunicationTemplatesAdminPage() {
     if (!version.subjectTemplate.trim() || !version.bodyTemplate.trim() || preview.unknownPlaceholders.length > 0) {
       setFeedback({
         success: null,
-        error: 'Nie mozna opublikowac wersji z bledami walidacji.',
+        error: 'Nie można opublikować wersji z błędami walidacji.',
       })
       return
     }
@@ -785,7 +786,7 @@ export function CommunicationTemplatesAdminPage() {
       setPublishError(
         getTemplateErrorMessage(
           error,
-          'Nie udalo sie opublikowac wersji. Widok zostal odswiezony zgodnie z aktualnym stanem danych.',
+          'Nie udało się opublikować wersji. Widok został odświeżony zgodnie z aktualnym stanem danych.',
         ),
       )
       await refreshCurrentTemplate(publishState.code)
@@ -897,8 +898,8 @@ export function CommunicationTemplatesAdminPage() {
         title={mode === 'NEW' ? 'Nowy szablon komunikatu' : 'Edycja wersji roboczej'}
         subtitle={
           mode === 'NEW'
-            ? 'Przygotuj nowy szablon i zapisz go jako wersje robocza. Publikacja jest osobna, swiadoma akcja.'
-            : 'Pracujesz na wersji roboczej. Opublikowana wersja pozostaje bezpieczna, dopoki nie zatwierdzisz zmian.'
+            ? 'Przygotuj nowy szablon i zapisz go jako wersję roboczą. Publikacja jest osobną, świadomą akcją.'
+            : 'Pracujesz na wersji roboczej. Opublikowana wersja pozostaje aktywna, dopóki nie zatwierdzisz zmian.'
         }
         form={editorForm}
         statusInfo={editorStatusInfo}
