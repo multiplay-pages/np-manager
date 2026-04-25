@@ -64,7 +64,7 @@ describe('SystemModeSettingsPage', () => {
     const html = renderToStaticMarkup(<SystemModeSettingsPage />)
 
     expect(html).toContain('Tryb systemu i PLI CBD')
-    expect(html).toContain('Ladowanie ustawien...')
+    expect(html).toContain('Ładowanie ustawień...')
   })
 
   it('blocks non-admin users from admin settings view', () => {
@@ -79,8 +79,8 @@ describe('SystemModeSettingsPage', () => {
 
     const html = renderToStaticMarkup(<SystemModeSettingsPage />)
 
-    expect(html).toContain('Brak dostepu do administracji')
-    expect(html).toContain('Ta sekcja jest dostepna tylko dla administratora systemu.')
+    expect(html).toContain('Brak dostępu do administracji')
+    expect(html).toContain('Ta sekcja jest dostępna tylko dla administratora systemu.')
   })
 
   it('validates optional endpoint URL syntactically', () => {
