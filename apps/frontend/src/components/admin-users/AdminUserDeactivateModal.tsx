@@ -1,4 +1,5 @@
-import { Button } from '@/components/ui'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertBanner, Button } from '@/components/ui'
 
 interface AdminUserDeactivateModalProps {
   isOpen: boolean
@@ -15,8 +16,33 @@ export function AdminUserDeactivateModal({
   onClose,
   onConfirm,
 }: AdminUserDeactivateModalProps) {
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const isConfirmed = useMemo(
+    () => confirmEmail.trim().toLowerCase() === email.trim().toLowerCase(),
+    [confirmEmail, email],
+  )
+
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmEmail('')
+    }
+  }, [isOpen])
+
   if (!isOpen) {
     return null
+  }
+
+  const handleClose = () => {
+    setConfirmEmail('')
+    onClose()
+  }
+
+  const handleConfirm = () => {
+    if (!isConfirmed) {
+      return
+    }
+
+    onConfirm()
   }
 
   return (
@@ -26,13 +52,12 @@ export function AdminUserDeactivateModal({
           <div>
             <h2 className="text-xl font-semibold text-ink-900">Potwierdź dezaktywację konta</h2>
             <p className="mt-2 text-sm leading-6 text-ink-600">
-              Konto <span className="font-medium">{email}</span> zostanie dezaktywowane, a
-              użytkownik utraci możliwość logowania do aplikacji do czasu ponownej aktywacji.
+              Konto <span className="font-medium">{email}</span> zostanie dezaktywowane.
             </p>
           </div>
           <Button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             variant="ghost"
             size="sm"
             disabled={isSaving}
@@ -42,10 +67,38 @@ export function AdminUserDeactivateModal({
           </Button>
         </div>
 
+        <AlertBanner
+          className="mt-5"
+          tone="danger"
+          title="To ryzykowna akcja administracyjna"
+          description={
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Użytkownik straci możliwość logowania.</li>
+              <li>Konto nie zostanie usunięte.</li>
+              <li>Historię i audyt nadal będzie można odczytać.</li>
+              <li>Konto można później reaktywować.</li>
+            </ul>
+          }
+        />
+
+        <label className="mt-5 block">
+          <span className="label">Aby potwierdzić, wpisz adres e-mail użytkownika.</span>
+          <input
+            type="email"
+            value={confirmEmail}
+            onChange={(event) => setConfirmEmail(event.target.value)}
+            className="input-field"
+            placeholder={email}
+            autoComplete="off"
+            disabled={isSaving}
+            data-testid="admin-user-deactivate-confirm-email"
+          />
+        </label>
+
         <div className="mt-6 flex justify-end gap-3">
           <Button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSaving}
             data-testid="admin-user-deactivate-cancel"
           >
@@ -53,13 +106,14 @@ export function AdminUserDeactivateModal({
           </Button>
           <Button
             type="button"
-            onClick={onConfirm}
-            variant="primary"
+            onClick={handleConfirm}
+            variant="danger"
+            disabled={!isConfirmed}
             isLoading={isSaving}
             loadingLabel="Dezaktywowanie..."
             data-testid="admin-user-deactivate-confirm"
           >
-            Potwierdź dezaktywację
+            Dezaktywuj konto
           </Button>
         </div>
       </div>

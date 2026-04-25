@@ -40,6 +40,18 @@ export function AdminUserPasswordResetModal({
           </Button>
         </div>
 
+        <AlertBanner
+          className="mt-5"
+          tone="warning"
+          title="Reset hasła ustawi nowe hasło tymczasowe."
+          description={
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Użytkownik będzie musiał zmienić hasło przy kolejnym logowaniu.</li>
+              <li>Nie wysyłaj hasła kanałem publicznym.</li>
+            </ul>
+          }
+        />
+
         <label className="mt-6 block">
           <span className="label">Hasło tymczasowe</span>
           <input

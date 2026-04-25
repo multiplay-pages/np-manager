@@ -1,12 +1,15 @@
+// @vitest-environment jsdom
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AdminUserDetailDto, AdminUserListItemDto } from '@np-manager/shared'
 import { buildAdminAuditEntryView } from '@/lib/adminUsers'
 import { AdminUserDeactivateModal } from './AdminUserDeactivateModal'
 import { AdminUserDetail } from './AdminUserDetail'
 import { AdminUserForm } from './AdminUserForm'
 import { AdminUsersList } from './AdminUsersList'
+import { AdminUserPasswordResetModal } from './AdminUserPasswordResetModal'
 
 const LIST_USERS: AdminUserListItemDto[] = [
   {
@@ -100,6 +103,10 @@ function findButtonByText(tree: ReactNode, label: string): ReactElement | undefi
 }
 
 describe('Admin users module UI', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   it('renders users list with summary cards, filters and rows', () => {
     const html = renderToStaticMarkup(
       <AdminUsersList
@@ -388,7 +395,7 @@ describe('Admin users module UI', () => {
     expect(onOpenDeactivateModal).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the deactivate confirmation modal with Polish copy', () => {
+  it('renders the deactivate confirmation modal with consequences and type-to-confirm copy', () => {
     const html = renderToStaticMarkup(
       <AdminUserDetail
         user={DETAIL_USER}
@@ -421,47 +428,187 @@ describe('Admin users module UI', () => {
     )
 
     expect(html).toContain('Potwierdź dezaktywację konta')
-    expect(html).toContain('użytkownik utraci możliwość logowania do aplikacji')
-    expect(html).toContain('Potwierdź dezaktywację')
+    expect(html).toContain('Użytkownik straci możliwość logowania.')
+    expect(html).toContain('Konto nie zostanie usunięte.')
+    expect(html).toContain('Historię i audyt nadal będzie można odczytać.')
+    expect(html).toContain('Konto można później reaktywować.')
+    expect(html).toContain('Aby potwierdzić, wpisz adres e-mail użytkownika.')
+    expect(html).toContain('Dezaktywuj konto')
   })
 
   it('does not trigger deactivation when the modal is cancelled', () => {
     const onClose = vi.fn()
     const onConfirm = vi.fn()
-    const tree = AdminUserDeactivateModal({
-      isOpen: true,
-      email: DETAIL_USER.email,
-      isSaving: false,
-      onClose,
-      onConfirm,
-    })
 
-    const cancelButton = findButtonByText(tree, 'Anuluj')
+    render(
+      <AdminUserDeactivateModal
+        isOpen
+        email={DETAIL_USER.email}
+        isSaving={false}
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />,
+    )
 
-    expect(cancelButton).toBeDefined()
-    ;(cancelButton?.props as { onClick?: () => void }).onClick?.()
+    fireEvent.click(screen.getByTestId('admin-user-deactivate-cancel'))
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
-  it('triggers deactivation when the modal confirmation is accepted', () => {
+  it('keeps deactivation disabled until the typed email matches', () => {
     const onClose = vi.fn()
     const onConfirm = vi.fn()
-    const tree = AdminUserDeactivateModal({
-      isOpen: true,
-      email: DETAIL_USER.email,
-      isSaving: false,
-      onClose,
-      onConfirm,
-    })
 
-    const confirmButton = findButtonByText(tree, 'Potwierdź dezaktywację')
+    render(
+      <AdminUserDeactivateModal
+        isOpen
+        email={DETAIL_USER.email}
+        isSaving={false}
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />,
+    )
 
-    expect(confirmButton).toBeDefined()
-    ;(confirmButton?.props as { onClick?: () => void }).onClick?.()
+    const input = screen.getByTestId('admin-user-deactivate-confirm-email')
+    const confirmButton = screen.getByTestId('admin-user-deactivate-confirm') as HTMLButtonElement
 
+    expect(confirmButton.disabled).toBe(true)
+
+    fireEvent.change(input, { target: { value: 'wrong@example.com' } })
+    expect(confirmButton.disabled).toBe(true)
+
+    fireEvent.click(confirmButton)
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    fireEvent.change(input, { target: { value: `  ${DETAIL_USER.email.toUpperCase()}  ` } })
+    expect(confirmButton.disabled).toBe(false)
+
+    fireEvent.click(confirmButton)
     expect(onConfirm).toHaveBeenCalledTimes(1)
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('resets the deactivate confirmation email after closing the modal', () => {
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <AdminUserDeactivateModal
+        isOpen
+        email={DETAIL_USER.email}
+        isSaving={false}
+        onClose={onClose}
+        onConfirm={vi.fn()}
+      />,
+    )
+
+    fireEvent.change(screen.getByTestId('admin-user-deactivate-confirm-email'), {
+      target: { value: DETAIL_USER.email },
+    })
+    expect((screen.getByTestId('admin-user-deactivate-confirm') as HTMLButtonElement).disabled).toBe(
+      false,
+    )
+
+    fireEvent.click(screen.getByTestId('admin-user-deactivate-cancel'))
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <AdminUserDeactivateModal
+        isOpen={false}
+        email={DETAIL_USER.email}
+        isSaving={false}
+        onClose={onClose}
+        onConfirm={vi.fn()}
+      />,
+    )
+    rerender(
+      <AdminUserDeactivateModal
+        isOpen
+        email={DETAIL_USER.email}
+        isSaving={false}
+        onClose={onClose}
+        onConfirm={vi.fn()}
+      />,
+    )
+
+    expect((screen.getByTestId('admin-user-deactivate-confirm-email') as HTMLInputElement).value).toBe(
+      '',
+    )
+    expect((screen.getByTestId('admin-user-deactivate-confirm') as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+  })
+
+  it('renders password reset risk copy for temporary passwords', () => {
+    render(
+      <AdminUserPasswordResetModal
+        isOpen
+        email={DETAIL_USER.email}
+        temporaryPassword=""
+        error={null}
+        isSaving={false}
+        onTemporaryPasswordChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Reset hasła ustawi nowe hasło tymczasowe.')).toBeDefined()
+    expect(
+      screen.getByText('Użytkownik będzie musiał zmienić hasło przy kolejnym logowaniu.'),
+    ).toBeDefined()
+    expect(screen.getByText('Nie wysyłaj hasła kanałem publicznym.')).toBeDefined()
+  })
+
+  it('keeps password reset validation errors visible for empty and short passwords', () => {
+    const { rerender } = render(
+      <AdminUserPasswordResetModal
+        isOpen
+        email={DETAIL_USER.email}
+        temporaryPassword=""
+        error="Haslo tymczasowe jest wymagane."
+        isSaving={false}
+        onTemporaryPasswordChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Haslo tymczasowe jest wymagane.')).toBeDefined()
+
+    rerender(
+      <AdminUserPasswordResetModal
+        isOpen
+        email={DETAIL_USER.email}
+        temporaryPassword="short"
+        error="Haslo tymczasowe musi miec co najmniej 8 znakow."
+        isSaving={false}
+        onTemporaryPasswordChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Haslo tymczasowe musi miec co najmniej 8 znakow.')).toBeDefined()
+  })
+
+  it('submits a valid temporary password through the existing reset handler', () => {
+    const onSubmit = vi.fn()
+
+    render(
+      <AdminUserPasswordResetModal
+        isOpen
+        email={DETAIL_USER.email}
+        temporaryPassword="NewTemp@1234"
+        error={null}
+        isSaving={false}
+        onTemporaryPasswordChange={vi.fn()}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zresetuj hasło' }))
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 })
