@@ -1,6 +1,7 @@
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import { Button } from '@/components/ui/Button'
 import { PortingNotificationSettingsPanel } from './PortingNotificationSettingsPanel'
 
 function collectElements(node: ReactNode): ReactElement[] {
@@ -32,7 +33,7 @@ function findElementByPlaceholder(tree: ReactNode, placeholder: string): ReactEl
 
 function findButtonByText(tree: ReactNode, label: string): ReactElement | undefined {
   return collectElements(tree).find((element) => {
-    if (element.type !== 'button') {
+    if (element.type !== 'button' && element.type !== Button) {
       return false
     }
 
@@ -61,7 +62,7 @@ describe('PortingNotificationSettingsPanel', () => {
       />,
     )
 
-    expect(html).toContain('Ustawienia powiadomien portingowych')
+    expect(html).toContain('Powiadomienia portingowe')
     expect(html).toContain('Ustawienia zapisane.')
     expect(html).toContain('Blad zapisu.')
     expect(html).toContain('REAL')

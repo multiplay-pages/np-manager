@@ -3,6 +3,12 @@ import type {
   AdminSystemModeSettingsDiagnosticsDto,
   SystemMode,
 } from '@np-manager/shared'
+import { AlertBanner } from '@/components/ui/AlertBanner'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { DataField } from '@/components/ui/DataField'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { SectionCard } from '@/components/ui/SectionCard'
 
 export interface SystemModeSettingsFormState {
   mode: SystemMode
@@ -28,7 +34,7 @@ interface SystemModeSettingsPanelProps {
 
 const MISSING_FIELD_LABELS: Record<AdminSystemModeMissingField, string> = {
   endpointUrl: 'Endpoint PLI CBD',
-  credentialsRef: 'Referencja credentials',
+  credentialsRef: 'Referencja poświadczeń',
   operatorCode: 'Kod operatora',
 }
 
@@ -38,8 +44,8 @@ function getEffectiveStateLabel(
 ): string {
   if (!diagnostics) return '-'
   if (diagnostics.active) return 'Modul aktywny'
-  if (form.mode === 'STANDALONE') return 'Modul niedostepny w trybie standalone'
-  if (!form.pliCbdEnabled) return 'Modul wylaczony, konfiguracja zachowana'
+  if (form.mode === 'STANDALONE') return 'Moduł niedostępny w trybie standalone'
+  if (!form.pliCbdEnabled) return 'Moduł wyłączony, konfiguracja zachowana'
   return 'Konfiguracja niekompletna'
 }
 
@@ -64,27 +70,48 @@ export function SystemModeSettingsPanel({
 }: SystemModeSettingsPanelProps) {
   return (
     <div className="p-6">
-      <div className="mx-auto max-w-4xl space-y-4">
-        <div className="card p-6">
-          <h1 className="text-xl font-semibold text-gray-900">Tryb systemu i PLI CBD</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Ustaw tryb pracy systemu oraz konfiguracje modulu integracji z PLI CBD.
-          </p>
-        </div>
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader
+          eyebrow="Administracja"
+          title="Tryb systemu i PLI CBD"
+          description="Ustaw, czy NP-Manager działa w trybie manualnym, czy z aktywną integracją PLI CBD."
+        />
 
         {isLoading ? (
-          <div className="card p-6">
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              Ladowanie ustawien...
-            </div>
-          </div>
+          <SectionCard>
+            <p className="text-sm text-ink-500">Ładowanie ustawień...</p>
+          </SectionCard>
         ) : (
           <>
-            <div className="card p-6">
+            <SectionCard title="Aktualny stan">
+              <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <DataField
+                  label="Stan integracji"
+                  value={getEffectiveStateLabel(form, diagnostics)}
+                />
+                <DataField
+                  label="Aktywna integracja"
+                  value={
+                    diagnostics ? (
+                      <Badge tone={diagnostics.active ? 'green' : 'neutral'} leadingDot>
+                        {diagnostics.active ? 'Tak' : 'Nie'}
+                      </Badge>
+                    ) : null
+                  }
+                />
+                <DataField
+                  label="Konfiguracja kompletna"
+                  value={diagnostics ? (diagnostics.configured ? 'Tak' : 'Nie') : null}
+                />
+                <DataField label="Brakujące pola" value={getMissingFieldsLabel(diagnostics)} />
+              </dl>
+            </SectionCard>
+
+            <SectionCard
+              title="Konfiguracja trybu"
+              description="Wybierz, w jakim trybie pracuje system."
+            >
               <fieldset className="space-y-3">
-                <legend className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-                  Tryb systemu
-                </legend>
                 <label className="flex items-start gap-3">
                   <input
                     type="radio"
@@ -94,12 +121,11 @@ export function SystemModeSettingsPanel({
                     className="mt-1"
                   />
                   <span>
-                    <span className="block text-sm font-semibold text-gray-900">
+                    <span className="block text-sm font-semibold text-ink-900">
                       Manualny standalone
                     </span>
-                    <span className="block text-sm text-gray-600">
-                      PLI CBD jest niedostepne w UI i chronione w backendzie jako nieaktywna
-                      capability.
+                    <span className="block text-sm text-ink-500">
+                      Operator prowadzi sprawy ręcznie. Sekcje PLI CBD są niedostępne.
                     </span>
                   </span>
                 </label>
@@ -112,42 +138,35 @@ export function SystemModeSettingsPanel({
                     className="mt-1"
                   />
                   <span>
-                    <span className="block text-sm font-semibold text-gray-900">
+                    <span className="block text-sm font-semibold text-ink-900">
                       Zintegrowany z PLI CBD
                     </span>
-                    <span className="block text-sm text-gray-600">
-                      Modul moze byc aktywny dopiero po wlaczeniu i uzupelnieniu konfiguracji.
+                    <span className="block text-sm text-ink-500">
+                      PLI CBD może być aktywne dopiero po pełnej konfiguracji.
                     </span>
                   </span>
                 </label>
               </fieldset>
-            </div>
+            </SectionCard>
 
-            <div className="card p-6">
+            <SectionCard
+              title="Konfiguracja PLI CBD"
+              description="Niepełna konfiguracja może zostać zapisana — integracja pozostanie nieaktywna, dopóki brakuje wymaganych pól."
+            >
               <div className="space-y-4">
-                <div>
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-                    Konfiguracja PLI CBD
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Niepelna konfiguracja moze zostac zapisana; capability pozostanie wtedy
-                    nieaktywna.
-                  </p>
-                </div>
-
                 <label className="inline-flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={form.pliCbdEnabled}
                     onChange={(event) => onChange('pliCbdEnabled', event.target.checked)}
                   />
-                  <span className="text-sm font-medium text-gray-700">Wlacz modul PLI CBD</span>
+                  <span className="text-sm font-medium text-ink-700">
+                    Aktywna integracja PLI CBD
+                  </span>
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-gray-700">
-                    Endpoint URL
-                  </span>
+                  <span className="mb-1 block text-sm font-medium text-ink-700">Endpoint URL</span>
                   <input
                     type="url"
                     value={form.pliCbdEndpointUrl}
@@ -158,8 +177,8 @@ export function SystemModeSettingsPanel({
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-gray-700">
-                    Credentials ref
+                  <span className="mb-1 block text-sm font-medium text-ink-700">
+                    Referencja poświadczeń
                   </span>
                   <input
                     type="text"
@@ -171,7 +190,7 @@ export function SystemModeSettingsPanel({
                 </label>
 
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-gray-700">
+                  <span className="mb-1 block text-sm font-medium text-ink-700">
                     Kod operatora
                   </span>
                   <input
@@ -183,54 +202,27 @@ export function SystemModeSettingsPanel({
                   />
                 </label>
 
-                <button type="button" onClick={onSave} disabled={isSaving} className="btn-primary">
-                  {isSaving ? 'Zapisywanie...' : 'Zapisz ustawienia'}
-                </button>
-              </div>
+                <Button
+                  variant="primary"
+                  onClick={onSave}
+                  isLoading={isSaving}
+                  loadingLabel="Zapisywanie..."
+                >
+                  Zapisz ustawienia
+                </Button>
 
-              {success && (
-                <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                  {success}
-                </div>
-              )}
-              {error && (
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
-            </div>
+                {success && <AlertBanner tone="success" title={success} />}
+                {error && <AlertBanner tone="danger" title={error} />}
+              </div>
+            </SectionCard>
+
+            <AlertBanner
+              tone="info"
+              title="Skutki zmian konfiguracji"
+              description="Zmiana trybu systemu wpływa na dostępność sekcji PLI CBD w aplikacji. Integracja pozostaje nieaktywna, dopóki konfiguracja jest niekompletna."
+            />
           </>
         )}
-
-        <div className="card p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-            Efektywny stan modulu
-          </h2>
-          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-gray-500">Stan</dt>
-              <dd className="text-sm font-semibold text-gray-900">
-                {getEffectiveStateLabel(form, diagnostics)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-gray-500">Capability active</dt>
-              <dd className="text-sm text-gray-900">
-                {diagnostics ? (diagnostics.active ? 'Tak' : 'Nie') : '-'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-gray-500">Konfiguracja kompletna</dt>
-              <dd className="text-sm text-gray-900">
-                {diagnostics ? (diagnostics.configured ? 'Tak' : 'Nie') : '-'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-gray-500">Brakujace pola</dt>
-              <dd className="text-sm text-gray-900">{getMissingFieldsLabel(diagnostics)}</dd>
-            </div>
-          </dl>
-        </div>
       </div>
     </div>
   )

@@ -11,6 +11,7 @@ import {
   getAdminSystemModeSettings,
   updateAdminSystemModeSettings,
 } from '@/services/adminSystemModeSettings.api'
+import { EmptyState } from '@/components/ui/EmptyState'
 import {
   SystemModeSettingsPanel,
   type SystemModeSettingsFormState,
@@ -77,12 +78,10 @@ export function buildSystemModeSettingsPayload(
 function AdminAccessDeniedState() {
   return (
     <div className="p-6">
-      <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Brak dostepu do administracji</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-          Ta sekcja jest dostepna tylko dla administratora systemu.
-        </p>
-      </div>
+      <EmptyState
+        title="Brak dostępu do administracji"
+        description="Ta sekcja jest dostępna tylko dla administratora systemu."
+      />
     </div>
   )
 }
@@ -110,7 +109,7 @@ export function SystemModeSettingsPage() {
       setDiagnostics(result.diagnostics)
       setCapabilitiesSnapshot(result.capabilities)
     } catch (errorValue) {
-      setError(getErrorMessage(errorValue, 'Nie udalo sie zaladowac ustawien trybu systemu.'))
+      setError(getErrorMessage(errorValue, 'Nie udało się załadować ustawień trybu systemu.'))
       setForm(EMPTY_FORM)
       setDiagnostics(null)
     } finally {
@@ -155,9 +154,9 @@ export function SystemModeSettingsPage() {
       setForm(toSystemModeFormState(result.settings))
       setDiagnostics(result.diagnostics)
       setCapabilitiesSnapshot(result.capabilities)
-      setSuccess('Ustawienia trybu systemu zostaly zapisane.')
+      setSuccess('Ustawienia trybu systemu zostały zapisane.')
     } catch (errorValue) {
-      setError(getErrorMessage(errorValue, 'Nie udalo sie zapisac ustawien trybu systemu.'))
+      setError(getErrorMessage(errorValue, 'Nie udało się zapisać ustawień trybu systemu.'))
     } finally {
       setIsSaving(false)
     }

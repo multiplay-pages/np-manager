@@ -6,6 +6,7 @@ import {
   getAdminPortingNotificationSettings,
   updateAdminPortingNotificationSettings,
 } from '@/services/adminPortingNotificationSettings.api'
+import { EmptyState } from '@/components/ui/EmptyState'
 import {
   PortingNotificationSettingsPanel,
   type PortingNotificationSettingsFormState,
@@ -50,12 +51,10 @@ function getErrorMessage(error: unknown, fallback: string): string {
 function AdminAccessDeniedState() {
   return (
     <div className="p-6">
-      <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Brak dostepu do administracji</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
-          Ta sekcja jest dostepna tylko dla administratora systemu.
-        </p>
-      </div>
+      <EmptyState
+        title="Brak dostępu do administracji"
+        description="Ta sekcja jest dostępna tylko dla administratora systemu."
+      />
     </div>
   )
 }
@@ -92,7 +91,7 @@ export function PortingNotificationSettingsPage() {
       })
       setDiagnostics(result.diagnostics)
     } catch (errorValue) {
-      setError(getErrorMessage(errorValue, 'Nie udalo sie zaladowac ustawien powiadomien.'))
+      setError(getErrorMessage(errorValue, 'Nie udało się załadować ustawień powiadomień.'))
       setForm(EMPTY_FORM)
       setDiagnostics(null)
     } finally {
@@ -122,7 +121,7 @@ export function PortingNotificationSettingsPage() {
     if (isSaving) return
 
     if (!isValidEmailList(form.sharedEmails)) {
-      setError('Podaj poprawna liste adresow e-mail (rozdzielonych przecinkami).')
+      setError('Podaj poprawną listę adresów e-mail (rozdzielonych przecinkami).')
       setSuccess(null)
       return
     }
@@ -150,9 +149,9 @@ export function PortingNotificationSettingsPage() {
         teamsWebhookUrl: result.teamsWebhookUrl,
       })
       setDiagnostics(result.diagnostics)
-      setSuccess('Ustawienia powiadomien portingowych zostaly zapisane.')
+      setSuccess('Ustawienia powiadomień portingowych zostały zapisane.')
     } catch (errorValue) {
-      setError(getErrorMessage(errorValue, 'Nie udalo sie zapisac ustawien powiadomien.'))
+      setError(getErrorMessage(errorValue, 'Nie udało się zapisać ustawień powiadomień.'))
     } finally {
       setIsSaving(false)
     }
