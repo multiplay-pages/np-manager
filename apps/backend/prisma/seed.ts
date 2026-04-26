@@ -165,6 +165,167 @@ export const QA_NOTIFICATION_FAILURE_QUEUE_SEED_FIXTURES = [
 ] as const
 
 // ============================================================
+// ETAP 5A — fixture'y QA: dodatkowe sprawy do scenariuszy edge-case
+// (audyt issue #82). Trzymane oddzielnie od istniejących fixture'ów,
+// żeby nie psuć asercji length === 4 dla COMMUNICATION_TEMPLATE_SEED_DATA.
+// ============================================================
+
+export type Etap5aPortingFixture = {
+  caseNumber: string
+  statusInternal:
+    | 'DRAFT'
+    | 'SUBMITTED'
+    | 'PENDING_DONOR'
+    | 'CONFIRMED'
+    | 'REJECTED'
+    | 'CANCELLED'
+    | 'PORTED'
+    | 'ERROR'
+  donorRouting: 'ORANGE' | 'PLAY' | 'TMOBILE'
+  primaryNumber: string
+  requestDocumentNumber: string
+  confirmedPortDate: string | null
+  requestedPortDate?: string
+  assigneeEmail: string | null
+  useLongClient: boolean
+  rejectionCode: string | null
+  rejectionReason: string | null
+  internalNotes: string
+}
+
+export const QA_ETAP5A_LONG_DATA_CLIENT = {
+  pesel: '85060512345',
+  firstName: 'Bartłomiej-Konstanty',
+  lastName: 'Wiśniewski-Kowalczyk-Dąbrowski',
+  email:
+    'bartlomiej.konstanty.wisniewski-kowalczyk@bardzo-dluga-nazwa-domeny.example.com',
+  phoneContact: '600700800',
+  addressStreet: 'ul. Aleja Bardzo Długich Nazw Ulic z Numerem 1234/5678',
+  addressCity: 'Warszawa-Centrum-Śródmieście',
+  addressZip: '00-001',
+} as const
+
+export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
+  {
+    caseNumber: 'FNP-SEED-DRAFT-001',
+    statusInternal: 'DRAFT',
+    donorRouting: 'ORANGE',
+    primaryNumber: '221234574',
+    requestDocumentNumber: 'DOC-SEED-DRF-001',
+    confirmedPortDate: null,
+    assigneeEmail: null,
+    useLongClient: false,
+    rejectionCode: null,
+    rejectionReason: null,
+    internalNotes: 'Seed QA: status DRAFT do testu listy/detalu.',
+  },
+  {
+    caseNumber: 'FNP-SEED-ERROR-001',
+    statusInternal: 'ERROR',
+    donorRouting: 'PLAY',
+    primaryNumber: '221234575',
+    requestDocumentNumber: 'DOC-SEED-ERR-001',
+    confirmedPortDate: null,
+    assigneeEmail: null,
+    useLongClient: false,
+    rejectionCode: 'E06_REJECTED',
+    rejectionReason:
+      'Seed QA: PLI CBD odrzuciło wniosek — brak zgodności danych abonenta.',
+    internalNotes: 'Seed QA: status ERROR + attention strip + komunikat odrzucenia.',
+  },
+  {
+    caseNumber: 'FNP-SEED-LONG-DATA-001',
+    statusInternal: 'SUBMITTED',
+    donorRouting: 'ORANGE',
+    primaryNumber: '221234576',
+    requestDocumentNumber: 'DOC-SEED-LNG-001',
+    confirmedPortDate: null,
+    assigneeEmail: null,
+    useLongClient: true,
+    rejectionCode: null,
+    rejectionReason: null,
+    internalNotes: 'Seed QA: long text / overflow / responsive.',
+  },
+  {
+    caseNumber: 'FNP-SEED-NO-ASSIGNEE-001',
+    statusInternal: 'SUBMITTED',
+    donorRouting: 'ORANGE',
+    primaryNumber: '221234577',
+    requestDocumentNumber: 'DOC-SEED-NOA-001',
+    confirmedPortDate: '2026-05-15T00:00:00.000Z',
+    assigneeEmail: null,
+    useLongClient: false,
+    rejectionCode: null,
+    rejectionReason: null,
+    internalNotes:
+      'Seed QA: brak BOK przy ustalonej dacie portowania (bez mieszania z brakiem daty).',
+  },
+  {
+    caseNumber: 'FNP-SEED-NO-DATE-001',
+    statusInternal: 'SUBMITTED',
+    donorRouting: 'ORANGE',
+    primaryNumber: '221234578',
+    requestDocumentNumber: 'DOC-SEED-NOD-001',
+    confirmedPortDate: null,
+    requestedPortDate: '2026-05-20T00:00:00.000Z',
+    assigneeEmail: 'bok@np-manager.local',
+    useLongClient: false,
+    rejectionCode: null,
+    rejectionReason: null,
+    internalNotes:
+      'Seed QA: brak confirmedPortDate przy istniejącym przypisaniu BOK (lookup po emailu).',
+  },
+  {
+    caseNumber: 'FNP-SEED-NOTIFICATION-FAILED-001',
+    statusInternal: 'SUBMITTED',
+    donorRouting: 'TMOBILE',
+    primaryNumber: '221234579',
+    requestDocumentNumber: 'DOC-SEED-NFF-001',
+    confirmedPortDate: null,
+    assigneeEmail: null,
+    useLongClient: false,
+    rejectionCode: null,
+    rejectionReason: null,
+    internalNotes:
+      'Seed QA: dedykowana sprawa do listy /notifications/failures.',
+  },
+]
+
+export const QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT = {
+  id: '00000000-0000-4000-8000-000000000753',
+  requestCaseNumber: 'FNP-SEED-NOTIFICATION-FAILED-001',
+  eventCode: 'STATUS_CHANGED',
+  eventLabel: 'Zmiana statusu sprawy',
+  attemptOrigin: 'PRIMARY',
+  channel: 'EMAIL',
+  recipient: 'bok.qa@np-manager.local',
+  mode: 'REAL',
+  outcome: 'FAILED',
+  failureKind: 'DELIVERY',
+  retryCount: 2,
+  isLatestForChain: true,
+  errorCode: 'SMTP_TIMEOUT',
+  errorMessage:
+    'Seed QA: symulowany timeout SMTP — 3 nieudane próby dostarczenia.',
+  createdAt: '2026-04-12T08:10:00.000Z',
+} as const
+
+export const QA_ETAP5A_DRAFT_SMS_TEMPLATE_FIXTURE = {
+  templateId: '00000000-0000-4000-8000-000000000805',
+  versionId: '00000000-0000-4000-9000-000000000805',
+  code: 'REQUEST_RECEIVED',
+  channel: 'SMS',
+  versionNumber: 1,
+  status: 'DRAFT',
+  name: 'Potwierdzenie przyjęcia sprawy (SMS, draft QA)',
+  description:
+    'QA fixture — szablon SMS bez opublikowanej wersji do testu CommunicationTemplatesAdmin (publishedVersionId = null).',
+  subjectTemplate: 'Sprawa {{caseNumber}} - potwierdzenie przyjęcia (SMS)',
+  bodyTemplate:
+    'Potwierdzamy przyjęcie Pana/i sprawy {{caseNumber}}. Operator biorca: {{recipientOperatorName}}. Kontakt: {{contactPhone}}.',
+} as const
+
+// ============================================================
 // DANE STATUSÓW
 // ============================================================
 
@@ -1666,6 +1827,221 @@ export async function seedMain() {
 
   console.info(
     'Dodano klienta QA oraz 6 spraw portowania (aktywna + zakonczona po E18 + READY_TO_PORT/E18 + komunikacja create-draft + komunikacja duplicate-block + komunikacja failed-retry) + 2 rekordy QA kolejki bledow notyfikacji',
+  )
+
+  // ----------------------------------------------------------
+  // 6b. ETAP 5A — fixture'y QA dla scenariuszy edge-case (issue #82)
+  // ----------------------------------------------------------
+  console.info('Tworzenie fixture\'ów Etap 5A...')
+
+  const playOperator = await prisma.operator.findUniqueOrThrow({
+    where: { routingNumber: 'PLAY' },
+  })
+  const tmobileOperator = await prisma.operator.findUniqueOrThrow({
+    where: { routingNumber: 'TMOBILE' },
+  })
+
+  const donorOperatorByRouting: Record<
+    Etap5aPortingFixture['donorRouting'],
+    { id: string; routingNumber: string }
+  > = {
+    ORANGE: donorOperator,
+    PLAY: playOperator,
+    TMOBILE: tmobileOperator,
+  }
+
+  const longDataClient = await prisma.client.upsert({
+    where: { pesel: QA_ETAP5A_LONG_DATA_CLIENT.pesel },
+    update: {
+      clientType: 'INDIVIDUAL',
+      firstName: QA_ETAP5A_LONG_DATA_CLIENT.firstName,
+      lastName: QA_ETAP5A_LONG_DATA_CLIENT.lastName,
+      pesel: QA_ETAP5A_LONG_DATA_CLIENT.pesel,
+      email: QA_ETAP5A_LONG_DATA_CLIENT.email,
+      phoneContact: QA_ETAP5A_LONG_DATA_CLIENT.phoneContact,
+      addressStreet: QA_ETAP5A_LONG_DATA_CLIENT.addressStreet,
+      addressCity: QA_ETAP5A_LONG_DATA_CLIENT.addressCity,
+      addressZip: QA_ETAP5A_LONG_DATA_CLIENT.addressZip,
+      createdById: adminUser.id,
+    },
+    create: {
+      clientType: 'INDIVIDUAL',
+      firstName: QA_ETAP5A_LONG_DATA_CLIENT.firstName,
+      lastName: QA_ETAP5A_LONG_DATA_CLIENT.lastName,
+      pesel: QA_ETAP5A_LONG_DATA_CLIENT.pesel,
+      email: QA_ETAP5A_LONG_DATA_CLIENT.email,
+      phoneContact: QA_ETAP5A_LONG_DATA_CLIENT.phoneContact,
+      addressStreet: QA_ETAP5A_LONG_DATA_CLIENT.addressStreet,
+      addressCity: QA_ETAP5A_LONG_DATA_CLIENT.addressCity,
+      addressZip: QA_ETAP5A_LONG_DATA_CLIENT.addressZip,
+      createdById: adminUser.id,
+    },
+  })
+
+  const requestIdByCaseNumberEtap5a = new Map<string, string>()
+  const longCorrespondenceAddress = `${QA_ETAP5A_LONG_DATA_CLIENT.addressStreet}, ${QA_ETAP5A_LONG_DATA_CLIENT.addressZip} ${QA_ETAP5A_LONG_DATA_CLIENT.addressCity}`
+
+  for (const fx of QA_ETAP5A_PORTING_FIXTURES) {
+    const donor = donorOperatorByRouting[fx.donorRouting]
+    const useLong = fx.useLongClient
+    const clientForCase = useLong ? longDataClient : qaClient
+    const subscriberFirstName = useLong
+      ? QA_ETAP5A_LONG_DATA_CLIENT.firstName
+      : 'Jan'
+    const subscriberLastName = useLong
+      ? QA_ETAP5A_LONG_DATA_CLIENT.lastName
+      : 'Testowy'
+    const correspondenceAddress = useLong
+      ? longCorrespondenceAddress
+      : 'ul. Testowa 10/5, 00-001 Warszawa'
+    const identityValue = useLong
+      ? QA_ETAP5A_LONG_DATA_CLIENT.pesel
+      : '90010112345'
+    const assignedUserId = fx.assigneeEmail
+      ? (
+          await prisma.user.findUniqueOrThrow({
+            where: { email: fx.assigneeEmail },
+          })
+        ).id
+      : null
+    const confirmedPortDate = fx.confirmedPortDate
+      ? new Date(fx.confirmedPortDate)
+      : null
+    const requestedPortDate = fx.requestedPortDate
+      ? new Date(fx.requestedPortDate)
+      : new Date('2026-05-01T00:00:00.000Z')
+
+    const sharedData = {
+      clientId: clientForCase.id,
+      numberType: 'FIXED_LINE' as const,
+      numberRangeKind: 'SINGLE' as const,
+      primaryNumber: fx.primaryNumber,
+      requestDocumentNumber: fx.requestDocumentNumber,
+      donorOperatorId: donor.id,
+      recipientOperatorId: recipientOperator.id,
+      donorRoutingNumber: donor.routingNumber,
+      recipientRoutingNumber: recipientOperator.routingNumber,
+      requestRegisteredAt: new Date('2026-04-10T08:00:00.000Z'),
+      requestedPortDate,
+      requestedPortTime: '00:00',
+      confirmedPortDate,
+      portingMode: 'DAY' as const,
+      statusInternal: fx.statusInternal,
+      pliCbdExportStatus: 'NOT_EXPORTED' as const,
+      rejectionCode: fx.rejectionCode,
+      rejectionReason: fx.rejectionReason,
+      subscriberKind: 'INDIVIDUAL' as const,
+      subscriberFirstName,
+      subscriberLastName,
+      identityType: 'PESEL' as const,
+      identityValue,
+      correspondenceAddress,
+      hasPowerOfAttorney: false,
+      linkedWholesaleServiceOnRecipientSide: false,
+      contactChannel: 'EMAIL' as const,
+      internalNotes: fx.internalNotes,
+      assignedUserId,
+      commercialOwnerUserId: null,
+    }
+
+    const result = await prisma.portingRequest.upsert({
+      where: { caseNumber: fx.caseNumber },
+      update: sharedData,
+      create: {
+        caseNumber: fx.caseNumber,
+        ...sharedData,
+        createdByUserId: adminUser.id,
+      },
+    })
+    requestIdByCaseNumberEtap5a.set(fx.caseNumber, result.id)
+  }
+
+  // Notification failure attempt — własny ID (delete + create dla idempotencji)
+  await prisma.internalNotificationDeliveryAttempt.deleteMany({
+    where: { id: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.id },
+  })
+  const etap5aNotifRequestId = requestIdByCaseNumberEtap5a.get(
+    QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.requestCaseNumber,
+  )
+  if (!etap5aNotifRequestId) {
+    throw new Error(
+      `Brak sprawy seed dla Etap5A notification attempt: ${QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.requestCaseNumber}`,
+    )
+  }
+  await prisma.internalNotificationDeliveryAttempt.create({
+    data: {
+      id: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.id,
+      requestId: etap5aNotifRequestId,
+      eventCode: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.eventCode,
+      eventLabel: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.eventLabel,
+      attemptOrigin: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.attemptOrigin,
+      channel: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.channel,
+      recipient: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.recipient,
+      mode: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.mode,
+      outcome: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.outcome,
+      failureKind: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.failureKind,
+      retryCount: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.retryCount,
+      isLatestForChain: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.isLatestForChain,
+      errorCode: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.errorCode,
+      errorMessage: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.errorMessage,
+      triggeredByUserId: adminUser.id,
+      createdAt: new Date(QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.createdAt),
+    },
+  })
+
+  // Draft-only SMS template — separate od COMMUNICATION_TEMPLATE_SEED_DATA (length === 4 zachowane)
+  const draftTpl = QA_ETAP5A_DRAFT_SMS_TEMPLATE_FIXTURE
+  const draftFamily = await prisma.communicationTemplate.upsert({
+    where: { code_channel: { code: draftTpl.code, channel: draftTpl.channel } },
+    update: {
+      name: draftTpl.name,
+      description: draftTpl.description,
+      createdByUserId: adminUser.id,
+      updatedByUserId: adminUser.id,
+    },
+    create: {
+      id: draftTpl.templateId,
+      code: draftTpl.code,
+      channel: draftTpl.channel,
+      name: draftTpl.name,
+      description: draftTpl.description,
+      createdByUserId: adminUser.id,
+      updatedByUserId: adminUser.id,
+    },
+  })
+  const existingDraftVersion = await prisma.communicationTemplateVersion.findFirst({
+    where: { templateId: draftFamily.id, versionNumber: draftTpl.versionNumber },
+    select: { id: true },
+  })
+  if (existingDraftVersion) {
+    await prisma.communicationTemplateVersion.update({
+      where: { id: existingDraftVersion.id },
+      data: {
+        status: draftTpl.status,
+        subjectTemplate: draftTpl.subjectTemplate,
+        bodyTemplate: draftTpl.bodyTemplate,
+        publishedAt: null,
+        publishedByUserId: null,
+        createdByUserId: adminUser.id,
+        updatedByUserId: adminUser.id,
+      },
+    })
+  } else {
+    await prisma.communicationTemplateVersion.create({
+      data: {
+        id: draftTpl.versionId,
+        templateId: draftFamily.id,
+        versionNumber: draftTpl.versionNumber,
+        status: draftTpl.status,
+        subjectTemplate: draftTpl.subjectTemplate,
+        bodyTemplate: draftTpl.bodyTemplate,
+        createdByUserId: adminUser.id,
+        updatedByUserId: adminUser.id,
+      },
+    })
+  }
+  console.info(
+    '   ✓ Etap 5A: 6 spraw QA + notification attempt + draft SMS template gotowe',
   )
 
   // ----------------------------------------------------------
