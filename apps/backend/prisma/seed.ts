@@ -276,7 +276,7 @@ export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
       'Seed QA: brak confirmedPortDate przy istniejącym przypisaniu BOK (lookup po emailu).',
   },
   {
-    caseNumber: 'FNP-SEED-NOTIFICATION-FAILED-001',
+    caseNumber: 'FNP-SEED-NOTIF-FAILED-001',
     statusInternal: 'SUBMITTED',
     donorRouting: 'TMOBILE',
     primaryNumber: '221234579',
@@ -293,7 +293,7 @@ export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
 
 export const QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT = {
   id: '00000000-0000-4000-8000-000000000753',
-  requestCaseNumber: 'FNP-SEED-NOTIFICATION-FAILED-001',
+  requestCaseNumber: 'FNP-SEED-NOTIF-FAILED-001',
   eventCode: 'STATUS_CHANGED',
   eventLabel: 'Zmiana statusu sprawy',
   attemptOrigin: 'PRIMARY',

@@ -16,7 +16,7 @@ describe('Etap 5A QA porting seed fixtures', () => {
       'FNP-SEED-LONG-DATA-001',
       'FNP-SEED-NO-ASSIGNEE-001',
       'FNP-SEED-NO-DATE-001',
-      'FNP-SEED-NOTIFICATION-FAILED-001',
+      'FNP-SEED-NOTIF-FAILED-001',
     ])
   })
 
@@ -94,7 +94,7 @@ describe('Etap 5A QA porting seed fixtures', () => {
       '00000000-0000-4000-8000-000000000753',
     )
     expect(QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.requestCaseNumber).toBe(
-      'FNP-SEED-NOTIFICATION-FAILED-001',
+      'FNP-SEED-NOTIF-FAILED-001',
     )
     expect(QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.outcome).toBe('FAILED')
     expect(QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.failureKind).toBe('DELIVERY')
