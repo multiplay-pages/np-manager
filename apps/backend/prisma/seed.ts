@@ -276,7 +276,7 @@ export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
       'Seed QA: brak confirmedPortDate przy istniejącym przypisaniu BOK (lookup po emailu).',
   },
   {
-    caseNumber: 'FNP-SEED-NOTIFICATION-FAILED-001',
+    caseNumber: 'FNP-SEED-NOTIF-FAILED-001',
     statusInternal: 'SUBMITTED',
     donorRouting: 'TMOBILE',
     primaryNumber: '221234579',
@@ -293,7 +293,7 @@ export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
 
 export const QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT = {
   id: '00000000-0000-4000-8000-000000000753',
-  requestCaseNumber: 'FNP-SEED-NOTIFICATION-FAILED-001',
+  requestCaseNumber: 'FNP-SEED-NOTIF-FAILED-001',
   eventCode: 'STATUS_CHANGED',
   eventLabel: 'Zmiana statusu sprawy',
   attemptOrigin: 'PRIMARY',
@@ -1897,13 +1897,14 @@ export async function seedMain() {
     const identityValue = useLong
       ? QA_ETAP5A_LONG_DATA_CLIENT.pesel
       : '90010112345'
-    const assignedUserId = fx.assigneeEmail
-      ? (
-          await prisma.user.findUniqueOrThrow({
-            where: { email: fx.assigneeEmail },
-          })
-        ).id
+    const assignedUser = fx.assigneeEmail
+      ? await prisma.user.findUniqueOrThrow({
+          where: { email: fx.assigneeEmail },
+        })
       : null
+    const assignedUserId = assignedUser?.id ?? null
+    const assignedAt = assignedUser ? new Date('2026-04-20T10:00:00.000Z') : null
+    const assignedByUserId = assignedUser?.id ?? null
     const confirmedPortDate = fx.confirmedPortDate
       ? new Date(fx.confirmedPortDate)
       : null
@@ -1941,6 +1942,8 @@ export async function seedMain() {
       contactChannel: 'EMAIL' as const,
       internalNotes: fx.internalNotes,
       assignedUserId,
+      assignedAt,
+      assignedByUserId,
       commercialOwnerUserId: null,
     }
 

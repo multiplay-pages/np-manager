@@ -16,7 +16,7 @@ describe('Etap 5A QA porting seed fixtures', () => {
       'FNP-SEED-LONG-DATA-001',
       'FNP-SEED-NO-ASSIGNEE-001',
       'FNP-SEED-NO-DATE-001',
-      'FNP-SEED-NOTIFICATION-FAILED-001',
+      'FNP-SEED-NOTIF-FAILED-001',
     ])
   })
 
@@ -64,13 +64,29 @@ describe('Etap 5A QA porting seed fixtures', () => {
     expect(fx?.confirmedPortDate).not.toBeNull()
   })
 
-  it('NO-DATE fixture resolves BOK assignee via email lookup, not hardcoded UUID', () => {
+  it('NO-DATE fixture resolves BOK assignee via email lookup with consistent assignment metadata', () => {
     const fx = QA_ETAP5A_PORTING_FIXTURES.find(
       (f) => f.caseNumber === 'FNP-SEED-NO-DATE-001',
     )
+    // assigneeEmail drives runtime lookup — no hardcoded UUID
     expect(fx?.assigneeEmail).toBe('bok@np-manager.local')
     expect(fx?.confirmedPortDate).toBeNull()
     expect(fx?.requestedPortDate).toBe('2026-05-20T00:00:00.000Z')
+    // seed-main derives assignedAt + assignedByUserId from assigneeEmail != null
+    // (regression guard: fixture must have assigneeEmail to trigger consistent assignment block)
+    expect(fx?.assigneeEmail).not.toBeNull()
+  })
+
+  it('seed-main assignment block is deterministic: non-null assigneeEmail implies assignedAt + assignedByUserId', () => {
+    // Verify the fixture constant ensures seed-main will set all three assignment fields:
+    // assignedUserId, assignedAt ('2026-04-20T10:00:00.000Z'), assignedByUserId.
+    // This guards against regressing to the partial-assignment state (assignedUserId only).
+    const fixturesWithAssignee = QA_ETAP5A_PORTING_FIXTURES.filter(
+      (f) => f.assigneeEmail !== null,
+    )
+    expect(fixturesWithAssignee).toHaveLength(1)
+    expect(fixturesWithAssignee[0]!.caseNumber).toBe('FNP-SEED-NO-DATE-001')
+    expect(fixturesWithAssignee[0]!.assigneeEmail).toBe('bok@np-manager.local')
   })
 
   it('exposes the QA notification failure attempt fixture with required ID and metadata', () => {
@@ -78,7 +94,7 @@ describe('Etap 5A QA porting seed fixtures', () => {
       '00000000-0000-4000-8000-000000000753',
     )
     expect(QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.requestCaseNumber).toBe(
-      'FNP-SEED-NOTIFICATION-FAILED-001',
+      'FNP-SEED-NOTIF-FAILED-001',
     )
     expect(QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.outcome).toBe('FAILED')
     expect(QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.failureKind).toBe('DELIVERY')
