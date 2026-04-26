@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Bell, CalendarClock, ChevronDown, FileText, Info, TriangleAlert, Zap } from 'lucide-react'
+import { Bell, ChevronDown, FileText, Info, TriangleAlert, Zap } from 'lucide-react'
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSystemCapabilities } from '@/hooks/useSystemCapabilities'
@@ -120,7 +120,7 @@ import {
 import {
   RequestAttentionStrip,
   RequestCaseHero,
-  RequestMetaGrid,
+  RequestStatusSnapshot,
 } from './RequestCommandCenter'
 
 const TECHNICAL_PAYLOAD_MESSAGE_TYPES = ['E03', 'E12', 'E18', 'E23'] as const
@@ -345,6 +345,26 @@ function Field({
       <dd className={cx('text-sm font-medium text-ink-800', mono ? 'break-all font-mono' : 'break-words')}>
         {value ?? <span className="font-normal text-ink-400">-</span>}
       </dd>
+    </div>
+  )
+}
+
+function SubGroup({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-500">{title}</h3>
+        {description && <p className="mt-1 text-xs leading-5 text-ink-400">{description}</p>}
+      </div>
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</dl>
     </div>
   )
 }
@@ -1988,7 +2008,9 @@ export function RequestDetailPage() {
               <div>
                 <h3 className="text-sm font-semibold text-sky-900">Potwierdz date przeniesienia</h3>
                 <p className="mt-1 text-sm text-sky-800">
-                  Dedykowana akcja biznesowa dla trybu manualnego.
+                  To potwierdza date jako krok procesu i zapisuje zdarzenie w historii. Zwykla
+                  edycja daty jako danej sprawy znajduje sie w sekcji „Najwazniejsze dane sprawy"
+                  → Terminy.
                 </p>
               </div>
 
@@ -2118,23 +2140,19 @@ export function RequestDetailPage() {
         onScrollToStatusActions={() => scrollToSection('workflow-actions')}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)] xl:items-start">
-        <WhatsNextPanel
-          status={request.statusInternal}
-          availableStatusActions={availableStatusActions}
-          availableCommunicationActions={availableCommunicationActions}
-          assignedUser={request.assignedUser}
-          notificationHealth={request.notificationHealth}
-          canManageStatus={canManageStatus}
-          canManageAssignment={canManageAssignment}
-          onScrollToStatusActions={() => scrollToSection('workflow-actions')}
-          onScrollToCommunication={() => scrollToSection('communication-panel')}
-          onScrollToAssignment={() => scrollToSection('assignment-panel')}
-          onScrollToNotifications={() => scrollToSection('notification-panel')}
-        />
-
-        <RequestMetaGrid request={request} urgency={urgency} />
-      </div>
+      <WhatsNextPanel
+        status={request.statusInternal}
+        availableStatusActions={availableStatusActions}
+        availableCommunicationActions={availableCommunicationActions}
+        assignedUser={request.assignedUser}
+        notificationHealth={request.notificationHealth}
+        canManageStatus={canManageStatus}
+        canManageAssignment={canManageAssignment}
+        onScrollToStatusActions={() => scrollToSection('workflow-actions')}
+        onScrollToCommunication={() => scrollToSection('communication-panel')}
+        onScrollToAssignment={() => scrollToSection('assignment-panel')}
+        onScrollToNotifications={() => scrollToSection('notification-panel')}
+      />
 
       {hasQuickActions && (
         <section className="panel p-4">
@@ -2186,34 +2204,96 @@ export function RequestDetailPage() {
         <div className="space-y-5">
           <SectionCard
             id="porting-terms-panel"
-            title="Dane portowania i terminy"
-            description="Daty i parametry potrzebne do obsługi przeniesienia numeru."
-            icon={CalendarClock}
+            title="Najważniejsze dane sprawy"
+            description="Dane domenowe pogrupowane wg potrzeby BOK. Edycja daty przeniesienia jako dana sprawy znajduje się w grupie Terminy. Procesowe potwierdzenie daty wykonujesz z sekcji Akcje statusu."
+            icon={FileText}
           >
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Wnioskowany dzien przeniesienia" value={request.requestedPortDate} mono />
-              <Field label="Najwczesniejsza akceptowalna data" value={request.earliestAcceptablePortDate} mono />
-              <Field label="Data potwierdzona" value={request.confirmedPortDate} mono />
-              <Field label="Data od dawcy" value={request.donorAssignedPortDate} mono />
-              <Field label="Godzina od dawcy" value={request.donorAssignedPortTime} mono />
-              <Field label="Pelnomocnictwo" value={request.hasPowerOfAttorney ? 'Tak' : 'Nie'} />
-            </dl>
-          </SectionCard>
+            <div className="space-y-6">
+              <SubGroup title="Klient i kontakt">
+                <Field label="Klient" value={request.client.displayName} />
+                <Field label="Abonent" value={request.subscriberDisplayName} />
+                <Field
+                  label="Kanal kontaktu"
+                  value={CONTACT_CHANNEL_LABELS[request.contactChannel]}
+                />
+                <Field
+                  label="Typ identyfikatora"
+                  value={SUBSCRIBER_IDENTITY_TYPE_LABELS[request.identityType]}
+                />
+                <Field label="Wartosc identyfikatora" value={request.identityValue} mono />
+                <WideField
+                  label="Adres korespondencyjny"
+                  value={request.correspondenceAddress}
+                />
+              </SubGroup>
 
-          {isManualMode && (
-            <SectionCard
-              title="Dane portowania"
-              description="Ręczne uzupełnienie potwierdzonej daty przeniesienia w trybie manualnym."
-              icon={CalendarClock}
-            >
-              <RequestPortDatePanel
-                confirmedPortDate={request.confirmedPortDate}
-                canEdit={canEditPortDate}
-                disabledReason={operationalDetailsDisabledReason}
-                onSave={handleUpdatePortDate}
-              />
-            </SectionCard>
-          )}
+              <SubGroup title="Portowanie">
+                <Field label="Numer / zakres" value={request.numberDisplay} mono />
+                <Field label="Typ uslugi" value={NUMBER_TYPE_LABELS[request.numberType]} />
+                <Field
+                  label="Typ numeracji"
+                  value={PORTED_NUMBER_KIND_LABELS[request.numberRangeKind]}
+                />
+                <Field label="Numer dokumentu" value={request.requestDocumentNumber} mono />
+                <Field label="Operator oddajacy" value={request.donorOperator.name} />
+                <Field label="Operator bioracy" value={request.recipientOperator.name} />
+                <Field
+                  label="Operator infrastrukturalny"
+                  value={request.infrastructureOperator?.name}
+                />
+                <Field
+                  label="Pelnomocnictwo"
+                  value={request.hasPowerOfAttorney ? 'Tak' : 'Nie'}
+                />
+                <Field
+                  label="Usluga hurtowa po stronie biorcy"
+                  value={request.linkedWholesaleServiceOnRecipientSide ? 'Tak' : 'Nie'}
+                />
+              </SubGroup>
+
+              <SubGroup
+                title="Terminy"
+                description="Edycja daty jako dana sprawy. Procesowe potwierdzenie znajdziesz w sekcji Akcje statusu."
+              >
+                <Field label="Wnioskowany dzien" value={request.requestedPortDate} mono />
+                <Field
+                  label="Najwczesniejsza akceptowalna"
+                  value={request.earliestAcceptablePortDate}
+                  mono
+                />
+                <Field label="Data potwierdzona" value={request.confirmedPortDate} mono />
+                <Field label="Data od dawcy" value={request.donorAssignedPortDate} mono />
+                <Field label="Godzina od dawcy" value={request.donorAssignedPortTime} mono />
+                {isManualMode && (
+                  <div className="sm:col-span-2 mt-2 border-t border-line pt-4">
+                    <RequestPortDatePanel
+                      confirmedPortDate={request.confirmedPortDate}
+                      canEdit={canEditPortDate}
+                      disabledReason={operationalDetailsDisabledReason}
+                      onSave={handleUpdatePortDate}
+                    />
+                  </div>
+                )}
+              </SubGroup>
+
+              <SubGroup
+                title="Dane operacyjne"
+                description="Adres korespondencyjny, kanał kontaktu, notatki, numer dokumentu."
+              >
+                <div className="sm:col-span-2">
+                  <RequestOperationalDetailsPanel
+                    correspondenceAddress={request.correspondenceAddress}
+                    contactChannel={request.contactChannel}
+                    internalNotes={request.internalNotes}
+                    requestDocumentNumber={request.requestDocumentNumber}
+                    canEdit={canEditOperationalDetails}
+                    disabledReason={operationalDetailsDisabledReason}
+                    onSave={handleUpdateOperationalDetails}
+                  />
+                </div>
+              </SubGroup>
+            </div>
+          </SectionCard>
 
           {workflowActionsSection}
 
@@ -2244,47 +2324,6 @@ export function RequestDetailPage() {
               onLoadDeliveryAttempts={(communicationId) => void handleLoadDeliveryAttempts(communicationId)}
             />
           </div>
-
-          <SectionCard
-            title="Dane kontaktowe i operacyjne"
-            description="Adres korespondencyjny, kanał kontaktu, notatki i numer dokumentu sprawy."
-          >
-            <RequestOperationalDetailsPanel
-              correspondenceAddress={request.correspondenceAddress}
-              contactChannel={request.contactChannel}
-              internalNotes={request.internalNotes}
-              requestDocumentNumber={request.requestDocumentNumber}
-              canEdit={canEditOperationalDetails}
-              disabledReason={operationalDetailsDisabledReason}
-              onSave={handleUpdateOperationalDetails}
-            />
-          </SectionCard>
-
-          <SectionCard
-            title="Dane klienta i operatorów"
-            description="Identyfikacja abonenta, zakres numeracji oraz operatorzy procesu."
-            icon={FileText}
-          >
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Klient" value={request.client.displayName} />
-              <Field label="Abonent" value={request.subscriberDisplayName} />
-              <Field label="Typ uslugi" value={NUMBER_TYPE_LABELS[request.numberType]} />
-              <Field label="Typ numeracji" value={PORTED_NUMBER_KIND_LABELS[request.numberRangeKind]} />
-              <Field label="Numer / zakres" value={request.numberDisplay} mono />
-              <Field label="Status sprawy" value={PORTING_CASE_STATUS_LABELS[request.statusInternal]} />
-              <Field label="Operator oddajacy" value={request.donorOperator.name} />
-              <Field label="Operator bioracy" value={request.recipientOperator.name} />
-              <Field label="Numer dokumentu" value={request.requestDocumentNumber} mono />
-              <Field label="Kanal kontaktu" value={CONTACT_CHANNEL_LABELS[request.contactChannel]} />
-              <Field label="Typ identyfikatora" value={SUBSCRIBER_IDENTITY_TYPE_LABELS[request.identityType]} />
-              <Field label="Wartosc identyfikatora" value={request.identityValue} mono />
-              <Field
-                label="Usluga hurtowa po stronie biorcy"
-                value={request.linkedWholesaleServiceOnRecipientSide ? 'Tak' : 'Nie'}
-              />
-              <Field label="Operator infrastrukturalny" value={request.infrastructureOperator?.name} />
-            </dl>
-          </SectionCard>
 
           <RequestDetailsHistoryPanel
             items={detailsHistoryItems}
@@ -2555,6 +2594,8 @@ export function RequestDetailPage() {
         </div>
 
         <div className="space-y-4">
+          <RequestStatusSnapshot request={request} urgency={urgency} />
+
           <div id="assignment-panel" className="scroll-mt-6">
             <PortingAssignmentPanel
               assignedUser={request.assignedUser}

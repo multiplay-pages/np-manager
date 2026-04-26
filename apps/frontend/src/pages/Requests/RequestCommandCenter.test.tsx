@@ -72,6 +72,7 @@ const BASE_REQUEST = {
     role: 'SALES' as const,
   },
   notificationHealth: HEALTH_OK,
+  contactChannel: 'EMAIL' as const,
 }
 
 describe('RequestCommandCenter', () => {
@@ -95,7 +96,7 @@ describe('RequestCommandCenter', () => {
     expect(screen.getByText('NP-2026-0007')).toBeDefined()
     expect(screen.getAllByText('Acme Sp. z o.o.').length).toBeGreaterThan(0)
     expect(screen.getByText('500123456')).toBeDefined()
-    expect(screen.getByText(/Operator Dawca/)).toBeDefined()
+    expect(screen.getAllByText(/Operator Dawca/).length).toBeGreaterThan(0)
     expect(screen.getByText('Anna BOK')).toBeDefined()
     expect(screen.getByText('Jan Sales')).toBeDefined()
   })

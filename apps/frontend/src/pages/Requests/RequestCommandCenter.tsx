@@ -1,8 +1,9 @@
-import { AlertBanner, Badge, Button, ButtonLink, DataField, SectionCard, type BadgeTone, cx } from '@/components/ui'
+import { AlertBanner, Badge, Button, ButtonLink, DataField, type BadgeTone, cx } from '@/components/ui'
 import { ROUTES } from '@/constants/routes'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import type { PortingUrgency } from '@/lib/portingUrgency'
 import {
+  CONTACT_CHANNEL_LABELS,
   PORTING_MODE_LABELS,
   type NotificationHealthDiagnosticsDto,
   type PortingRequestDetailDto,
@@ -25,6 +26,7 @@ type CommandCenterRequest = Pick<
   | 'assignedUser'
   | 'commercialOwner'
   | 'notificationHealth'
+  | 'contactChannel'
 >
 
 interface RequestCaseHeroProps {
@@ -47,11 +49,6 @@ interface RequestAttentionStripProps {
   onScrollToNotifications: () => void
   onScrollToPortingDates: () => void
   onScrollToStatusActions: () => void
-}
-
-interface RequestMetaGridProps {
-  request: CommandCenterRequest
-  urgency: PortingUrgency
 }
 
 type AttentionTone = 'warning' | 'danger' | 'neutral'
@@ -191,6 +188,21 @@ function OwnerValue({
   )
 }
 
+function CaseGroup({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="min-w-0 rounded-ui border border-line bg-ink-50/40 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-500">{title}</p>
+      <dl className="mt-3 space-y-3">{children}</dl>
+    </div>
+  )
+}
+
 export function RequestCaseHero({
   copyLinkDone,
   request,
@@ -200,6 +212,10 @@ export function RequestCaseHero({
 }: RequestCaseHeroProps) {
   const statusMeta = getPortingStatusMeta(request.statusInternal)
   const healthBadge = getNotificationHealthBadge(request.notificationHealth)
+  const donorToRecipient = `${request.donorOperator.name} -> ${request.recipientOperator.name}`
+  const donorDateTime = request.donorAssignedPortDate
+    ? `${request.donorAssignedPortDate}${request.donorAssignedPortTime ? ` ${request.donorAssignedPortTime}` : ''}`
+    : null
 
   return (
     <section className="min-w-0 overflow-hidden rounded-panel border border-line bg-surface shadow-sm">
@@ -220,90 +236,126 @@ export function RequestCaseHero({
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
-        <div className="min-w-0 px-5 py-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={getStatusTone(statusMeta.tone)} leadingDot>
-              {statusMeta.label}
-            </Badge>
-            <Badge tone="brand">{PORTING_MODE_LABELS[request.portingMode]}</Badge>
-            <Badge
-              tone={urgency.tone}
-              className={urgency.emphasized ? 'ring-2' : undefined}
-              aria-label={`Pilnosc sprawy: ${urgency.label}`}
-            >
-              Pilnosc: {urgency.label}
-            </Badge>
-            <Badge tone={healthBadge.tone}>Notyfikacje: {healthBadge.label}</Badge>
-          </div>
-
-          <div className="mt-4 max-w-4xl min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">
-              Sprawa
-            </p>
-            <h1 className="mt-1 break-words font-mono text-3xl font-semibold tracking-tight text-ink-950 md:text-4xl">
-              {request.caseNumber}
-            </h1>
-            <p className="mt-3 break-words text-2xl font-semibold tracking-tight text-ink-900">
-              {request.client.displayName}
-            </p>
-            <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-ink-500">
-              <span className="min-w-0 break-all font-mono text-ink-800">{request.numberDisplay}</span>
-              <span className="min-w-0 break-words">{request.subscriberDisplayName}</span>
-              <span className="min-w-0 break-words">
-                {request.donorOperator.name} {'->'} {request.recipientOperator.name}
-              </span>
-            </p>
-          </div>
+      <div className="min-w-0 border-b border-line px-5 py-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone={getStatusTone(statusMeta.tone)} leadingDot>
+            {statusMeta.label}
+          </Badge>
+          <Badge tone="brand">{PORTING_MODE_LABELS[request.portingMode]}</Badge>
+          <Badge
+            tone={urgency.tone}
+            className={urgency.emphasized ? 'ring-2' : undefined}
+            aria-label={`Pilnosc sprawy: ${urgency.label}`}
+          >
+            Pilnosc: {urgency.label}
+          </Badge>
+          <Badge tone={healthBadge.tone}>Notyfikacje: {healthBadge.label}</Badge>
         </div>
 
-        <div className="border-t border-line bg-ink-50/70 px-5 py-5 xl:border-l xl:border-t-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">
-            Sygnały operacyjne
+        <div className="mt-4 max-w-4xl min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">Sprawa</p>
+          <h1 className="mt-1 break-words font-mono text-3xl font-semibold tracking-tight text-ink-950 md:text-4xl">
+            {request.caseNumber}
+          </h1>
+          <p className="mt-3 break-words text-2xl font-semibold tracking-tight text-ink-900">
+            {request.client.displayName}
           </p>
-          <dl className="mt-4 divide-y divide-line">
-            <DataField
-              className="pb-3"
-              label="Data przeniesienia"
-              value={request.confirmedPortDate ?? request.donorAssignedPortDate}
-              emptyText="Brak daty"
-              mono
-              variant="compact"
-            />
-            <DataField
-              className="py-3"
-              label="Przypisanie BOK"
-              value={
-                <OwnerValue
-                  name={request.assignedUser?.displayName}
-                  email={request.assignedUser?.email}
-                  fallback="Nieprzypisana"
-                  warning
-                />
-              }
-              variant="compact"
-            />
-            <DataField
-              className="py-3"
-              label="Opiekun handlowy"
-              value={
-                <OwnerValue
-                  name={request.commercialOwner?.displayName}
-                  email={request.commercialOwner?.email}
-                  fallback="Brak opiekuna"
-                  warning
-                />
-              }
-              variant="compact"
-            />
-            <DataField
-              className="pt-3"
-              label="Status procesu"
-              value={statusMeta.label}
-              variant="compact"
-            />
-          </dl>
         </div>
+      </div>
+
+      <div className="grid min-w-0 gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-4">
+        <CaseGroup title="Klient i kontakt">
+          <DataField
+            label="Klient"
+            value={<span className="break-words">{request.client.displayName}</span>}
+            variant="compact"
+          />
+          <DataField
+            label="Abonent"
+            value={<span className="break-words">{request.subscriberDisplayName}</span>}
+            variant="compact"
+          />
+          <DataField
+            label="Kanal kontaktu"
+            value={CONTACT_CHANNEL_LABELS[request.contactChannel]}
+            variant="compact"
+          />
+        </CaseGroup>
+
+        <CaseGroup title="Portowanie">
+          <DataField
+            label="Numer / zakres"
+            value={<span className="break-all">{request.numberDisplay}</span>}
+            mono
+            variant="compact"
+          />
+          <DataField
+            label="Operator dawca -> biorca"
+            value={<span className="break-words">{donorToRecipient}</span>}
+            variant="compact"
+          />
+          <DataField
+            label="Tryb portowania"
+            value={PORTING_MODE_LABELS[request.portingMode]}
+            variant="compact"
+          />
+        </CaseGroup>
+
+        <CaseGroup title="Terminy">
+          <DataField
+            label="Wnioskowana"
+            value={request.requestedPortDate}
+            emptyText="Brak"
+            mono
+            variant="compact"
+          />
+          <DataField
+            label="Potwierdzona"
+            value={request.confirmedPortDate}
+            emptyText="Brak daty"
+            mono
+            variant="compact"
+          />
+          <DataField
+            label="Od dawcy"
+            value={donorDateTime}
+            emptyText="Brak"
+            mono
+            variant="compact"
+          />
+        </CaseGroup>
+
+        <CaseGroup title="Obsluga">
+          <DataField
+            label="BOK"
+            value={
+              <OwnerValue
+                name={request.assignedUser?.displayName}
+                email={request.assignedUser?.email}
+                fallback="Nieprzypisana"
+                warning
+              />
+            }
+            variant="compact"
+          />
+          <DataField
+            label="Opiekun handlowy"
+            value={
+              <OwnerValue
+                name={request.commercialOwner?.displayName}
+                email={request.commercialOwner?.email}
+                fallback="Brak opiekuna"
+                warning
+              />
+            }
+            variant="compact"
+          />
+          <DataField
+            label="Notyfikacje"
+            value={<Badge tone={healthBadge.tone}>{healthBadge.label}</Badge>}
+            variant="compact"
+          />
+        </CaseGroup>
       </div>
     </section>
   )
@@ -343,24 +395,39 @@ export function RequestAttentionStrip(props: RequestAttentionStripProps) {
   )
 }
 
-export function RequestMetaGrid({ request, urgency }: RequestMetaGridProps) {
+interface RequestStatusSnapshotProps {
+  request: Pick<
+    CommandCenterRequest,
+    'statusInternal' | 'confirmedPortDate' | 'donorAssignedPortDate' | 'donorAssignedPortTime' | 'notificationHealth'
+  >
+  urgency: PortingUrgency
+}
+
+export function RequestStatusSnapshot({ request, urgency }: RequestStatusSnapshotProps) {
   const statusMeta = getPortingStatusMeta(request.statusInternal)
   const healthBadge = getNotificationHealthBadge(request.notificationHealth)
+  const portDate =
+    request.confirmedPortDate ??
+    (request.donorAssignedPortDate
+      ? `${request.donorAssignedPortDate}${request.donorAssignedPortTime ? ` ${request.donorAssignedPortTime}` : ''}`
+      : null)
 
   return (
-    <SectionCard
-      title="Operacyjny skrót"
-      description="Najważniejsze dane do szybkiej oceny sprawy."
-      padding="md"
+    <section
+      aria-label="Snapshot operacyjny"
+      className="rounded-panel border border-line bg-surface p-4 shadow-sm"
     >
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-500">
+        Snapshot operacyjny
+      </p>
+      <dl className="mt-3 grid grid-cols-2 gap-3">
         <DataField
           label="Status"
-          value={statusMeta.label}
+          value={<Badge tone={getStatusTone(statusMeta.tone)}>{statusMeta.label}</Badge>}
           variant="compact"
         />
         <DataField
-          label="Pilność"
+          label="Pilnosc"
           value={
             <Badge tone={urgency.tone} className={urgency.emphasized ? 'ring-2' : undefined}>
               {urgency.label}
@@ -369,33 +436,10 @@ export function RequestMetaGrid({ request, urgency }: RequestMetaGridProps) {
           variant="compact"
         />
         <DataField
-          label="Potwierdzona data"
-          value={request.confirmedPortDate}
+          label="Data przeniesienia"
+          value={portDate}
           emptyText="Brak daty"
           mono
-          variant="compact"
-        />
-        <DataField
-          label="Data od dawcy"
-          value={
-            request.donorAssignedPortDate
-              ? `${request.donorAssignedPortDate}${request.donorAssignedPortTime ? ` ${request.donorAssignedPortTime}` : ''}`
-              : null
-          }
-          emptyText="Brak"
-          mono
-          variant="compact"
-        />
-        <DataField
-          label="BOK"
-          value={request.assignedUser?.displayName ?? null}
-          emptyText="Nieprzypisana"
-          variant="compact"
-        />
-        <DataField
-          label="Handlowy"
-          value={request.commercialOwner?.displayName ?? null}
-          emptyText="Brak opiekuna"
           variant="compact"
         />
         <DataField
@@ -403,14 +447,7 @@ export function RequestMetaGrid({ request, urgency }: RequestMetaGridProps) {
           value={<Badge tone={healthBadge.tone}>{healthBadge.label}</Badge>}
           variant="compact"
         />
-        <DataField
-          label="Operatorzy"
-          value={`${request.donorOperator.shortName || request.donorOperator.name} -> ${
-            request.recipientOperator.shortName || request.recipientOperator.name
-          }`}
-          variant="compact"
-        />
       </dl>
-    </SectionCard>
+    </section>
   )
 }
