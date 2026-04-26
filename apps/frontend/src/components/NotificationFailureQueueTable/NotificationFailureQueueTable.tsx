@@ -8,6 +8,7 @@ import {
   deriveOperationalStatus,
   OPERATIONAL_STATUS_CONFIG,
 } from '@/lib/notificationFailureQueueOperationalStatus'
+import { Badge, Button, type BadgeTone } from '@/components/ui'
 
 interface NotificationFailureQueueTableProps {
   items: GlobalNotificationFailureQueueItemDto[]
@@ -17,10 +18,10 @@ interface NotificationFailureQueueTableProps {
   onRetryAttempt: (item: GlobalNotificationFailureQueueItemDto) => void
 }
 
-function getOutcomeClass(outcome: GlobalNotificationFailureQueueItemDto['outcome']): string {
-  if (outcome === 'FAILED') return 'bg-red-100 text-red-700'
-  if (outcome === 'MISCONFIGURED') return 'bg-amber-100 text-amber-700'
-  return 'bg-gray-100 text-gray-700'
+function getOutcomeTone(outcome: GlobalNotificationFailureQueueItemDto['outcome']): BadgeTone {
+  if (outcome === 'FAILED') return 'red'
+  if (outcome === 'MISCONFIGURED') return 'amber'
+  return 'neutral'
 }
 
 function getOutcomeLabel(outcome: GlobalNotificationFailureQueueItemDto['outcome']): string {
@@ -38,7 +39,6 @@ function getFailureKindLabel(
   return '—'
 }
 
-
 function getChannelLabel(channel: GlobalNotificationFailureQueueItemDto['channel']): string {
   if (channel === 'EMAIL') return 'E-mail'
   if (channel === 'TEAMS') return 'Teams'
@@ -55,7 +55,7 @@ const RETRY_BLOCKED_REASON_LABELS: Record<InternalNotificationRetryBlockedReason
 function getRetryBlockedReasonLabel(
   reasonCode: GlobalNotificationFailureQueueItemDto['retryBlockedReasonCode'],
 ): string {
-  return reasonCode ? RETRY_BLOCKED_REASON_LABELS[reasonCode] : 'Retry niedostepne'
+  return reasonCode ? RETRY_BLOCKED_REASON_LABELS[reasonCode] : 'Ponowienie niedostępne'
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -78,15 +78,15 @@ export function NotificationFailureQueueTable({
 }: NotificationFailureQueueTableProps) {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12 text-sm text-gray-500">
-        Ładowanie...
+      <div className="flex items-center justify-center py-12 text-sm text-ink-500">
+        Ładowanie kolejki błędów...
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div className="px-4 py-3 text-sm text-red-700">
         {error}
       </div>
     )
@@ -95,7 +95,7 @@ export function NotificationFailureQueueTable({
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-14 text-center">
-        <p className="text-sm text-gray-500">Brak problematycznych prób notyfikacji.</p>
+        <p className="text-sm text-ink-500">Brak problematycznych prób notyfikacji.</p>
       </div>
     )
   }
@@ -104,12 +104,12 @@ export function NotificationFailureQueueTable({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <tr className="border-b border-line bg-ink-50 text-left text-xs font-semibold uppercase text-ink-500">
             <th className="px-4 py-3">Sprawa</th>
             <th className="px-4 py-3">Zdarzenie</th>
-            <th className="px-4 py-3">Kanal</th>
+            <th className="px-4 py-3">Kanał</th>
             <th className="px-4 py-3">Odbiorca</th>
-            <th className="px-4 py-3">Wynik</th>
+            <th className="px-4 py-3">Wynik wysyłki</th>
             <th className="px-4 py-3">Rodzaj błędu</th>
             <th className="px-4 py-3">Ponowienia</th>
             <th className="px-4 py-3">Status operacyjny</th>
@@ -117,38 +117,39 @@ export function NotificationFailureQueueTable({
             <th className="px-4 py-3">Akcja</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-line">
           {items.map((item) => {
             const isRetrying = retryingAttemptIds.includes(item.attemptId)
             const opStatus = deriveOperationalStatus(item)
             const opConfig = OPERATIONAL_STATUS_CONFIG[opStatus]
 
             return (
-              <tr key={item.attemptId} className={`bg-white hover:bg-gray-50 ${opConfig.rowAccentClass}`}>
+              <tr key={item.attemptId} className={`bg-surface hover:bg-ink-50/70 ${opConfig.rowAccentClass}`}>
                 <td className="px-4 py-3 font-mono text-xs">
                   <Link
                     to={buildPath(ROUTES.REQUEST_DETAIL, item.requestId)}
-                    className="text-blue-600 hover:underline"
+                    className="font-semibold text-brand-700 hover:underline"
                   >
                     {item.caseNumber}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-gray-900">{item.eventLabel}</td>
-                <td className="px-4 py-3 text-gray-600">{getChannelLabel(item.channel)}</td>
-                <td className="max-w-[220px] truncate px-4 py-3 text-gray-600" title={item.recipient}>
+                <td className="px-4 py-3 text-ink-900">{item.eventLabel}</td>
+                <td className="px-4 py-3 text-ink-650">{getChannelLabel(item.channel)}</td>
+                <td
+                  className="max-w-[220px] truncate px-4 py-3 text-ink-650"
+                  title={item.recipient}
+                >
                   {item.recipient}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide ${getOutcomeClass(item.outcome)}`}
-                  >
+                  <Badge tone={getOutcomeTone(item.outcome)}>
                     {getOutcomeLabel(item.outcome)}
-                  </span>
+                  </Badge>
                 </td>
-                <td className="px-4 py-3 text-gray-600">
+                <td className="px-4 py-3 text-ink-650">
                   {getFailureKindLabel(item.failureKind)}
                 </td>
-                <td className="px-4 py-3 text-gray-600">{item.retryCount} / 3</td>
+                <td className="px-4 py-3 text-ink-650">{item.retryCount} / 3</td>
                 <td className="px-4 py-3">
                   <span
                     className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${opConfig.badgeClass}`}
@@ -156,19 +157,20 @@ export function NotificationFailureQueueTable({
                     {opConfig.label}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-400">{formatRelativeTime(item.createdAt)}</td>
+                <td className="px-4 py-3 text-ink-400">{formatRelativeTime(item.createdAt)}</td>
                 <td className="px-4 py-3">
                   {item.canRetry ? (
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
+                      variant="secondary"
                       onClick={() => onRetryAttempt(item)}
                       disabled={isRetrying}
-                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isRetrying ? 'Ponawiam...' : 'Ponów'}
-                    </button>
+                    </Button>
                   ) : (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-ink-500">
                       {getRetryBlockedReasonLabel(item.retryBlockedReasonCode)}
                     </span>
                   )}

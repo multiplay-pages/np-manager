@@ -82,14 +82,14 @@ describe('InternalNotificationAttemptsPanel', () => {
   it('renders retry action only for retryable attempts', () => {
     renderPanel()
 
-    expect(screen.getByRole('button', { name: 'Ponow' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Ponów' })).toBeTruthy()
     expect(screen.getByText('Tego typu proby nie mozna ponowic.')).toBeTruthy()
   })
 
   it('calls retry callback for selected attempt', () => {
     const { onRetryAttempt } = renderPanel()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ponow' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ponów' }))
 
     expect(onRetryAttempt).toHaveBeenCalledWith('attempt-1')
     expect(onRetryAttempt).toHaveBeenCalledTimes(1)
@@ -106,7 +106,7 @@ describe('InternalNotificationAttemptsPanel', () => {
   it('hides retry button when role cannot trigger retry', () => {
     renderPanel({ canRetryAttempts: false })
 
-    expect(screen.queryByRole('button', { name: 'Ponow' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ponów' })).toBeNull()
     expect(screen.getByText('Ponowienie dostepne dla zespolu operacyjnego.')).toBeTruthy()
   })
 
