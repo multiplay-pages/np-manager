@@ -19,9 +19,9 @@ function formatDateTime(value: string): string {
 
 function getIssueLabel(item: NotificationFailureHistoryItemDto): string {
   if (item.isConfigurationIssue) {
-    return 'Blad konfiguracji'
+    return 'Błąd konfiguracji'
   }
-  return 'Blad wysylki'
+  return 'Błąd wysyłki'
 }
 
 function getIssueTone(item: NotificationFailureHistoryItemDto): BadgeTone {
@@ -63,7 +63,7 @@ export function NotificationFailureHistoryPanel({
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-panel border border-dashed border-line bg-ink-50 px-4 py-3 text-sm text-ink-600">
-          Brak zarejestrowanych problemow notyfikacji.
+          Brak zarejestrowanych problemów notyfikacji.
         </div>
       ) : (
         <div className="space-y-3">
@@ -92,7 +92,7 @@ export function NotificationFailureHistoryPanel({
 
               {item.technicalDetailsPreview && (
                 <p className="mt-3 rounded-panel border border-line bg-ink-50 px-3 py-2 text-sm text-ink-700">
-                  Szczegoly techniczne: {item.technicalDetailsPreview}
+                  Szczegóły techniczne: {item.technicalDetailsPreview}
                 </p>
               )}
             </article>

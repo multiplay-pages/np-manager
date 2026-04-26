@@ -120,7 +120,7 @@ describe('NotificationFailureQueueTable', () => {
       ],
     })
 
-    expect(html).toContain('Tego typu proby nie mozna ponowic')
+    expect(html).toContain('Tego typu próby nie można ponowić')
   })
 
   it('renders RETRY_LIMIT_REACHED as Limit wyczerpany', () => {
