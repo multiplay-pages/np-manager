@@ -46,10 +46,10 @@ function getChannelLabel(channel: GlobalNotificationFailureQueueItemDto['channel
 }
 
 const RETRY_BLOCKED_REASON_LABELS: Record<InternalNotificationRetryBlockedReasonCodeDto, string> = {
-  RETRY_LIMIT_REACHED: 'Limit ponowien osiagniety',
-  NOT_LATEST_IN_CHAIN: 'Istnieje nowsza proba',
-  ORIGIN_NOT_RETRYABLE: 'Tego typu proby nie mozna ponowic',
-  OUTCOME_NOT_RETRYABLE: 'Ten wynik nie kwalifikuje sie do ponowienia',
+  RETRY_LIMIT_REACHED: 'Limit ponowień osiągnięty',
+  NOT_LATEST_IN_CHAIN: 'Istnieje nowsza próba',
+  ORIGIN_NOT_RETRYABLE: 'Tego typu próby nie można ponowić',
+  OUTCOME_NOT_RETRYABLE: 'Ten wynik nie kwalifikuje się do ponowienia',
 }
 
 function getRetryBlockedReasonLabel(

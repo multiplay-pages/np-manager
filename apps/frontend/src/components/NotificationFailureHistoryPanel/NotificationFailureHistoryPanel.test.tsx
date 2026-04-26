@@ -33,11 +33,11 @@ describe('NotificationFailureHistoryPanel', () => {
     )
 
     expect(html).toContain('Ostatnie problemy notyfikacji')
-    expect(html).toContain('Blad wysylki')
-    expect(html).toContain('Blad konfiguracji')
+    expect(html).toContain('Błąd wysyłki')
+    expect(html).toContain('Błąd konfiguracji')
     expect(html).toContain('FAILED')
     expect(html).toContain('MISCONFIGURED')
-    expect(html).toContain('Szczegoly techniczne: Tryb: REAL | HTTP 500')
+    expect(html).toContain('Szczegóły techniczne: Tryb: REAL | HTTP 500')
   })
 
   it('renders empty state when no failures exist', () => {
@@ -45,6 +45,6 @@ describe('NotificationFailureHistoryPanel', () => {
       <NotificationFailureHistoryPanel items={[]} isLoading={false} error={null} />,
     )
 
-    expect(html).toContain('Brak zarejestrowanych problemow notyfikacji.')
+    expect(html).toContain('Brak zarejestrowanych problemów notyfikacji.')
   })
 })
