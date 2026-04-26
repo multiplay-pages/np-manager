@@ -84,7 +84,7 @@ describe('InternalNotificationAttemptsPage', () => {
     const table = screen.getByRole('table')
     expect(within(table).getByText('Zmiana statusu sprawy')).toBeTruthy()
     expect(within(table).getByText('bok@test.pl')).toBeTruthy()
-    expect(within(table).getByText('Blad wysylki')).toBeTruthy()
+    expect(within(table).getByText('Błąd wysyłki')).toBeTruthy()
     expect(within(table).getByText('SMTP unavailable')).toBeTruthy()
     expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenCalledWith({
       limit: 50,
@@ -97,7 +97,7 @@ describe('InternalNotificationAttemptsPage', () => {
 
     renderPage()
 
-    expect(screen.getByText('Ladowanie prob notyfikacji...')).toBeTruthy()
+    expect(screen.getByText('Ładowanie prób notyfikacji...')).toBeTruthy()
   })
 
   it('shows empty state when backend returns no attempts', async () => {
@@ -108,7 +108,7 @@ describe('InternalNotificationAttemptsPage', () => {
 
     renderPage()
 
-    expect(await screen.findByText('Brak zapisanych prob notyfikacji.')).toBeTruthy()
+    expect(await screen.findByText('Brak zapisanych prób notyfikacji.')).toBeTruthy()
   })
 
   it('shows error state instead of empty state after failed load', async () => {
@@ -117,9 +117,9 @@ describe('InternalNotificationAttemptsPage', () => {
     renderPage()
 
     expect(
-      await screen.findByText('Nie udalo sie pobrac globalnej listy prob notyfikacji.'),
+      await screen.findByText('Nie udało się pobrać globalnej listy prób notyfikacji.'),
     ).toBeTruthy()
-    expect(screen.queryByText('Brak zapisanych prob notyfikacji.')).toBeNull()
+    expect(screen.queryByText('Brak zapisanych prób notyfikacji.')).toBeNull()
   })
 
   it('keeps pagination read-only and backed by existing offset params', async () => {
@@ -130,7 +130,7 @@ describe('InternalNotificationAttemptsPage', () => {
 
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Nastepna' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Następna' }))
 
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenCalledWith({
@@ -155,7 +155,7 @@ describe('InternalNotificationAttemptsPage', () => {
 
     renderPage()
 
-    expect(await screen.findByRole('button', { name: 'Ponow' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Ponów' })).toBeTruthy()
     expect(screen.getByText('Limit ponowien osiagniety.')).toBeTruthy()
   })
 
@@ -178,7 +178,7 @@ describe('InternalNotificationAttemptsPage', () => {
 
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Ponow' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Ponów' }))
 
     expect(screen.getByRole('button', { name: 'Ponawiam...' }).hasAttribute('disabled')).toBe(true)
     expect(retryInternalNotificationAttemptMock).toHaveBeenCalledWith('request-1', 'attempt-1')
@@ -203,7 +203,7 @@ describe('InternalNotificationAttemptsPage', () => {
     await screen.findByRole('link', { name: 'FNP-20260411-ABC123' })
 
     // navigate to second page
-    fireEvent.click(screen.getByRole('button', { name: 'Nastepna' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Następna' }))
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
         limit: 50,
@@ -239,7 +239,7 @@ describe('InternalNotificationAttemptsPage', () => {
     })
 
     // toggle retryableOnly
-    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko mozliwe do ponowienia/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko możliwe do ponowienia/ }))
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
         limit: 50,
@@ -262,9 +262,9 @@ describe('InternalNotificationAttemptsPage', () => {
 
     fireEvent.change(screen.getByLabelText('Filtr wynik'), { target: { value: 'FAILED' } })
     fireEvent.change(screen.getByLabelText('Filtr kanal'), { target: { value: 'EMAIL' } })
-    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko mozliwe do ponowienia/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko możliwe do ponowienia/ }))
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Wyczysc filtry' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Wyczyść filtry' }))
 
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
@@ -276,7 +276,7 @@ describe('InternalNotificationAttemptsPage', () => {
       })
     })
 
-    expect(screen.queryByRole('button', { name: 'Wyczysc filtry' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Wyczyść filtry' })).toBeNull()
   })
 
   it('retry reloads data using currently active filters', async () => {
@@ -289,7 +289,7 @@ describe('InternalNotificationAttemptsPage', () => {
     await screen.findByRole('link', { name: 'FNP-20260411-ABC123' })
 
     fireEvent.change(screen.getByLabelText('Filtr wynik'), { target: { value: 'FAILED' } })
-    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko mozliwe do ponowienia/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko możliwe do ponowienia/ }))
 
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
@@ -301,7 +301,7 @@ describe('InternalNotificationAttemptsPage', () => {
       })
     })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Ponow' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Ponów' }))
 
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
@@ -324,7 +324,7 @@ describe('InternalNotificationAttemptsPage', () => {
       .mockResolvedValueOnce({ items: [makeAttempt()], total: 51 })
       // after toggling retryableOnly -> offset=0, retryableOnly=true
       .mockResolvedValueOnce({ items: [makeAttempt()], total: 51 })
-      // after clicking Nastepna -> offset=50, retryableOnly=true (only 1 retryable left)
+      // after clicking Następna -> offset=50, retryableOnly=true (only 1 retryable left)
       .mockResolvedValueOnce({ items: [pageTwoItem], total: 51 })
       // retry success refresh -> offset=50 but total shrank to 50 -> empty, triggers clamp
       .mockResolvedValueOnce({ items: [], total: 50 })
@@ -339,7 +339,7 @@ describe('InternalNotificationAttemptsPage', () => {
 
     await screen.findByRole('link', { name: 'FNP-20260411-ABC123' })
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko mozliwe do ponowienia/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tylko możliwe do ponowienia/ }))
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
         limit: 50,
@@ -350,7 +350,7 @@ describe('InternalNotificationAttemptsPage', () => {
       })
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nastepna' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Następna' }))
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
         limit: 50,
@@ -361,7 +361,7 @@ describe('InternalNotificationAttemptsPage', () => {
       })
     })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Ponow' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Ponów' }))
 
     await waitFor(() => {
       expect(getGlobalInternalNotificationAttemptsMock).toHaveBeenLastCalledWith({
@@ -379,7 +379,7 @@ describe('InternalNotificationAttemptsPage', () => {
 
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Ponow' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Ponów' }))
 
     expect(await screen.findByText('Nie udalo sie ponowic proby dostarczenia.')).toBeTruthy()
     expect(screen.getByText('Zmiana statusu sprawy')).toBeTruthy()

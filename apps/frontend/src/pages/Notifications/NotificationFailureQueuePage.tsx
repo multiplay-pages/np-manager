@@ -14,6 +14,7 @@ import {
   type GetGlobalNotificationFailureQueueParams,
 } from '@/services/portingRequests.api'
 import { NotificationFailureQueueTable } from '@/components/NotificationFailureQueueTable/NotificationFailureQueueTable'
+import { AlertBanner, Button, PageHeader, SectionCard } from '@/components/ui'
 
 const PAGE_SIZE = 50
 
@@ -106,53 +107,51 @@ export function NotificationFailureQueuePage() {
   const hasNext = offset + PAGE_SIZE < total
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Kolejka błędów notyfikacji</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Administracyjna lista spraw z ostatnio nieudanymi próbami dostarczenia notyfikacji.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Notyfikacje wewnętrzne"
+        title="Kolejka błędów notyfikacji"
+        description="Sprawy z ostatnio nieudanymi próbami dostarczenia. Ponów wysyłkę lub skieruj sprawę do interwencji ręcznej."
+      />
 
-      <div className="mb-4 flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <span>Filtr operacyjny</span>
-          <select
-            value={operationalStatus}
-            onChange={(e) => {
-              setOperationalStatus(e.target.value as NotificationFailureQueueOperationalStatusFilter)
-              setOffset(0)
-            }}
-            className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700"
-          >
-            {NOTIFICATION_FAILURE_QUEUE_OPERATIONAL_STATUS_OPTIONS.map((option) => (
-              <option key={option.value || 'ALL'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+      <SectionCard padding="sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase text-ink-500">
+            Status operacyjny
+            <select
+              value={operationalStatus}
+              onChange={(e) => {
+                setOperationalStatus(e.target.value as NotificationFailureQueueOperationalStatusFilter)
+                setOffset(0)
+              }}
+              aria-label="Filtr operacyjny"
+              className="input-field h-9 min-w-[220px]"
+            >
+              {NOTIFICATION_FAILURE_QUEUE_OPERATIONAL_STATUS_OPTIONS.map((option) => (
+                <option key={option.value || 'ALL'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        {!isLoading && !error && (
-          <span className="text-xs text-gray-400">
-            {total === 0 ? 'Brak wyników' : `${total} ${total === 1 ? 'wynik' : 'wyników'}`}
-          </span>
-        )}
-      </div>
+          {!isLoading && !error && (
+            <span className="text-xs text-ink-400">
+              {total === 0 ? 'Brak wyników' : `${total} ${total === 1 ? 'wynik' : 'wyników'}`}
+            </span>
+          )}
+        </div>
+      </SectionCard>
 
       {retrySuccessMessage && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {retrySuccessMessage}
-        </div>
+        <AlertBanner tone="success" title={retrySuccessMessage} />
       )}
 
       {retryErrorMessage && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {retryErrorMessage}
-        </div>
+        <AlertBanner tone="danger" title={retryErrorMessage} />
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <SectionCard padding="none">
         <NotificationFailureQueueTable
           items={items}
           isLoading={isLoading}
@@ -160,27 +159,29 @@ export function NotificationFailureQueuePage() {
           retryingAttemptIds={retryingAttemptIds}
           onRetryAttempt={(item) => void handleRetryAttempt(item)}
         />
-      </div>
+      </SectionCard>
 
       {!isLoading && !error && total > PAGE_SIZE && (
-        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-          <button
+        <div className="flex items-center justify-between text-sm text-ink-600">
+          <Button
             onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
             disabled={!hasPrev}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 hover:bg-gray-100 disabled:cursor-not-allowed"
+            size="sm"
+            variant="ghost"
           >
             Poprzednia
-          </button>
-          <span className="text-xs text-gray-400">
+          </Button>
+          <span className="text-xs text-ink-400">
             Strona {currentPage} z {totalPages}
           </span>
-          <button
+          <Button
             onClick={() => setOffset(offset + PAGE_SIZE)}
             disabled={!hasNext}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-40 hover:bg-gray-100 disabled:cursor-not-allowed"
+            size="sm"
+            variant="ghost"
           >
             Następna
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ import type {
   InternalNotificationAttemptOutcomeDto,
   InternalNotificationFailureKindDto,
 } from '@np-manager/shared'
-import { Badge, Button, MetricCard, type BadgeTone } from '@/components/ui'
+import { AlertBanner, Badge, Button, MetricCard, PageHeader, SectionCard, type BadgeTone } from '@/components/ui'
 import { buildPath, ROUTES } from '@/constants/routes'
 import {
   getInternalNotificationRetryBlockedReasonLabel,
@@ -35,18 +35,18 @@ function getChannelLabel(channel: InternalNotificationAttemptChannelDto): string
 }
 
 function getOriginLabel(origin: InternalNotificationAttemptOriginDto): string {
-  if (origin === 'PRIMARY') return 'Primary'
-  if (origin === 'ERROR_FALLBACK') return 'Error fallback'
-  return 'Retry'
+  if (origin === 'PRIMARY') return 'Pierwotna'
+  if (origin === 'ERROR_FALLBACK') return 'Fallback błędu'
+  return 'Ponowienie'
 }
 
 function getOutcomeLabel(outcome: InternalNotificationAttemptOutcomeDto): string {
-  if (outcome === 'SENT') return 'Wyslano'
+  if (outcome === 'SENT') return 'Wysłano'
   if (outcome === 'STUBBED') return 'Stub'
-  if (outcome === 'DISABLED') return 'Wylaczone'
-  if (outcome === 'MISCONFIGURED') return 'Blad konfiguracji'
-  if (outcome === 'FAILED') return 'Blad wysylki'
-  return 'Pominieto'
+  if (outcome === 'DISABLED') return 'Wyłączone'
+  if (outcome === 'MISCONFIGURED') return 'Błąd konfiguracji'
+  if (outcome === 'FAILED') return 'Błąd wysyłki'
+  return 'Pominięto'
 }
 
 function getOutcomeTone(outcome: InternalNotificationAttemptOutcomeDto): BadgeTone {
@@ -57,14 +57,14 @@ function getOutcomeTone(outcome: InternalNotificationAttemptOutcomeDto): BadgeTo
 }
 
 function getFailureKindLabel(failureKind: InternalNotificationFailureKindDto): string {
-  if (failureKind === 'DELIVERY') return 'Transport'
+  if (failureKind === 'DELIVERY') return 'Wysyłka'
   if (failureKind === 'CONFIGURATION') return 'Konfiguracja'
   if (failureKind === 'POLICY') return 'Polityka'
   return '-'
 }
 
 function getVisibleRange(offset: number, itemsCount: number, total: number): string {
-  if (total === 0) return 'Brak rekordow'
+  if (total === 0) return 'Brak rekordów'
   return `${offset + 1}-${offset + itemsCount} z ${total}`
 }
 
@@ -90,15 +90,15 @@ function AttemptsTable({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12 text-sm text-ink-500">
-        Ladowanie prob notyfikacji...
+        Ładowanie prób notyfikacji...
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="m-4 rounded-ui border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-        {error}
+      <div className="m-4">
+        <AlertBanner tone="danger" title={error} />
       </div>
     )
   }
@@ -106,9 +106,9 @@ function AttemptsTable({
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-14 text-center">
-        <p className="text-sm font-medium text-ink-700">Brak zapisanych prob notyfikacji.</p>
+        <p className="text-sm font-medium text-ink-700">Brak zapisanych prób notyfikacji.</p>
         <p className="mt-1 text-sm text-ink-500">
-          Globalny ledger nie zawiera jeszcze wykonanych prob transportu.
+          Rejestr nie zawiera jeszcze żadnych prób dostarczenia.
         </p>
       </div>
     )
@@ -122,11 +122,11 @@ function AttemptsTable({
             <th className="px-4 py-3">Sprawa</th>
             <th className="px-4 py-3">Zdarzenie</th>
             <th className="px-4 py-3">Odbiorca</th>
-            <th className="px-4 py-3">Kanal</th>
+            <th className="px-4 py-3">Kanał</th>
             <th className="px-4 py-3">Wynik</th>
-            <th className="px-4 py-3">Retry</th>
+            <th className="px-4 py-3">Ponowienia</th>
             <th className="px-4 py-3">Utworzono</th>
-            <th className="px-4 py-3">Blad</th>
+            <th className="px-4 py-3">Błąd</th>
             <th className="px-4 py-3">Akcja</th>
           </tr>
         </thead>
@@ -178,7 +178,7 @@ function AttemptsTable({
                 <td className="max-w-[280px] px-4 py-4 align-top">
                   {item.errorMessage ? (
                     <span
-                      className="line-clamp-2 text-sm text-red-700"
+                      className="line-clamp-2 break-all text-sm text-red-700"
                       title={item.errorMessage}
                     >
                       {item.errorMessage}
@@ -196,7 +196,7 @@ function AttemptsTable({
                       disabled={isRetrying}
                       onClick={() => onRetryAttempt(item)}
                     >
-                      {isRetrying ? 'Ponawiam...' : 'Ponow'}
+                      {isRetrying ? 'Ponawiam...' : 'Ponów'}
                     </Button>
                   ) : (
                     <span className="text-xs text-ink-500">
@@ -261,7 +261,7 @@ export function InternalNotificationAttemptsPage() {
         setOffset(lastPageOffset)
       }
     } catch {
-      setError('Nie udalo sie pobrac globalnej listy prob notyfikacji.')
+      setError('Nie udało się pobrać globalnej listy prób notyfikacji.')
     } finally {
       if (showLoading) {
         setIsLoading(false)
@@ -325,37 +325,31 @@ export function InternalNotificationAttemptsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase text-brand-700">Notyfikacje wewnetrzne</p>
-          <h1 className="mt-1 text-3xl font-semibold text-ink-900">
-            Globalna lista prob dostarczenia
-          </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-500">
-            Administracyjny ledger internal notification attempts i technicznej diagnostyki transportu.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Notyfikacje wewnętrzne"
+        title="Próby dostarczenia"
+        description="Rejestr wszystkich prób wysyłki notyfikacji wewnętrznych. Filtruj według wyniku i kanału, ponów nieudane próby."
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
-          title="Wszystkie proby"
+          title="Wszystkie próby"
           value={isLoading ? '--' : total}
-          detail="Liczba rekordow zwrocona przez backend"
+          detail="Liczba rekordów zwrócona przez backend"
         />
         <MetricCard
           title="Na stronie"
           value={isLoading ? '--' : items.length}
-          detail={isLoading ? 'Ladowanie danych' : getVisibleRange(offset, items.length, total)}
+          detail={isLoading ? 'Ładowanie danych' : getVisibleRange(offset, items.length, total)}
         />
         <MetricCard
           title="Tryb widoku"
           value="Admin"
-          detail="Ledger z akcja ponowienia dla administratora"
+          detail="Widok administracyjny z akcją ponowienia"
         />
       </div>
 
-      <div className="rounded-panel border border-line bg-surface p-4 shadow-soft">
+      <SectionCard title="Filtry" padding="sm">
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase text-ink-500">
             Wynik
@@ -375,14 +369,14 @@ export function InternalNotificationAttemptsPage() {
           </label>
 
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase text-ink-500">
-            Kanal
+            Kanał
             <select
               value={channelFilter}
               onChange={(event) => handleChannelChange(event.target.value)}
               className="input-field h-10 min-w-[160px]"
               aria-label="Filtr kanal"
             >
-              <option value="">Wszystkie kanaly</option>
+              <option value="">Wszystkie kanały</option>
               {CHANNEL_FILTER_OPTIONS.map((value) => (
                 <option key={value} value={value}>
                   {getChannelLabel(value)}
@@ -398,7 +392,7 @@ export function InternalNotificationAttemptsPage() {
               checked={retryableOnly}
               onChange={(event) => handleRetryableOnlyChange(event.target.checked)}
             />
-            Tylko mozliwe do ponowienia
+            Tylko możliwe do ponowienia
           </label>
 
           {hasActiveFilters && (
@@ -409,25 +403,21 @@ export function InternalNotificationAttemptsPage() {
               size="sm"
               className="h-10"
             >
-              Wyczysc filtry
+              Wyczyść filtry
             </Button>
           )}
         </div>
-      </div>
+      </SectionCard>
 
       {retrySuccessMessage && (
-        <div className="rounded-ui border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {retrySuccessMessage}
-        </div>
+        <AlertBanner tone="success" title={retrySuccessMessage} />
       )}
 
       {retryErrorMessage && (
-        <div className="rounded-ui border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {retryErrorMessage}
-        </div>
+        <AlertBanner tone="danger" title={retryErrorMessage} />
       )}
 
-      <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-soft">
+      <SectionCard padding="none">
         <AttemptsTable
           items={items}
           isLoading={isLoading}
@@ -435,7 +425,7 @@ export function InternalNotificationAttemptsPage() {
           retryingAttemptIds={retryingAttemptIds}
           onRetryAttempt={(item) => void handleRetryAttempt(item)}
         />
-      </div>
+      </SectionCard>
 
       {!isLoading && !error && total > PAGE_SIZE && (
         <div className="flex items-center justify-between text-sm text-ink-600">
@@ -456,7 +446,7 @@ export function InternalNotificationAttemptsPage() {
             size="sm"
             variant="ghost"
           >
-            Nastepna
+            Następna
           </Button>
         </div>
       )}
