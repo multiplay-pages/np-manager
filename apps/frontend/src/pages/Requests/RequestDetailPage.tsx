@@ -6,7 +6,7 @@ import { Bell, ChevronDown, FileText, Info, TriangleAlert, Zap } from 'lucide-re
 import { buildPath, ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSystemCapabilities } from '@/hooks/useSystemCapabilities'
-import { AppIcon, Badge, Button, type BadgeTone, cx } from '@/components/ui'
+import { AlertBanner, AppIcon, Badge, Button, type BadgeTone, cx } from '@/components/ui'
 import {
   assignPortingRequestToMe,
   cancelPortingCommunication,
@@ -1872,6 +1872,11 @@ export function RequestDetailPage() {
   }
 
   const urgency = getPortingUrgency(request.confirmedPortDate)
+  const hasProcessPortDateConfirm =
+    canUseManualPortDateAction && canUseManualPortDateForCurrentStatus && !isRequestClosed
+  // Inline edycja zostaje tylko tam, gdzie nie ma akcji procesowej (np. inny status w trybie
+  // manualnym) — w przeciwnym razie ekran pokazywalby dwa formularze ustawienia daty.
+  const showInlinePortDateForm = isManualMode && !hasProcessPortDateConfirm
   const assignedUserLabel = request.assignedUser
     ? `${request.assignedUser.displayName} (${request.assignedUser.email})`
     : 'Nieprzypisana'
@@ -2008,9 +2013,9 @@ export function RequestDetailPage() {
               <div>
                 <h3 className="text-sm font-semibold text-sky-900">Potwierdz date przeniesienia</h3>
                 <p className="mt-1 text-sm text-sky-800">
-                  To potwierdza date jako krok procesu i zapisuje zdarzenie w historii. Zwykla
-                  edycja daty jako danej sprawy znajduje sie w sekcji „Najwazniejsze dane sprawy"
-                  → Terminy.
+                  To zapisuje krok procesu i dodaje zdarzenie w historii sprawy. To nie jest
+                  zwykla edycja pola daty — daty pokazane w sekcji Terminy sa read-only i
+                  zmienia je dopiero ta akcja procesowa.
                 </p>
               </div>
 
@@ -2205,7 +2210,7 @@ export function RequestDetailPage() {
           <SectionCard
             id="porting-terms-panel"
             title="Najważniejsze dane sprawy"
-            description="Dane domenowe pogrupowane wg potrzeby BOK. Edycja daty przeniesienia jako dana sprawy znajduje się w grupie Terminy. Procesowe potwierdzenie daty wykonujesz z sekcji Akcje statusu."
+            description="Dane szczegółowe sprawy — bez akcji procesowych. Akcje statusu i potwierdzenie daty znajdziesz w sekcji Akcje statusu poniżej."
             icon={FileText}
           >
             <div className="space-y-6">
@@ -2253,7 +2258,7 @@ export function RequestDetailPage() {
 
               <SubGroup
                 title="Terminy"
-                description="Edycja daty jako dana sprawy. Procesowe potwierdzenie znajdziesz w sekcji Akcje statusu."
+                description="Dane terminowe sprawy (read-only). Potwierdzenie daty jako krok procesu znajdziesz w sekcji Akcje statusu."
               >
                 <Field label="Wnioskowany dzien" value={request.requestedPortDate} mono />
                 <Field
@@ -2264,7 +2269,32 @@ export function RequestDetailPage() {
                 <Field label="Data potwierdzona" value={request.confirmedPortDate} mono />
                 <Field label="Data od dawcy" value={request.donorAssignedPortDate} mono />
                 <Field label="Godzina od dawcy" value={request.donorAssignedPortTime} mono />
-                {isManualMode && (
+
+                {hasProcessPortDateConfirm && !request.confirmedPortDate && (
+                  <div className="sm:col-span-2" data-testid="terminy-process-confirm-hint">
+                    <AlertBanner
+                      tone="info"
+                      title="Data nie zostala jeszcze potwierdzona jako krok procesu."
+                      description={
+                        <span>
+                          Potwierdzenie daty zapisuje krok procesu i zdarzenie w historii sprawy.
+                          Zwykla edycja pola daty nie jest tu dostepna.
+                        </span>
+                      }
+                      action={
+                        <Button
+                          onClick={() => scrollToSection('workflow-actions')}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Przejdz do potwierdzenia daty
+                        </Button>
+                      }
+                    />
+                  </div>
+                )}
+
+                {showInlinePortDateForm && (
                   <div className="sm:col-span-2 mt-2 border-t border-line pt-4">
                     <RequestPortDatePanel
                       confirmedPortDate={request.confirmedPortDate}
@@ -2276,10 +2306,7 @@ export function RequestDetailPage() {
                 )}
               </SubGroup>
 
-              <SubGroup
-                title="Dane operacyjne"
-                description="Adres korespondencyjny, kanał kontaktu, notatki, numer dokumentu."
-              >
+              <SubGroup title="Dane operacyjne">
                 <div className="sm:col-span-2">
                   <RequestOperationalDetailsPanel
                     correspondenceAddress={request.correspondenceAddress}
