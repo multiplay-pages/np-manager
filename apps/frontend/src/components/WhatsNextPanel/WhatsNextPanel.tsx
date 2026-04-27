@@ -70,8 +70,20 @@ const NEXT_STEP_COPY: Partial<Record<PortingCaseStatus, string>> = {
   SUBMITTED: 'Zweryfikuj dane i przekaż sprawę do dawcy, potwierdź lub odrzuć.',
   PENDING_DONOR:
     'Poczekaj na odpowiedź dawcy. Gdy nadejdzie — potwierdź termin lub odrzuć sprawę.',
-  CONFIRMED: 'Po realizacji portowania oznacz sprawę jako przeniesioną.',
   ERROR: 'Sprawdź przyczynę błędu i wybierz dalsze działanie lub skontaktuj się z przełożonym.',
+}
+
+function buildNextStep(
+  status: PortingCaseStatus,
+  availableStatusActions: PortingRequestStatusActionDto[],
+): string | null {
+  if (status === 'CONFIRMED') {
+    const hasMarkPorted = availableStatusActions.some((a) => a.actionId === 'MARK_PORTED')
+    return hasMarkPorted
+      ? 'Numer przeniesiony? Użyj akcji „Oznacz jako przeniesiona" w sekcji Akcje statusu.'
+      : 'Sprawdź sekcję Akcje statusu, aby oznaczyć sprawę jako przeniesioną.'
+  }
+  return NEXT_STEP_COPY[status] ?? null
 }
 
 const TONE_STYLES: Record<PanelTone, string> = {
@@ -255,7 +267,7 @@ export function WhatsNextPanel({
     ? terminalCopy?.body ?? STATUS_SUMMARY[status]
     : STATUS_SUMMARY[status]
 
-  const nextStep = isTerminal ? null : NEXT_STEP_COPY[status] ?? null
+  const nextStep = isTerminal ? null : buildNextStep(status, availableStatusActions)
 
   return (
     <section
