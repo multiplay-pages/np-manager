@@ -29,6 +29,17 @@ const ACTION_REJECT: PortingRequestStatusActionDto = {
   description: 'Odrzucenie wniosku przez dawce',
 }
 
+const ACTION_MARK_PORTED: PortingRequestStatusActionDto = {
+  actionId: 'MARK_PORTED',
+  label: 'Oznacz jako przeniesiona',
+  targetStatus: 'PORTED',
+  requiresReason: false,
+  requiresComment: false,
+  reasonLabel: null,
+  commentLabel: 'Komentarz operacyjny',
+  description: 'Zamknij sprawe jako zrealizowana.',
+}
+
 function buildProps(
   overrides: Partial<RequestWorkflowActionsSectionProps> = {},
 ): RequestWorkflowActionsSectionProps {
@@ -264,6 +275,52 @@ describe('RequestWorkflowActionsSection', () => {
     )
 
     expect(screen.queryByTestId('external-slot')).toBeNull()
+  })
+
+  it('renders MARK_PORTED action and triggers onSelectStatusAction', () => {
+    const onSelectStatusAction = vi.fn()
+    render(
+      <RequestWorkflowActionsSection
+        {...buildProps({
+          statusInternal: 'CONFIRMED',
+          availableStatusActions: [ACTION_MARK_PORTED],
+          onSelectStatusAction,
+        })}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'Oznacz jako przeniesiona' })
+    fireEvent.click(button)
+    expect(onSelectStatusAction).toHaveBeenCalledWith(ACTION_MARK_PORTED)
+  })
+
+  it('MARK_PORTED action shows no reason field and optional comment', () => {
+    render(
+      <RequestWorkflowActionsSection
+        {...buildProps({
+          statusInternal: 'CONFIRMED',
+          availableStatusActions: [ACTION_MARK_PORTED],
+          selectedStatusAction: ACTION_MARK_PORTED,
+        })}
+      />,
+    )
+
+    expect(screen.queryByPlaceholderText('Podaj powod')).toBeNull()
+    expect(screen.getByPlaceholderText('Opcjonalny komentarz operacyjny')).toBeDefined()
+  })
+
+  it('PORTED status shows terminal closed empty state, no action buttons', () => {
+    render(
+      <RequestWorkflowActionsSection
+        {...buildProps({
+          statusInternal: 'PORTED',
+          availableStatusActions: [],
+        })}
+      />,
+    )
+
+    expect(screen.getByText(/Sprawa zako/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Oznacz jako przeniesiona' })).toBeNull()
   })
 
   it('disables status action buttons when isUpdatingStatus is true', () => {
