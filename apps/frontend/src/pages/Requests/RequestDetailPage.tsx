@@ -98,6 +98,7 @@ import { PliCbdXmlPreview } from '@/components/PliCbdXmlPreview/PliCbdXmlPreview
 import { PortingInternalNotificationsPanel } from '@/components/PortingInternalNotificationsPanel/PortingInternalNotificationsPanel'
 import { RequestOperationalDetailsPanel } from '@/components/RequestOperationalDetailsPanel/RequestOperationalDetailsPanel'
 import { RequestPortDatePanel } from '@/components/RequestPortDatePanel/RequestPortDatePanel'
+import { RequestWorkflowActionsSection } from './RequestWorkflowActionsSection'
 import { RequestDetailsHistoryPanel } from '@/components/RequestDetailsHistoryPanel/RequestDetailsHistoryPanel'
 import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
@@ -1888,240 +1889,56 @@ export function RequestDetailPage() {
     quickStatusActions.length > 0 || canManageAssignment || availableCommunicationActions.length > 0
   const workflowErrorMessage = getWorkflowErrorEmptyStateMessage(canUsePliCbdExternalActions)
   const workflowActionsSection = (
-    <SectionCard
-      id="workflow-actions"
-      title="Akcje statusu"
-      description="Dostępne przejścia wynikają z aktualnego statusu sprawy i uprawnień operatora."
-      compact
-    >
-      {canManageStatus ? (
-        <div className="space-y-4">
-          {availableStatusActions.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {availableStatusActions.map((action) => (
-                  <button
-                    key={`${action.actionId}-${action.targetStatus}`}
-                    type="button"
-                    onClick={() => handleSelectStatusAction(action)}
-                    className={
-                      selectedStatusAction?.actionId === action.actionId &&
-                      selectedStatusAction.targetStatus === action.targetStatus
-                        ? 'btn-primary'
-                        : 'btn-secondary'
-                    }
-                    disabled={isUpdatingStatus || isExporting || isSyncing}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : TERMINAL_CLOSED_STATUSES.includes(request.statusInternal) ? (
-            <div className="rounded-panel border border-line bg-ink-50 px-4 py-3 text-sm text-ink-500">
-              Sprawa zakoĹ„czona â€” brak dostÄ™pnych akcji statusowych.
-            </div>
-          ) : request.statusInternal === 'ERROR' ? (
-            <div className="rounded-panel border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {getWorkflowErrorEmptyStateMessage(canUsePliCbdExternalActions)}
-            </div>
-          ) : (
-            <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              Brak akcji dostÄ™pnych dla Twojej roli w tym statusie sprawy.
-            </div>
-          )}
-
-          {selectedStatusAction ? (
-            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-800">{selectedStatusAction.label}</h3>
-                <p className="mt-1 text-sm text-gray-500">{selectedStatusAction.description}</p>
-              </div>
-
-              {selectedStatusAction.requiresReason && (
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-gray-600">
-                    {selectedStatusAction.reasonLabel ?? 'Powod'}
-                  </span>
-                  <input
-                    type="text"
-                    value={statusReason}
-                    onChange={(event) => setStatusReason(event.target.value)}
-                    className="input-field"
-                    placeholder={selectedStatusAction.reasonLabel ?? 'Podaj powod'}
-                  />
-                </label>
-              )}
-
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-gray-600">
-                  {selectedStatusAction.commentLabel ??
-                    (selectedStatusAction.requiresComment ? 'Komentarz' : 'Komentarz (opcjonalnie)')}
-                </span>
-                <textarea
-                  value={statusComment}
-                  onChange={(event) => setStatusComment(event.target.value)}
-                  rows={selectedStatusAction.requiresComment ? 4 : 3}
-                  className="input-field"
-                  placeholder={
-                    selectedStatusAction.requiresComment
-                      ? 'Dodaj wymagany komentarz'
-                      : 'Opcjonalny komentarz operacyjny'
-                  }
-                />
-              </label>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void handleSubmitStatusAction()}
-                  className="btn-primary"
-                  disabled={isUpdatingStatus || isExporting || isSyncing}
-                >
-                  {isUpdatingStatus ? 'Zapis statusu' : selectedStatusAction.label}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetStatusActionForm}
-                  className="btn-secondary"
-                  disabled={isUpdatingStatus}
-                >
-                  Wyczysc
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              Wybierz akcje, aby zmienic status sprawy.
-            </div>
-          )}
-
-          {statusActionSuccess && (
-            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              {statusActionSuccess}
-            </div>
-          )}
-
-          {statusActionError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {statusActionError}
-            </div>
-          )}
-
-          {canUseManualPortDateAction && (
-            <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/60 p-4">
-              <div>
-                <h3 className="text-sm font-semibold text-sky-900">Potwierdz date przeniesienia</h3>
-                <p className="mt-1 text-sm text-sky-800">
-                  To zapisuje krok procesu i dodaje zdarzenie w historii sprawy. To nie jest
-                  zwykla edycja pola daty — daty pokazane w sekcji Terminy sa read-only i
-                  zmienia je dopiero ta akcja procesowa.
-                </p>
-              </div>
-
-              {canUseManualPortDateForCurrentStatus ? (
-                <>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-sky-900">
-                      Data przeniesienia
-                    </span>
-                    <input
-                      type="date"
-                      value={manualConfirmedPortDate}
-                      onChange={(event) => setManualConfirmedPortDate(event.target.value)}
-                      className="input-field"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-sky-900">
-                      Komentarz operacyjny (opcjonalnie)
-                    </span>
-                    <textarea
-                      value={manualPortDateComment}
-                      onChange={(event) => setManualPortDateComment(event.target.value)}
-                      rows={3}
-                      className="input-field"
-                      placeholder="Dodaj komentarz do historii operacyjnej"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    />
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleConfirmManualPortDate()}
-                      className="btn-primary"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    >
-                      {isSubmittingManualPortDate
-                        ? 'Zapisywanie potwierdzenia'
-                        : 'Potwierdz date przeniesienia'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setManualPortDateComment('')}
-                      className="btn-secondary"
-                      disabled={isSubmittingManualPortDate}
-                    >
-                      Wyczysc komentarz
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                  Akcja dostepna tylko dla statusow: Zlozona, Oczekuje na dawce, Potwierdzona.
-                </div>
-              )}
-
-              {manualPortDateSuccess && (
-                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                  {manualPortDateSuccess}
-                </div>
-              )}
-
-              {manualPortDateError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {manualPortDateError}
-                </div>
-              )}
-            </div>
-          )}
-
-          {canUsePliCbdExternalActions && (
-            <PortingExternalActionsPanel
-              availableActions={availableExternalActions}
-              selectedAction={selectedExternalAction}
-              scheduledPortDate={externalScheduledPortDate}
-              rejectionReason={externalRejectionReason}
-              comment={externalActionComment}
-              createDraft={externalCreateDraft}
-              isSubmitting={isSubmittingExternalAction}
-              successMessage={externalActionSuccess}
-              errorMessage={externalActionError}
-              onSelectAction={handleSelectExternalAction}
-              onScheduledPortDateChange={setExternalScheduledPortDate}
-              onRejectionReasonChange={setExternalRejectionReason}
-              onCommentChange={setExternalActionComment}
-              onCreateDraftChange={setExternalCreateDraft}
-              onSubmit={() => void handleSubmitExternalAction()}
-              onReset={resetExternalActionForm}
-            />
-          )}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-          Twoja rola ma dostep tylko do podgladu sprawy.
-        </div>
-      )}
-    </SectionCard>
+    <RequestWorkflowActionsSection
+      canManageStatus={canManageStatus}
+      statusInternal={request.statusInternal}
+      canUsePliCbdExternalActions={canUsePliCbdExternalActions}
+      workflowErrorEmptyStateMessage={workflowErrorMessage}
+      availableStatusActions={availableStatusActions}
+      selectedStatusAction={selectedStatusAction}
+      statusReason={statusReason}
+      statusComment={statusComment}
+      isUpdatingStatus={isUpdatingStatus}
+      isExporting={isExporting}
+      isSyncing={isSyncing}
+      statusActionSuccess={statusActionSuccess}
+      statusActionError={statusActionError}
+      onSelectStatusAction={handleSelectStatusAction}
+      onStatusReasonChange={setStatusReason}
+      onStatusCommentChange={setStatusComment}
+      onSubmitStatusAction={() => void handleSubmitStatusAction()}
+      onResetStatusActionForm={resetStatusActionForm}
+      canUseManualPortDateAction={canUseManualPortDateAction}
+      canUseManualPortDateForCurrentStatus={canUseManualPortDateForCurrentStatus}
+      manualConfirmedPortDate={manualConfirmedPortDate}
+      manualPortDateComment={manualPortDateComment}
+      isSubmittingManualPortDate={isSubmittingManualPortDate}
+      manualPortDateSuccess={manualPortDateSuccess}
+      manualPortDateError={manualPortDateError}
+      onManualConfirmedPortDateChange={setManualConfirmedPortDate}
+      onManualPortDateCommentChange={setManualPortDateComment}
+      onConfirmManualPortDate={() => void handleConfirmManualPortDate()}
+      pliCbdExternalActionsSlot={
+        <PortingExternalActionsPanel
+          availableActions={availableExternalActions}
+          selectedAction={selectedExternalAction}
+          scheduledPortDate={externalScheduledPortDate}
+          rejectionReason={externalRejectionReason}
+          comment={externalActionComment}
+          createDraft={externalCreateDraft}
+          isSubmitting={isSubmittingExternalAction}
+          successMessage={externalActionSuccess}
+          errorMessage={externalActionError}
+          onSelectAction={handleSelectExternalAction}
+          onScheduledPortDateChange={setExternalScheduledPortDate}
+          onRejectionReasonChange={setExternalRejectionReason}
+          onCommentChange={setExternalActionComment}
+          onCreateDraftChange={setExternalCreateDraft}
+          onSubmit={() => void handleSubmitExternalAction()}
+          onReset={resetExternalActionForm}
+        />
+      }
+    />
   )
 
   return (
