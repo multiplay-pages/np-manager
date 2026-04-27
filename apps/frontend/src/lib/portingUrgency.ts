@@ -3,9 +3,9 @@ import {
   calculatePortingDaysDiff,
   getPortingUrgencyLevel,
   getPortingWorkPriorityBucket,
+  type PortingCaseStatus,
   type PortingUrgencyLevel,
   type PortingWorkPriorityBucket,
-  type PortingCaseStatus,
 } from '@np-manager/shared'
 
 export type { PortingUrgencyLevel, PortingWorkPriorityBucket }
@@ -66,6 +66,18 @@ export function getWorkPriorityBadge(
   return config[bucket]
 }
 
+export function getStatusAwareWorkPriorityBadge(
+  portDateIso: string | null | undefined,
+  status: PortingCaseStatus | null | undefined,
+  now: Date = new Date(),
+): WorkPriorityBadge | null {
+  if (isClosedPortingStatus(status)) {
+    return null
+  }
+
+  return getWorkPriorityBadge(portDateIso, now)
+}
+
 export function getPortingUrgency(
   portDateIso: string | null | undefined,
   now: Date = new Date(),
@@ -106,4 +118,24 @@ export function getPortingUrgency(
     emphasized: config.emphasized,
     daysDiff,
   }
+}
+
+export function getStatusAwarePortingUrgency(
+  portDateIso: string | null | undefined,
+  status: PortingCaseStatus | null | undefined,
+  now: Date = new Date(),
+): PortingUrgency {
+  const urgency = getPortingUrgency(portDateIso, now)
+
+  if (isClosedPortingStatus(status) && urgency.level === 'OVERDUE') {
+    return {
+      ...urgency,
+      level: 'LATER',
+      label: 'Zakonczona',
+      tone: 'emerald',
+      emphasized: false,
+    }
+  }
+
+  return urgency
 }
