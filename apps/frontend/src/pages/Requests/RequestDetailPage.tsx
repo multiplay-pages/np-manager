@@ -1874,9 +1874,9 @@ export function RequestDetailPage() {
   const urgency = getPortingUrgency(request.confirmedPortDate)
   const hasProcessPortDateConfirm =
     canUseManualPortDateAction && canUseManualPortDateForCurrentStatus && !isRequestClosed
-  // Inline edycja zostaje tylko tam, gdzie nie ma akcji procesowej (np. inny status w trybie
-  // manualnym) — w przeciwnym razie ekran pokazywalby dwa formularze ustawienia daty.
-  const showInlinePortDateForm = isManualMode && !hasProcessPortDateConfirm
+  // Inline edycja ukryta gdy uzytkownik ma dostep do akcji procesowej potwierdzenia daty
+  // (niezaleznie od statusu) — zapobiega pokazywaniu dwoch miejsc do ustawienia daty.
+  const showInlinePortDateForm = isManualMode && !canUseManualPortDateAction
   const assignedUserLabel = request.assignedUser
     ? `${request.assignedUser.displayName} (${request.assignedUser.email})`
     : 'Nieprzypisana'
@@ -2270,7 +2270,7 @@ export function RequestDetailPage() {
                 <Field label="Data od dawcy" value={request.donorAssignedPortDate} mono />
                 <Field label="Godzina od dawcy" value={request.donorAssignedPortTime} mono />
 
-                {hasProcessPortDateConfirm && !request.confirmedPortDate && (
+                {canUseManualPortDateAction && !request.confirmedPortDate && (
                   <div className="sm:col-span-2" data-testid="terminy-process-confirm-hint">
                     <AlertBanner
                       tone="info"
@@ -2287,7 +2287,7 @@ export function RequestDetailPage() {
                           variant="secondary"
                           size="sm"
                         >
-                          Przejdz do potwierdzenia daty
+                          Przejdź do potwierdzenia daty
                         </Button>
                       }
                     />
