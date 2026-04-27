@@ -5,9 +5,12 @@ import {
   getPortingWorkPriorityBucket,
   type PortingUrgencyLevel,
   type PortingWorkPriorityBucket,
+  type PortingCaseStatus,
 } from '@np-manager/shared'
 
 export type { PortingUrgencyLevel, PortingWorkPriorityBucket }
+
+const CLOSED_PORTING_STATUSES: PortingCaseStatus[] = ['PORTED', 'CANCELLED', 'REJECTED']
 
 export interface PortingUrgency {
   level: PortingUrgencyLevel
@@ -15,6 +18,10 @@ export interface PortingUrgency {
   tone: BadgeTone
   emphasized: boolean
   daysDiff: number | null
+}
+
+export function isClosedPortingStatus(status: PortingCaseStatus | null | undefined): boolean {
+  return status ? CLOSED_PORTING_STATUSES.includes(status) : false
 }
 
 export function calculateDaysDiff(
