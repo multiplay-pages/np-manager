@@ -28,7 +28,7 @@ import {
 } from '@/lib/portingOwnership'
 import { getPortingOperationalHint } from '@/lib/portingOperationalHint'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
-import { getWorkPriorityBadge } from '@/lib/portingUrgency'
+import { getStatusAwareWorkPriorityBadge } from '@/lib/portingUrgency'
 import {
   assignPortingRequestToMe,
   getPortingRequests,
@@ -248,7 +248,7 @@ export function RequestRow({
   const portingDateLabel = request.confirmedPortDate
     ? formatDateValue(request.confirmedPortDate)
     : null
-  const workPriority = getWorkPriorityBadge(request.confirmedPortDate)
+  const workPriority = getStatusAwareWorkPriorityBadge(request.confirmedPortDate, request.statusInternal)
   const operationalHint = getPortingOperationalHint({
     statusInternal: request.statusInternal,
     confirmedPortDate: request.confirmedPortDate,

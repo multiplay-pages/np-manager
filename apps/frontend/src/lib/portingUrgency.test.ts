@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { calculateDaysDiff, getPortingUrgency, getWorkPriorityBadge } from './portingUrgency'
+import {
+  calculateDaysDiff,
+  getPortingUrgency,
+  getStatusAwarePortingUrgency,
+  getStatusAwareWorkPriorityBadge,
+  getWorkPriorityBadge,
+} from './portingUrgency'
 
 // NOW = wtorek 2026-04-21, godz. 11:00 Warsaw (09:00 UTC)
 // ISO week: pon 2026-04-20 - ndz 2026-04-26
@@ -153,5 +159,72 @@ describe('getWorkPriorityBadge', () => {
     expect(badge?.label).toBe('W tym tygodniu')
     expect(badge?.tone).toBe('amber')
     expect(badge?.emphasized).toBe(false)
+  })
+})
+
+describe('getStatusAwarePortingUrgency', () => {
+  it('active status + past date => OVERDUE red', () => {
+    const urgency = getStatusAwarePortingUrgency('2026-04-20', 'SUBMITTED', NOW)
+    expect(urgency.level).toBe('OVERDUE')
+    expect(urgency.tone).toBe('red')
+    expect(urgency.emphasized).toBe(true)
+    expect(urgency.label).toContain('Po terminie')
+  })
+
+  it('PORTED + past date => not OVERDUE, emerald, not emphasized', () => {
+    const urgency = getStatusAwarePortingUrgency('2026-04-20', 'PORTED', NOW)
+    expect(urgency.level).not.toBe('OVERDUE')
+    expect(urgency.tone).toBe('emerald')
+    expect(urgency.emphasized).toBe(false)
+    expect(urgency.label).not.toContain('Po terminie')
+  })
+
+  it('CANCELLED + past date => not red OVERDUE', () => {
+    const urgency = getStatusAwarePortingUrgency('2026-04-15', 'CANCELLED', NOW)
+    expect(urgency.tone).not.toBe('red')
+    expect(urgency.label).not.toContain('Po terminie')
+  })
+
+  it('REJECTED + past date => not red OVERDUE', () => {
+    const urgency = getStatusAwarePortingUrgency('2026-04-10', 'REJECTED', NOW)
+    expect(urgency.tone).not.toBe('red')
+    expect(urgency.label).not.toContain('Po terminie')
+  })
+
+  it('PENDING_DONOR + past date => still OVERDUE', () => {
+    const urgency = getStatusAwarePortingUrgency('2026-04-19', 'PENDING_DONOR', NOW)
+    expect(urgency.level).toBe('OVERDUE')
+    expect(urgency.tone).toBe('red')
+  })
+
+  it('CONFIRMED + past date => still OVERDUE', () => {
+    const urgency = getStatusAwarePortingUrgency('2026-04-18', 'CONFIRMED', NOW)
+    expect(urgency.level).toBe('OVERDUE')
+    expect(urgency.tone).toBe('red')
+  })
+})
+
+describe('getStatusAwareWorkPriorityBadge', () => {
+  it('active status + past date => OVERDUE badge', () => {
+    const badge = getStatusAwareWorkPriorityBadge('2026-04-20', 'SUBMITTED', NOW)
+    expect(badge?.bucket).toBe('OVERDUE')
+    expect(badge?.tone).toBe('red')
+  })
+
+  it('PORTED + past date => null (no badge)', () => {
+    expect(getStatusAwareWorkPriorityBadge('2026-04-20', 'PORTED', NOW)).toBeNull()
+  })
+
+  it('CANCELLED + past date => null', () => {
+    expect(getStatusAwareWorkPriorityBadge('2026-04-15', 'CANCELLED', NOW)).toBeNull()
+  })
+
+  it('REJECTED + past date => null', () => {
+    expect(getStatusAwareWorkPriorityBadge('2026-04-10', 'REJECTED', NOW)).toBeNull()
+  })
+
+  it('PENDING_DONOR + past date => OVERDUE badge', () => {
+    const badge = getStatusAwareWorkPriorityBadge('2026-04-19', 'PENDING_DONOR', NOW)
+    expect(badge?.bucket).toBe('OVERDUE')
   })
 })
