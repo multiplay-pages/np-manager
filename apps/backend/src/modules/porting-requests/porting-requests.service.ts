@@ -371,6 +371,7 @@ function buildQuickWorkFilterWhere(
     confirmedPortDate: {
       lt: dueBefore,
     },
+    statusInternal: { notIn: CLOSED_STATUSES },
   }
 }
 

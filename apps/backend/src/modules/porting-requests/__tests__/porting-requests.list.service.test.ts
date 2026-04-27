@@ -353,6 +353,7 @@ describe('listPortingRequests - quick work filters', () => {
       confirmedPortDate: {
         lt: new Date('2026-04-22T00:00:00.000Z'),
       },
+      statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
     })
   })
 
@@ -367,7 +368,42 @@ describe('listPortingRequests - quick work filters', () => {
       confirmedPortDate: {
         lt: new Date('2026-04-27T00:00:00.000Z'),
       },
+      statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
     })
+  })
+
+  it('URGENT - excludes closed statuses (PORTED, CANCELLED, REJECTED)', async () => {
+    await listPortingRequests(
+      { quickWorkFilter: 'URGENT', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const findManyWhere = (mockPortingRequestFindMany.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    expect(findManyWhere).toMatchObject({
+      statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
+    })
+  })
+
+  it('NEEDS_ACTION_TODAY - excludes closed statuses (PORTED, CANCELLED, REJECTED)', async () => {
+    await listPortingRequests(
+      { quickWorkFilter: 'NEEDS_ACTION_TODAY', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const findManyWhere = (mockPortingRequestFindMany.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    expect(findManyWhere).toMatchObject({
+      statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
+    })
+  })
+
+  it('NO_DATE - does not add statusInternal exclusion', async () => {
+    await listPortingRequests(
+      { quickWorkFilter: 'NO_DATE', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const findManyWhere = (mockPortingRequestFindMany.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    expect(findManyWhere).not.toHaveProperty('statusInternal')
   })
 })
 
@@ -591,5 +627,29 @@ describe('getPortingRequestsOperationalSummary', () => {
     // noDate count is the 7th call (index 6)
     const noDateCall = mockPortingRequestCount.mock.calls[6]?.[0] as { where: Record<string, unknown> }
     expect(noDateCall.where).toMatchObject({ confirmedPortDate: null })
+  })
+
+  it('quickWorkCounts urgent excludes closed statuses', async () => {
+    mockPortingRequestCount.mockResolvedValue(0)
+
+    await getPortingRequestsOperationalSummary({}, CURRENT_USER_ID)
+
+    // urgent count is the 6th call (index 5)
+    const urgentCall = mockPortingRequestCount.mock.calls[5]?.[0] as { where: Record<string, unknown> }
+    expect(urgentCall.where).toMatchObject({
+      statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
+    })
+  })
+
+  it('quickWorkCounts needsActionToday excludes closed statuses', async () => {
+    mockPortingRequestCount.mockResolvedValue(0)
+
+    await getPortingRequestsOperationalSummary({}, CURRENT_USER_ID)
+
+    // needsActionToday count is the 8th call (index 7)
+    const needsActionCall = mockPortingRequestCount.mock.calls[7]?.[0] as { where: Record<string, unknown> }
+    expect(needsActionCall.where).toMatchObject({
+      statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
+    })
   })
 })
