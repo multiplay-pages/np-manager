@@ -1071,7 +1071,14 @@ function buildPortingRequestListWhere(
     'quickWorkFilter' in query ? query.quickWorkFilter : undefined,
   )
   if (quickWorkFilterWhere) {
-    Object.assign(where, quickWorkFilterWhere)
+    const { statusInternal: statusExclusion, ...dateFilter } = quickWorkFilterWhere
+    Object.assign(where, dateFilter)
+    if (statusExclusion !== undefined) {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        { statusInternal: statusExclusion },
+      ]
+    }
   }
 
   if (!options.ignoreCommercialOwnerFilter) {
