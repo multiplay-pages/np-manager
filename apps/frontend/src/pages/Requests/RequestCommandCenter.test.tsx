@@ -93,10 +93,23 @@ describe('RequestCommandCenter', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('NP-2026-0007')).toBeDefined()
-    expect(screen.getAllByText('Acme Sp. z o.o.').length).toBeGreaterThan(0)
-    expect(screen.getByText('500123456')).toBeDefined()
-    expect(screen.getAllByText(/Operator Dawca/).length).toBeGreaterThan(0)
+    // Primary hero: number as h1, client as prominent subtitle
+    const heroNumber = screen.getByTestId('hero-number')
+    expect(heroNumber.tagName).toBe('H1')
+    expect(heroNumber.textContent).toBe('500123456')
+
+    const heroClient = screen.getByTestId('hero-client')
+    expect(heroClient.textContent).toBe('Acme Sp. z o.o.')
+
+    // Meta line: caseNumber + operator route still visible
+    const heroMeta = screen.getByTestId('hero-meta')
+    expect(heroMeta.textContent).toContain('NP-2026-0007')
+    expect(heroMeta.textContent).toContain('Operator Dawca')
+
+    // Mode badge visible (DAY label appears in badges and in Portowanie group)
+    expect(screen.getAllByText(/DAY/).length).toBeGreaterThan(0)
+
+    // Owners in groups below
     expect(screen.getByText('Anna BOK')).toBeDefined()
     expect(screen.getByText('Jan Sales')).toBeDefined()
   })

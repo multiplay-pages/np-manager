@@ -253,12 +253,28 @@ export function RequestCaseHero({
         </div>
 
         <div className="mt-4 max-w-4xl min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">Sprawa</p>
-          <h1 className="mt-1 break-words font-mono text-3xl font-semibold tracking-tight text-ink-950 md:text-4xl">
-            {request.caseNumber}
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">
+            Numer przenoszony
+          </p>
+          <h1
+            data-testid="hero-number"
+            className="mt-1 break-all font-mono text-3xl font-bold tracking-tight text-ink-950 md:text-4xl"
+          >
+            {request.numberDisplay}
           </h1>
-          <p className="mt-3 break-words text-2xl font-semibold tracking-tight text-ink-900">
+          <p
+            data-testid="hero-client"
+            className="mt-2 break-words text-2xl font-semibold tracking-tight text-ink-900"
+          >
             {request.client.displayName}
+          </p>
+          <p
+            data-testid="hero-meta"
+            className="mt-2 flex flex-wrap items-center gap-x-2 text-sm text-ink-500"
+          >
+            <span className="font-mono">{request.caseNumber}</span>
+            <span className="select-none text-ink-300" aria-hidden>·</span>
+            <span>{donorToRecipient}</span>
           </p>
         </div>
       </div>
