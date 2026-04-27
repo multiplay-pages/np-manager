@@ -243,4 +243,83 @@ describe('WhatsNextPanel', () => {
     const blocker = findByTestId(tree, 'whats-next-blocker')
     expect(blocker).toBeUndefined()
   })
+
+  it('CONFIRMED + MARK_PORTED available: mentions marking as ported', () => {
+    const markPortedAction: PortingRequestStatusActionDto = {
+      actionId: 'MARK_PORTED',
+      label: 'Oznacz jako przeniesiona',
+      targetStatus: 'PORTED',
+      requiresReason: false,
+      requiresComment: false,
+      reasonLabel: null,
+      commentLabel: null,
+      description: 'Oznacza sprawę jako przeniesioną.',
+    }
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'CONFIRMED' as PortingCaseStatus,
+        availableStatusActions: [markPortedAction],
+      }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('Oznacz jako przeniesiona')
+    expect(text).toContain('Akcje statusu')
+  })
+
+  it('CONFIRMED without MARK_PORTED: shows generic actions-section hint', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'CONFIRMED' as PortingCaseStatus,
+        availableStatusActions: [],
+      }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('Sprawdź sekcję Akcje statusu')
+    expect(text).not.toContain('Oznacz jako przeniesiona')
+  })
+
+  it('PORTED: calm completion message, no next step, no blocker', () => {
+    const tree = WhatsNextPanel(
+      makeProps({ status: 'PORTED' as PortingCaseStatus, availableStatusActions: [] }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('Numer został przeniesiony')
+    expect(text).toContain('zakończona pomyślnie')
+    expect(text).not.toContain('Najbliższy krok')
+    expect(findByTestId(tree, 'whats-next-actions')).toBeUndefined()
+    expect(findByTestId(tree, 'whats-next-blocker')).toBeUndefined()
+  })
+
+  it('REJECTED: shows closed-case message, no next step', () => {
+    const tree = WhatsNextPanel(
+      makeProps({ status: 'REJECTED' as PortingCaseStatus, availableStatusActions: [] }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('odrzucona')
+    expect(text).not.toContain('Najbliższy krok')
+    expect(findByTestId(tree, 'whats-next-actions')).toBeUndefined()
+  })
+
+  it('CANCELLED: shows closed-case message, no next step', () => {
+    const tree = WhatsNextPanel(
+      makeProps({ status: 'CANCELLED' as PortingCaseStatus, availableStatusActions: [] }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('anulowana')
+    expect(text).not.toContain('Najbliższy krok')
+    expect(findByTestId(tree, 'whats-next-actions')).toBeUndefined()
+  })
+
+  it('ERROR: shows intervention message', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'ERROR' as PortingCaseStatus,
+        availableStatusActions: [],
+        canManageStatus: true,
+      }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('błędu')
+    expect(text).toContain('interwencji')
+  })
 })
