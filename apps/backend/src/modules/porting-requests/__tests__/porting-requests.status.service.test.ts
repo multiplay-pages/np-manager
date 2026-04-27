@@ -128,4 +128,86 @@ describe('changePortingRequestStatus', () => {
     expect(mockTransaction).not.toHaveBeenCalled()
     expect(mockLogAuditEvent).not.toHaveBeenCalled()
   })
+
+  it('MARK_PORTED sets statusInternal=PORTED and creates case history entry', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 'req-1',
+      caseNumber: 'FNP-TEST-002',
+      statusInternal: 'CONFIRMED',
+    })
+
+    await changePortingRequestStatus(
+      'req-1',
+      { targetStatus: 'PORTED' },
+      'user-admin',
+      'ADMIN',
+    )
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'req-1' },
+        data: { statusInternal: 'PORTED' },
+      }),
+    )
+
+    expect(mockCaseHistoryCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'STATUS_CHANGED',
+          statusBefore: 'CONFIRMED',
+          statusAfter: 'PORTED',
+          metadata: {
+            actionId: 'MARK_PORTED',
+            actionLabel: 'Oznacz jako przeniesiona',
+          },
+        }),
+      }),
+    )
+
+    expect(mockLogAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'STATUS_CHANGE',
+        oldValue: 'CONFIRMED',
+        newValue: 'PORTED',
+      }),
+    )
+  })
+
+  it('blocks MARK_PORTED when role is BOK_CONSULTANT', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 'req-1',
+      caseNumber: 'FNP-TEST-003',
+      statusInternal: 'CONFIRMED',
+    })
+
+    await expect(
+      changePortingRequestStatus(
+        'req-1',
+        { targetStatus: 'PORTED' },
+        'user-bok',
+        'BOK_CONSULTANT',
+      ),
+    ).rejects.toThrow(/Twoja rola nie moze wykonac tej zmiany statusu/)
+
+    expect(mockTransaction).not.toHaveBeenCalled()
+  })
+
+  it('blocks MARK_PORTED when request is already PORTED', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 'req-1',
+      caseNumber: 'FNP-TEST-004',
+      statusInternal: 'PORTED',
+    })
+
+    await expect(
+      changePortingRequestStatus(
+        'req-1',
+        { targetStatus: 'PORTED' },
+        'user-admin',
+        'ADMIN',
+      ),
+    ).rejects.toThrow(/Sprawa ma juz wskazany status/)
+
+    expect(mockTransaction).not.toHaveBeenCalled()
+  })
 })
