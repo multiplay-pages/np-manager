@@ -241,7 +241,7 @@ export function RequestCaseHero({
           <Badge tone={getStatusTone(statusMeta.tone)} leadingDot>
             {statusMeta.label}
           </Badge>
-          <Badge tone="brand">{PORTING_MODE_LABELS[request.portingMode]}</Badge>
+          <Badge tone="brand">Tryb: {request.portingMode}</Badge>
           <Badge
             tone={urgency.tone}
             className={urgency.emphasized ? 'ring-2' : undefined}
@@ -258,7 +258,7 @@ export function RequestCaseHero({
           </p>
           <h1
             data-testid="hero-number"
-            className="mt-1 break-all font-mono text-3xl font-bold tracking-tight text-ink-950 md:text-4xl"
+            className="mt-1 break-all font-mono text-4xl font-bold tracking-tight text-ink-950 md:text-5xl"
           >
             {request.numberDisplay}
           </h1>

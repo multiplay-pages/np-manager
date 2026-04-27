@@ -144,4 +144,48 @@ describe('RequestCommandCenter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sprawdz notyfikacje' }))
     expect(onScrollToNotifications).toHaveBeenCalledTimes(1)
   })
+
+  it('hero-number has large font and mode chip shows "Tryb: DAY"', () => {
+    render(
+      <MemoryRouter>
+        <RequestCaseHero
+          request={BASE_REQUEST}
+          urgency={URGENCY}
+          copyLinkDone={false}
+          onBackToList={vi.fn()}
+          onCopyLink={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    const heroNumber = screen.getByTestId('hero-number')
+    expect(heroNumber.className).toContain('text-4xl')
+
+    expect(screen.getByText('Tryb: DAY')).toBeDefined()
+  })
+
+  it('PORTED with past date: urgency shows emerald not red Po terminie', () => {
+    const portedUrgency: PortingUrgency = {
+      level: 'LATER',
+      label: 'Zakonczona',
+      tone: 'emerald',
+      emphasized: false,
+      daysDiff: -5,
+    }
+
+    render(
+      <MemoryRouter>
+        <RequestCaseHero
+          request={{ ...BASE_REQUEST, statusInternal: 'PORTED' as const }}
+          urgency={portedUrgency}
+          copyLinkDone={false}
+          onBackToList={vi.fn()}
+          onCopyLink={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByText(/Po terminie/)).toBeNull()
+    expect(screen.getByText(/Zakonczona/)).toBeDefined()
+  })
 })

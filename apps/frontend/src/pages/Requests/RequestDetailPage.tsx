@@ -103,7 +103,7 @@ import { RequestDetailsHistoryPanel } from '@/components/RequestDetailsHistoryPa
 import { WhatsNextPanel } from '@/components/WhatsNextPanel/WhatsNextPanel'
 import { InternalNotificationAttemptsPanel } from '@/components/InternalNotificationAttemptsPanel/InternalNotificationAttemptsPanel'
 import { NotificationFailureHistoryPanel } from '@/components/NotificationFailureHistoryPanel/NotificationFailureHistoryPanel'
-import { getPortingUrgency } from '@/lib/portingUrgency'
+import { getStatusAwarePortingUrgency } from '@/lib/portingUrgency'
 import {
   getInternalNotificationRetryErrorMessage,
   getInternalNotificationRetrySuccessMessage,
@@ -1872,7 +1872,7 @@ export function RequestDetailPage() {
     )
   }
 
-  const urgency = getPortingUrgency(request.confirmedPortDate)
+  const urgency = getStatusAwarePortingUrgency(request.confirmedPortDate, request.statusInternal)
   const hasProcessPortDateConfirm =
     canUseManualPortDateAction && canUseManualPortDateForCurrentStatus && !isRequestClosed
   // Inline edycja ukryta gdy uzytkownik ma dostep do akcji procesowej potwierdzenia daty

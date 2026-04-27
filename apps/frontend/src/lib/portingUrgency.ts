@@ -3,11 +3,14 @@ import {
   calculatePortingDaysDiff,
   getPortingUrgencyLevel,
   getPortingWorkPriorityBucket,
+  type PortingCaseStatus,
   type PortingUrgencyLevel,
   type PortingWorkPriorityBucket,
 } from '@np-manager/shared'
 
 export type { PortingUrgencyLevel, PortingWorkPriorityBucket }
+
+const CLOSED_PORTING_STATUSES: PortingCaseStatus[] = ['PORTED', 'CANCELLED', 'REJECTED']
 
 export interface PortingUrgency {
   level: PortingUrgencyLevel
@@ -15,6 +18,10 @@ export interface PortingUrgency {
   tone: BadgeTone
   emphasized: boolean
   daysDiff: number | null
+}
+
+export function isClosedPortingStatus(status: PortingCaseStatus | null | undefined): boolean {
+  return status ? CLOSED_PORTING_STATUSES.includes(status) : false
 }
 
 export function calculateDaysDiff(
@@ -59,6 +66,18 @@ export function getWorkPriorityBadge(
   return config[bucket]
 }
 
+export function getStatusAwareWorkPriorityBadge(
+  portDateIso: string | null | undefined,
+  status: PortingCaseStatus | null | undefined,
+  now: Date = new Date(),
+): WorkPriorityBadge | null {
+  if (isClosedPortingStatus(status)) {
+    return null
+  }
+
+  return getWorkPriorityBadge(portDateIso, now)
+}
+
 export function getPortingUrgency(
   portDateIso: string | null | undefined,
   now: Date = new Date(),
@@ -99,4 +118,24 @@ export function getPortingUrgency(
     emphasized: config.emphasized,
     daysDiff,
   }
+}
+
+export function getStatusAwarePortingUrgency(
+  portDateIso: string | null | undefined,
+  status: PortingCaseStatus | null | undefined,
+  now: Date = new Date(),
+): PortingUrgency {
+  const urgency = getPortingUrgency(portDateIso, now)
+
+  if (isClosedPortingStatus(status) && urgency.level === 'OVERDUE') {
+    return {
+      ...urgency,
+      level: 'LATER',
+      label: 'Zakonczona',
+      tone: 'emerald',
+      emphasized: false,
+    }
+  }
+
+  return urgency
 }

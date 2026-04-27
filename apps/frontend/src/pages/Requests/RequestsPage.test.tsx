@@ -340,6 +340,29 @@ describe('RequestRow', () => {
     expect(html).toContain('Po terminie')
   })
 
+  it('does not show "Po terminie" for PORTED request with past date', () => {
+    const html = renderToStaticMarkup(
+      <table>
+        <tbody>
+          <RequestRow
+            request={makeRequest({
+              statusInternal: 'PORTED',
+              confirmedPortDate: '2020-01-01T00:00:00.000Z',
+            })}
+            onClick={() => undefined}
+            requestPath="/requests/FNP-20260409-ABC123"
+            formatDate={() => '01.01.2020'}
+            currentUserId={null}
+            canAssign={false}
+            onAssignToMe={noop}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(html).not.toContain('Po terminie')
+  })
+
   it('shows "Bez daty" hint when confirmedPortDate is missing', () => {
     const html = renderToStaticMarkup(
       <table>
