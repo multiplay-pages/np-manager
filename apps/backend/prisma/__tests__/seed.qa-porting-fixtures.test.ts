@@ -8,7 +8,7 @@ import {
 } from '../seed'
 
 describe('Etap 5A QA porting seed fixtures', () => {
-  it('exposes the six new QA case numbers required by audit issue #82', () => {
+  it('exposes the QA case numbers required by audit issue #82 and issue #100', () => {
     const caseNumbers = QA_ETAP5A_PORTING_FIXTURES.map((fx) => fx.caseNumber)
     expect(caseNumbers).toEqual([
       'FNP-SEED-DRAFT-001',
@@ -17,6 +17,7 @@ describe('Etap 5A QA porting seed fixtures', () => {
       'FNP-SEED-NO-ASSIGNEE-001',
       'FNP-SEED-NO-DATE-001',
       'FNP-SEED-NOTIF-FAILED-001',
+      'FNP-SEED-ACTIVE-OVERDUE-001',
     ])
   })
 
@@ -75,6 +76,22 @@ describe('Etap 5A QA porting seed fixtures', () => {
     // seed-main derives assignedAt + assignedByUserId from assigneeEmail != null
     // (regression guard: fixture must have assigneeEmail to trigger consistent assignment block)
     expect(fx?.assigneeEmail).not.toBeNull()
+  })
+
+  it('ACTIVE-OVERDUE fixture stays active and qualifies for the URGENT quick work date window', () => {
+    const fx = QA_ETAP5A_PORTING_FIXTURES.find(
+      (f) => f.caseNumber === 'FNP-SEED-ACTIVE-OVERDUE-001',
+    )
+    const closedStatuses = ['PORTED', 'CANCELLED', 'REJECTED']
+    const urgentBoundary = new Date('2026-04-27T00:00:00.000Z')
+
+    expect(fx).toBeDefined()
+    expect(fx?.statusInternal).toBe('CONFIRMED')
+    expect(fx?.confirmedPortDate).toBe('2026-04-14T00:00:00.000Z')
+    expect(closedStatuses).not.toContain(fx?.statusInternal)
+    expect(new Date(fx!.confirmedPortDate!).getTime()).toBeLessThan(
+      urgentBoundary.getTime(),
+    )
   })
 
   it('seed-main assignment block is deterministic: non-null assigneeEmail implies assignedAt + assignedByUserId', () => {
