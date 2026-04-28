@@ -12,6 +12,7 @@
  *
  * Sprawy testowe:
  *  - FNP-SEED-ACTIVE-001: aktywna, pre-export (SUBMITTED)
+ *  - FNP-SEED-ACTIVE-OVERDUE-001: aktywna, CONFIRMED z data w przeszlosci do QA pilnosci
  *  - FNP-SEED-PORTED-001: zakończona po E18 (blocked)
  *  - FNP-SEED-E18-001: etap READY_TO_PORT, happy path Draft E18
  *  - FNP-SEED-COMM-DRAFT-001: detail z dostepnym "Utworz draft" dla komunikacji
@@ -288,6 +289,20 @@ export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
     rejectionReason: null,
     internalNotes:
       'Seed QA: dedykowana sprawa do listy /notifications/failures.',
+  },
+  {
+    caseNumber: 'FNP-SEED-ACTIVE-OVERDUE-001',
+    statusInternal: 'CONFIRMED',
+    donorRouting: 'PLAY',
+    primaryNumber: '221234580',
+    requestDocumentNumber: 'DOC-SEED-AOD-001',
+    confirmedPortDate: '2026-04-14T00:00:00.000Z',
+    assigneeEmail: null,
+    useLongClient: false,
+    rejectionCode: null,
+    rejectionReason: null,
+    internalNotes:
+      'Seed QA: aktywna sprawa CONFIRMED po terminie do testu czerwonego badge Po terminie i filtra Pilne.',
   },
 ]
 
