@@ -58,11 +58,44 @@ const statusEnum = z.enum([
   'ERROR',
 ])
 
+function refineDateRange(
+  data: { confirmedPortDateFrom?: string; confirmedPortDateTo?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (data.confirmedPortDateFrom && data.confirmedPortDateTo &&
+      data.confirmedPortDateFrom > data.confirmedPortDateTo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['confirmedPortDateTo'],
+      message: 'Data koncowa nie moze byc wczesniejsza niz data poczatkowa.',
+    })
+  }
+}
+
 const ownershipFilterEnum = z.enum(['ALL', 'MINE', 'UNASSIGNED'])
 const commercialOwnerFilterEnum = z.enum(['ALL', 'WITH_OWNER', 'WITHOUT_OWNER', 'MINE'])
 const notificationHealthFilterEnum = z.enum(['ALL', 'HAS_FAILURES', 'NO_FAILURES'])
 const quickWorkFilterEnum = z.enum(['URGENT', 'NO_DATE', 'NEEDS_ACTION_TODAY'])
-const listSortEnum = z.enum(['CREATED_AT_DESC', 'WORK_PRIORITY'])
+const listSortEnum = z.enum([
+  'CREATED_AT_DESC',
+  'WORK_PRIORITY',
+  'NUMBER_ASC',
+  'NUMBER_DESC',
+  'CLIENT_ASC',
+  'CLIENT_DESC',
+  'STATUS_ASC',
+  'STATUS_DESC',
+  'CONFIRMED_PORT_DATE_ASC',
+  'CONFIRMED_PORT_DATE_DESC',
+  'DONOR_OPERATOR_ASC',
+  'DONOR_OPERATOR_DESC',
+  'PORTING_MODE_ASC',
+  'PORTING_MODE_DESC',
+  'ASSIGNED_USER_ASC',
+  'ASSIGNED_USER_DESC',
+  'COMMERCIAL_OWNER_ASC',
+  'COMMERCIAL_OWNER_DESC',
+])
 
 function validateDeferredEarliestDate(
   value: string | undefined,
@@ -420,19 +453,26 @@ export const portingRequestListQuerySchema = z.object({
   quickWorkFilter: quickWorkFilterEnum.optional(),
   commercialOwnerFilter: commercialOwnerFilterEnum.optional().default('ALL'),
   notificationHealthFilter: notificationHealthFilterEnum.optional().default('ALL'),
+  confirmedPortDateFrom: optionalDateOnlySchema,
+  confirmedPortDateTo: optionalDateOnlySchema,
   sort: listSortEnum.optional().default('CREATED_AT_DESC'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-})
+}).superRefine(refineDateRange)
 
 export type PortingRequestListQuery = z.input<typeof portingRequestListQuerySchema>
 
-export const portingRequestSummaryQuerySchema = portingRequestListQuerySchema.omit({
-  quickWorkFilter: true,
-  sort: true,
-  page: true,
-  pageSize: true,
-})
+export const portingRequestSummaryQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  status: statusEnum.optional(),
+  portingMode: z.enum(['DAY', 'END', 'EOP']).optional(),
+  donorOperatorId: z.string().uuid().optional(),
+  ownership: ownershipFilterEnum.optional().default('ALL'),
+  commercialOwnerFilter: commercialOwnerFilterEnum.optional().default('ALL'),
+  notificationHealthFilter: notificationHealthFilterEnum.optional().default('ALL'),
+  confirmedPortDateFrom: optionalDateOnlySchema,
+  confirmedPortDateTo: optionalDateOnlySchema,
+}).superRefine(refineDateRange)
 
 export type PortingRequestSummaryQuery = z.input<typeof portingRequestSummaryQuerySchema>
 

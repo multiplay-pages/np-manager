@@ -346,6 +346,100 @@ function toDateOnlyValue(value?: string): Date | undefined {
   return new Date(`${value}T00:00:00.000Z`)
 }
 
+function buildConfirmedPortDateFilterWhere(
+  query: PortingRequestListQuery | PortingRequestSummaryQuery,
+): Prisma.PortingRequestWhereInput | null {
+  const from = typeof query.confirmedPortDateFrom === 'string' ? query.confirmedPortDateFrom : undefined
+  const to = typeof query.confirmedPortDateTo === 'string' ? query.confirmedPortDateTo : undefined
+  if (!from && !to) {
+    return null
+  }
+  const constraint: Prisma.DateTimeNullableFilter = {}
+  if (from) {
+    const fromDate = toDateOnlyValue(from)
+    if (fromDate) constraint.gte = fromDate
+  }
+  if (to) {
+    const toDate = toDateOnlyValue(to)
+    if (toDate) constraint.lte = toDate
+  }
+  if (constraint.gte === undefined && constraint.lte === undefined) {
+    return null
+  }
+  return { confirmedPortDate: constraint }
+}
+
+type SortOrder = 'asc' | 'desc'
+
+function buildPortingRequestListOrderBy(
+  sort: PortingRequestListQuery['sort'],
+):
+  | Prisma.PortingRequestOrderByWithRelationInput
+  | Prisma.PortingRequestOrderByWithRelationInput[] {
+  const stable = { id: 'asc' as const }
+
+  const dirOf = (s: string): SortOrder => (s.endsWith('_DESC') ? 'desc' : 'asc')
+
+  switch (sort) {
+    case 'NUMBER_ASC':
+    case 'NUMBER_DESC': {
+      const dir = dirOf(sort)
+      return [
+        { primaryNumber: { sort: dir, nulls: 'last' } },
+        { rangeStart: { sort: dir, nulls: 'last' } },
+        { rangeEnd: { sort: dir, nulls: 'last' } },
+        stable,
+      ]
+    }
+    case 'CLIENT_ASC':
+    case 'CLIENT_DESC': {
+      const dir = dirOf(sort)
+      return [
+        { client: { companyName: dir } },
+        { client: { lastName: dir } },
+        { client: { firstName: dir } },
+        stable,
+      ]
+    }
+    case 'STATUS_ASC':
+    case 'STATUS_DESC':
+      return [{ statusInternal: dirOf(sort) }, stable]
+    case 'CONFIRMED_PORT_DATE_ASC':
+    case 'CONFIRMED_PORT_DATE_DESC':
+      return [
+        { confirmedPortDate: { sort: dirOf(sort), nulls: 'last' } },
+        { createdAt: 'desc' },
+        stable,
+      ]
+    case 'DONOR_OPERATOR_ASC':
+    case 'DONOR_OPERATOR_DESC':
+      return [{ donorOperator: { name: dirOf(sort) } }, stable]
+    case 'PORTING_MODE_ASC':
+    case 'PORTING_MODE_DESC':
+      return [{ portingMode: dirOf(sort) }, stable]
+    case 'ASSIGNED_USER_ASC':
+    case 'ASSIGNED_USER_DESC': {
+      const dir = dirOf(sort)
+      return [
+        { assignedUser: { lastName: dir } },
+        { assignedUser: { firstName: dir } },
+        stable,
+      ]
+    }
+    case 'COMMERCIAL_OWNER_ASC':
+    case 'COMMERCIAL_OWNER_DESC': {
+      const dir = dirOf(sort)
+      return [
+        { commercialOwner: { lastName: dir } },
+        { commercialOwner: { firstName: dir } },
+        stable,
+      ]
+    }
+    default:
+      return { createdAt: 'desc' }
+  }
+}
+
 function buildQuickWorkFilterWhere(
   quickWorkFilter: PortingRequestListQuery['quickWorkFilter'],
 ): Prisma.PortingRequestWhereInput | null {
@@ -943,12 +1037,14 @@ export async function listPortingRequests(
     return listPortingRequestsByWorkPriority(where, page, pageSize)
   }
 
+  const orderBy = buildPortingRequestListOrderBy(sort)
+
   const [total, requests] = await prisma.$transaction([
     prisma.portingRequest.count({ where }),
     prisma.portingRequest.findMany({
       where,
       select: LIST_SELECT,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -1097,6 +1193,14 @@ function buildPortingRequestListWhere(
     } else if (query.notificationHealthFilter === 'NO_FAILURES') {
       where.events = { none: NOTIFICATION_FAILURE_EVENT_WHERE }
     }
+  }
+
+  const confirmedPortDateFilterWhere = buildConfirmedPortDateFilterWhere(query)
+  if (confirmedPortDateFilterWhere) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      confirmedPortDateFilterWhere,
+    ]
   }
 
   if (query.search?.trim()) {
