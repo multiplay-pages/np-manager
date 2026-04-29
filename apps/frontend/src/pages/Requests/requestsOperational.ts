@@ -39,7 +39,26 @@ const QUICK_WORK_FILTERS: RequestsQuickWorkFilter[] = [
   'NEEDS_ACTION_TODAY',
 ]
 
-const LIST_SORTS: PortingRequestListSort[] = ['CREATED_AT_DESC', 'WORK_PRIORITY']
+const LIST_SORTS: PortingRequestListSort[] = [
+  'CREATED_AT_DESC',
+  'WORK_PRIORITY',
+  'NUMBER_ASC',
+  'NUMBER_DESC',
+  'CLIENT_ASC',
+  'CLIENT_DESC',
+  'STATUS_ASC',
+  'STATUS_DESC',
+  'CONFIRMED_PORT_DATE_ASC',
+  'CONFIRMED_PORT_DATE_DESC',
+  'DONOR_OPERATOR_ASC',
+  'DONOR_OPERATOR_DESC',
+  'PORTING_MODE_ASC',
+  'PORTING_MODE_DESC',
+  'ASSIGNED_USER_ASC',
+  'ASSIGNED_USER_DESC',
+  'COMMERCIAL_OWNER_ASC',
+  'COMMERCIAL_OWNER_DESC',
+]
 export const DEFAULT_REQUESTS_SORT: PortingRequestListSort = 'CREATED_AT_DESC'
 
 export interface RequestsOperationalFilterState {
@@ -51,6 +70,8 @@ export interface RequestsOperationalFilterState {
   quickWorkFilter: RequestsQuickWorkFilter
   commercialOwnerFilter: CommercialOwnerFilter
   notificationHealthFilter: NotificationHealthFilter
+  confirmedPortDateFrom: string
+  confirmedPortDateTo: string
   sort: PortingRequestListSort
   page: number
   pageSize: number
@@ -133,6 +154,8 @@ export function buildListQueryFromFilters(
       filters.notificationHealthFilter !== 'ALL'
         ? filters.notificationHealthFilter
         : undefined,
+    confirmedPortDateFrom: filters.confirmedPortDateFrom || undefined,
+    confirmedPortDateTo: filters.confirmedPortDateTo || undefined,
     sort: filters.sort !== DEFAULT_REQUESTS_SORT ? filters.sort : undefined,
     page: filters.page,
     pageSize: filters.pageSize,
@@ -148,6 +171,8 @@ export function buildSummaryQueryFromFilters(
     portingMode: filters.portingModeFilter ?? undefined,
     donorOperatorId: filters.donorOperatorId || undefined,
     ownership: filters.ownershipFilter !== 'ALL' ? filters.ownershipFilter : undefined,
+    confirmedPortDateFrom: filters.confirmedPortDateFrom || undefined,
+    confirmedPortDateTo: filters.confirmedPortDateTo || undefined,
   }
 }
 
@@ -159,7 +184,9 @@ export function hasActiveRequestsFilters(filters: RequestsOperationalFilterState
     !!filters.donorOperatorId ||
     filters.quickWorkFilter !== 'ALL' ||
     filters.commercialOwnerFilter !== 'ALL' ||
-    filters.notificationHealthFilter !== 'ALL'
+    filters.notificationHealthFilter !== 'ALL' ||
+    !!filters.confirmedPortDateFrom ||
+    !!filters.confirmedPortDateTo
   )
 }
 

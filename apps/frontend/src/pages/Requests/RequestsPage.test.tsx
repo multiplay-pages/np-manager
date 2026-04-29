@@ -720,6 +720,194 @@ describe('RequestsPage quick work filters', () => {
     expect(quickFilters.getByRole('button', { name: 'Moje' })).not.toBeNull()
     expect(quickFilters.getByRole('button', { name: 'Nieprzypisane' })).not.toBeNull()
   })
+  it('initializes confirmed port date inputs from URL params', async () => {
+    renderPage('/requests?confirmedPortDateFrom=2026-04-14&confirmedPortDateTo=2026-04-20')
+
+    await waitFor(() => {
+      expect(getPortingRequestsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          confirmedPortDateFrom: '2026-04-14',
+          confirmedPortDateTo: '2026-04-20',
+        }),
+      )
+    })
+
+    const fromInput = screen.getByLabelText('Data przeniesienia od') as HTMLInputElement
+    const toInput = screen.getByLabelText('Data przeniesienia do') as HTMLInputElement
+    expect(fromInput.value).toBe('2026-04-14')
+    expect(toInput.value).toBe('2026-04-20')
+  })
+
+  it('updates confirmedPortDateFrom and resets page when "Data od" changes', async () => {
+    renderPage('/requests?page=3')
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.change(screen.getByLabelText('Data przeniesienia od'), {
+      target: { value: '2026-04-14' },
+    })
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({
+        confirmedPortDateFrom: '2026-04-14',
+        page: 1,
+      })
+    })
+  })
+
+  it('updates confirmedPortDateTo and resets page when "Data do" changes', async () => {
+    renderPage('/requests?page=3')
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.change(screen.getByLabelText('Data przeniesienia do'), {
+      target: { value: '2026-04-20' },
+    })
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({
+        confirmedPortDateTo: '2026-04-20',
+        page: 1,
+      })
+    })
+  })
+
+  it('clears confirmed port date filters when filters are reset', async () => {
+    renderPage('/requests?confirmedPortDateFrom=2026-04-14&confirmedPortDateTo=2026-04-20')
+    await screen.findByText('Kolejka spraw portowania')
+
+    const clearButtons = screen.getAllByRole('button', { name: 'Wyczysc filtry' })
+    fireEvent.click(clearButtons[0]!)
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall.confirmedPortDateFrom).toBeUndefined()
+      expect(lastListCall.confirmedPortDateTo).toBeUndefined()
+    })
+  })
+
+  it('toggles "Numer i klient" header sort between ASC and DESC', async () => {
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Numer i klient' }))
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({ sort: 'NUMBER_ASC', page: 1 })
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Numer i klient' }))
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({ sort: 'NUMBER_DESC', page: 1 })
+    })
+  })
+
+  it('toggles "Status" header sort between ASC and DESC', async () => {
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Status' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({ sort: 'STATUS_ASC' })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Status' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({ sort: 'STATUS_DESC' })
+    })
+  })
+
+  it('toggles "Data przeniesienia" header sort between ASC and DESC', async () => {
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Data przeniesienia' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'CONFIRMED_PORT_DATE_ASC',
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Data przeniesienia' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'CONFIRMED_PORT_DATE_DESC',
+      })
+    })
+  })
+
+  it('toggles "Operator / tryb" header sort between ASC and DESC', async () => {
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Operator / tryb' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'DONOR_OPERATOR_ASC',
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Operator / tryb' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'DONOR_OPERATOR_DESC',
+      })
+    })
+  })
+
+  it('toggles "Przypisanie" header sort between ASC and DESC', async () => {
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Przypisanie' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'ASSIGNED_USER_ASC',
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Przypisanie' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'ASSIGNED_USER_DESC',
+      })
+    })
+  })
+
+  it('toggles "Opiekun handlowy" header sort between ASC and DESC', async () => {
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Opiekun handlowy' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'COMMERCIAL_OWNER_ASC',
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sortuj wg Opiekun handlowy' }))
+    await waitFor(() => {
+      expect(getPortingRequestsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+        sort: 'COMMERCIAL_OWNER_DESC',
+      })
+    })
+  })
+
+  it('does not render a sort button for the Notyfikacje column', async () => {
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    expect(screen.queryByRole('button', { name: /Sortuj wg Notyfikacje/ })).toBeNull()
+  })
+
+  it('marks the active sort column header with aria-sort', async () => {
+    renderPage('/requests?sort=NUMBER_ASC')
+    await screen.findByText('Kolejka spraw portowania')
+
+    const button = screen.getByRole('button', { name: 'Sortuj wg Numer i klient' })
+    const sortedHeader = button.closest('th')
+    expect(sortedHeader).not.toBeNull()
+    expect(sortedHeader!.getAttribute('aria-sort')).toBe('ascending')
+  })
+
   it('shows clear feedback when assign-to-me fails', async () => {
     assignPortingRequestToMeMock.mockRejectedValueOnce(new Error('forbidden'))
 
