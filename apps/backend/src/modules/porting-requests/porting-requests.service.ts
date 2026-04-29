@@ -382,8 +382,15 @@ function buildPortingRequestListOrderBy(
 
   switch (sort) {
     case 'NUMBER_ASC':
-    case 'NUMBER_DESC':
-      return [{ caseNumber: dirOf(sort) }, stable]
+    case 'NUMBER_DESC': {
+      const dir = dirOf(sort)
+      return [
+        { primaryNumber: { sort: dir, nulls: 'last' } },
+        { rangeStart: { sort: dir, nulls: 'last' } },
+        { rangeEnd: { sort: dir, nulls: 'last' } },
+        stable,
+      ]
+    }
     case 'CLIENT_ASC':
     case 'CLIENT_DESC': {
       const dir = dirOf(sort)

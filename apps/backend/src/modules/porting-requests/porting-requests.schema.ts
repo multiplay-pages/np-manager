@@ -58,6 +58,20 @@ const statusEnum = z.enum([
   'ERROR',
 ])
 
+function refineDateRange(
+  data: { confirmedPortDateFrom?: string; confirmedPortDateTo?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (data.confirmedPortDateFrom && data.confirmedPortDateTo &&
+      data.confirmedPortDateFrom > data.confirmedPortDateTo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['confirmedPortDateTo'],
+      message: 'Data koncowa nie moze byc wczesniejsza niz data poczatkowa.',
+    })
+  }
+}
+
 const ownershipFilterEnum = z.enum(['ALL', 'MINE', 'UNASSIGNED'])
 const commercialOwnerFilterEnum = z.enum(['ALL', 'WITH_OWNER', 'WITHOUT_OWNER', 'MINE'])
 const notificationHealthFilterEnum = z.enum(['ALL', 'HAS_FAILURES', 'NO_FAILURES'])
@@ -444,16 +458,7 @@ export const portingRequestListQuerySchema = z.object({
   sort: listSortEnum.optional().default('CREATED_AT_DESC'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-}).superRefine((data, ctx) => {
-  if (data.confirmedPortDateFrom && data.confirmedPortDateTo &&
-      data.confirmedPortDateFrom > data.confirmedPortDateTo) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['confirmedPortDateTo'],
-      message: 'Data koncowa nie moze byc wczesniejsza niz data poczatkowa.',
-    })
-  }
-})
+}).superRefine(refineDateRange)
 
 export type PortingRequestListQuery = z.input<typeof portingRequestListQuerySchema>
 
@@ -467,7 +472,7 @@ export const portingRequestSummaryQuerySchema = z.object({
   notificationHealthFilter: notificationHealthFilterEnum.optional().default('ALL'),
   confirmedPortDateFrom: optionalDateOnlySchema,
   confirmedPortDateTo: optionalDateOnlySchema,
-})
+}).superRefine(refineDateRange)
 
 export type PortingRequestSummaryQuery = z.input<typeof portingRequestSummaryQuerySchema>
 

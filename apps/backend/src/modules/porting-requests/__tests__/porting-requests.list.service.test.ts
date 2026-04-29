@@ -724,20 +724,30 @@ describe('listPortingRequests - column sorting (Etap 5I-A)', () => {
     expect(findManyOrderBy()).toEqual({ createdAt: 'desc' })
   })
 
-  it('NUMBER_ASC sorts by caseNumber asc with stable id tiebreaker', async () => {
+  it('NUMBER_ASC sorts by ported number (primaryNumber/rangeStart/rangeEnd) asc, nulls last', async () => {
     await listPortingRequests(
       { sort: 'NUMBER_ASC', page: 1, pageSize: 20 },
       CURRENT_USER_ID,
     )
-    expect(findManyOrderBy()).toEqual([{ caseNumber: 'asc' }, { id: 'asc' }])
+    expect(findManyOrderBy()).toEqual([
+      { primaryNumber: { sort: 'asc', nulls: 'last' } },
+      { rangeStart: { sort: 'asc', nulls: 'last' } },
+      { rangeEnd: { sort: 'asc', nulls: 'last' } },
+      { id: 'asc' },
+    ])
   })
 
-  it('NUMBER_DESC sorts by caseNumber desc', async () => {
+  it('NUMBER_DESC sorts by ported number desc, nulls last', async () => {
     await listPortingRequests(
       { sort: 'NUMBER_DESC', page: 1, pageSize: 20 },
       CURRENT_USER_ID,
     )
-    expect(findManyOrderBy()).toEqual([{ caseNumber: 'desc' }, { id: 'asc' }])
+    expect(findManyOrderBy()).toEqual([
+      { primaryNumber: { sort: 'desc', nulls: 'last' } },
+      { rangeStart: { sort: 'desc', nulls: 'last' } },
+      { rangeEnd: { sort: 'desc', nulls: 'last' } },
+      { id: 'asc' },
+    ])
   })
 
   it('STATUS_ASC sorts by statusInternal asc', async () => {
