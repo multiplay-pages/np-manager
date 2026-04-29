@@ -573,6 +573,291 @@ describe('listPortingRequests - WORK_PRIORITY sort (PR50B)', () => {
   })
 })
 
+describe('listPortingRequests - confirmedPortDate filter (Etap 5I-A)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+
+    mockPrismaTransaction.mockImplementation(async (arg: unknown) => {
+      if (Array.isArray(arg)) return Promise.all(arg)
+      return undefined
+    })
+
+    mockPortingRequestCount.mockResolvedValue(0)
+    mockPortingRequestFindMany.mockResolvedValue([])
+  })
+
+  it('confirmedPortDateFrom builds AND with gte', async () => {
+    await listPortingRequests(
+      { confirmedPortDateFrom: '2026-04-15', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const where = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    const andClauses = where.AND as Array<Record<string, unknown>>
+    expect(andClauses).toContainEqual({
+      confirmedPortDate: { gte: new Date('2026-04-15T00:00:00.000Z') },
+    })
+  })
+
+  it('confirmedPortDateTo builds AND with lte', async () => {
+    await listPortingRequests(
+      { confirmedPortDateTo: '2026-04-30', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    const where = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    const andClauses = where.AND as Array<Record<string, unknown>>
+    expect(andClauses).toContainEqual({
+      confirmedPortDate: { lte: new Date('2026-04-30T00:00:00.000Z') },
+    })
+  })
+
+  it('confirmedPortDateFrom + confirmedPortDateTo builds AND with gte+lte range', async () => {
+    await listPortingRequests(
+      {
+        confirmedPortDateFrom: '2026-04-15',
+        confirmedPortDateTo: '2026-04-30',
+        page: 1,
+        pageSize: 20,
+      },
+      CURRENT_USER_ID,
+    )
+
+    const where = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    const andClauses = where.AND as Array<Record<string, unknown>>
+    expect(andClauses).toContainEqual({
+      confirmedPortDate: {
+        gte: new Date('2026-04-15T00:00:00.000Z'),
+        lte: new Date('2026-04-30T00:00:00.000Z'),
+      },
+    })
+  })
+
+  it('confirmedPortDateFrom == confirmedPortDateTo filters single day', async () => {
+    await listPortingRequests(
+      {
+        confirmedPortDateFrom: '2026-04-22',
+        confirmedPortDateTo: '2026-04-22',
+        page: 1,
+        pageSize: 20,
+      },
+      CURRENT_USER_ID,
+    )
+
+    const where = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
+    const andClauses = where.AND as Array<Record<string, unknown>>
+    expect(andClauses).toContainEqual({
+      confirmedPortDate: {
+        gte: new Date('2026-04-22T00:00:00.000Z'),
+        lte: new Date('2026-04-22T00:00:00.000Z'),
+      },
+    })
+  })
+
+  it('confirmedPortDate filter composes with quickWorkFilter without overwriting', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-21T09:00:00.000Z'))
+
+    try {
+      await listPortingRequests(
+        {
+          quickWorkFilter: 'NEEDS_ACTION_TODAY',
+          confirmedPortDateFrom: '2026-04-15',
+          page: 1,
+          pageSize: 20,
+        },
+        CURRENT_USER_ID,
+      )
+
+      const where = (mockPortingRequestCount.mock.calls[0]?.[0] as {
+        where: Record<string, unknown>
+      }).where
+
+      // quickWorkFilter sets where.confirmedPortDate directly
+      expect(where).toMatchObject({
+        confirmedPortDate: { lt: new Date('2026-04-22T00:00:00.000Z') },
+      })
+
+      const andClauses = where.AND as Array<Record<string, unknown>>
+      // quickWorkFilter pushes status exclusion
+      expect(andClauses).toContainEqual({
+        statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
+      })
+      // date filter pushed in AND alongside
+      expect(andClauses).toContainEqual({
+        confirmedPortDate: { gte: new Date('2026-04-15T00:00:00.000Z') },
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('listPortingRequests - column sorting (Etap 5I-A)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+
+    mockPrismaTransaction.mockImplementation(async (arg: unknown) => {
+      if (Array.isArray(arg)) return Promise.all(arg)
+      return undefined
+    })
+
+    mockPortingRequestCount.mockResolvedValue(0)
+    mockPortingRequestFindMany.mockResolvedValue([])
+  })
+
+  function findManyOrderBy(): unknown {
+    const call = mockPortingRequestFindMany.mock.calls[0]?.[0] as { orderBy: unknown }
+    return call.orderBy
+  }
+
+  it('default sort (no sort param) is createdAt desc', async () => {
+    await listPortingRequests({ page: 1, pageSize: 20 }, CURRENT_USER_ID)
+    expect(findManyOrderBy()).toEqual({ createdAt: 'desc' })
+  })
+
+  it('CREATED_AT_DESC sort is createdAt desc', async () => {
+    await listPortingRequests(
+      { sort: 'CREATED_AT_DESC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual({ createdAt: 'desc' })
+  })
+
+  it('NUMBER_ASC sorts by caseNumber asc with stable id tiebreaker', async () => {
+    await listPortingRequests(
+      { sort: 'NUMBER_ASC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([{ caseNumber: 'asc' }, { id: 'asc' }])
+  })
+
+  it('NUMBER_DESC sorts by caseNumber desc', async () => {
+    await listPortingRequests(
+      { sort: 'NUMBER_DESC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([{ caseNumber: 'desc' }, { id: 'asc' }])
+  })
+
+  it('STATUS_ASC sorts by statusInternal asc', async () => {
+    await listPortingRequests(
+      { sort: 'STATUS_ASC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([{ statusInternal: 'asc' }, { id: 'asc' }])
+  })
+
+  it('STATUS_DESC sorts by statusInternal desc', async () => {
+    await listPortingRequests(
+      { sort: 'STATUS_DESC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([{ statusInternal: 'desc' }, { id: 'asc' }])
+  })
+
+  it('CONFIRMED_PORT_DATE_ASC sorts by confirmedPortDate asc with nulls last', async () => {
+    await listPortingRequests(
+      { sort: 'CONFIRMED_PORT_DATE_ASC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([
+      { confirmedPortDate: { sort: 'asc', nulls: 'last' } },
+      { createdAt: 'desc' },
+      { id: 'asc' },
+    ])
+  })
+
+  it('CONFIRMED_PORT_DATE_DESC sorts by confirmedPortDate desc with nulls last', async () => {
+    await listPortingRequests(
+      { sort: 'CONFIRMED_PORT_DATE_DESC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([
+      { confirmedPortDate: { sort: 'desc', nulls: 'last' } },
+      { createdAt: 'desc' },
+      { id: 'asc' },
+    ])
+  })
+
+  it('DONOR_OPERATOR_ASC sorts by donorOperator name asc', async () => {
+    await listPortingRequests(
+      { sort: 'DONOR_OPERATOR_ASC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([{ donorOperator: { name: 'asc' } }, { id: 'asc' }])
+  })
+
+  it('PORTING_MODE_DESC sorts by portingMode desc', async () => {
+    await listPortingRequests(
+      { sort: 'PORTING_MODE_DESC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([{ portingMode: 'desc' }, { id: 'asc' }])
+  })
+
+  it('ASSIGNED_USER_ASC sorts by assignedUser lastName then firstName asc', async () => {
+    await listPortingRequests(
+      { sort: 'ASSIGNED_USER_ASC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([
+      { assignedUser: { lastName: 'asc' } },
+      { assignedUser: { firstName: 'asc' } },
+      { id: 'asc' },
+    ])
+  })
+
+  it('COMMERCIAL_OWNER_DESC sorts by commercialOwner lastName then firstName desc', async () => {
+    await listPortingRequests(
+      { sort: 'COMMERCIAL_OWNER_DESC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([
+      { commercialOwner: { lastName: 'desc' } },
+      { commercialOwner: { firstName: 'desc' } },
+      { id: 'asc' },
+    ])
+  })
+
+  it('CLIENT_ASC sorts by client companyName then lastName then firstName asc', async () => {
+    await listPortingRequests(
+      { sort: 'CLIENT_ASC', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+    expect(findManyOrderBy()).toEqual([
+      { client: { companyName: 'asc' } },
+      { client: { lastName: 'asc' } },
+      { client: { firstName: 'asc' } },
+      { id: 'asc' },
+    ])
+  })
+
+  it('WORK_PRIORITY sort uses candidates select shape, not column orderBy', async () => {
+    mockPortingRequestFindMany.mockResolvedValueOnce([
+      { id: 'r-1', confirmedPortDate: null, createdAt: new Date('2026-04-01T10:00:00.000Z') },
+    ])
+    mockPortingRequestFindMany.mockResolvedValueOnce([makeListRow({ id: 'r-1' })])
+
+    await listPortingRequests(
+      { sort: 'WORK_PRIORITY', page: 1, pageSize: 20 },
+      CURRENT_USER_ID,
+    )
+
+    expect(mockPortingRequestFindMany).toHaveBeenCalledTimes(2)
+    const candidatesCall = mockPortingRequestFindMany.mock.calls[0]?.[0] as {
+      select: Record<string, unknown>
+      orderBy?: unknown
+    }
+    expect(candidatesCall.select).toMatchObject({
+      id: true,
+      confirmedPortDate: true,
+      createdAt: true,
+    })
+    expect(candidatesCall.orderBy).toBeUndefined()
+  })
+})
+
 describe('getPortingRequestsOperationalSummary', () => {
   beforeEach(() => {
     vi.clearAllMocks()
