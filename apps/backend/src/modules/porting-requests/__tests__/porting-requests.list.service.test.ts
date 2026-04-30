@@ -608,7 +608,7 @@ describe('listPortingRequests - confirmedPortDate filter (Etap 5I-A)', () => {
     const where = (mockPortingRequestCount.mock.calls[0]?.[0] as { where: Record<string, unknown> }).where
     const andClauses = where.AND as Array<Record<string, unknown>>
     expect(andClauses).toContainEqual({
-      confirmedPortDate: { lte: new Date('2026-04-30T00:00:00.000Z') },
+      confirmedPortDate: { lte: new Date('2026-04-30T23:59:59.999Z') },
     })
   })
 
@@ -628,7 +628,7 @@ describe('listPortingRequests - confirmedPortDate filter (Etap 5I-A)', () => {
     expect(andClauses).toContainEqual({
       confirmedPortDate: {
         gte: new Date('2026-04-15T00:00:00.000Z'),
-        lte: new Date('2026-04-30T00:00:00.000Z'),
+        lte: new Date('2026-04-30T23:59:59.999Z'),
       },
     })
   })
@@ -649,7 +649,7 @@ describe('listPortingRequests - confirmedPortDate filter (Etap 5I-A)', () => {
     expect(andClauses).toContainEqual({
       confirmedPortDate: {
         gte: new Date('2026-04-22T00:00:00.000Z'),
-        lte: new Date('2026-04-22T00:00:00.000Z'),
+        lte: new Date('2026-04-22T23:59:59.999Z'),
       },
     })
   })
