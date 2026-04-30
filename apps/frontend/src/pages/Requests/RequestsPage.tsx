@@ -679,6 +679,18 @@ export function RequestsPage() {
     })
   }
 
+  const isConfirmedPortDateRangeActive =
+    (!!confirmedPortDateFrom || !!confirmedPortDateTo) &&
+    (!confirmedPortDateFrom || confirmedPortDateFrom !== confirmedPortDateTo)
+
+  const commitConfirmedPortDateFromInputValue = (value: string) => {
+    // Jeśli zakres jest ustawiony tylko w URL (from != to), input jest pusty i nie powinien
+    // przypadkowo usuwać filtra na samym blur.
+    if (isConfirmedPortDateRangeActive && !value) return
+    if (value === confirmedPortDateValue) return
+    handleConfirmedPortDateChange(value)
+  }
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -1046,6 +1058,7 @@ export function RequestsPage() {
                 aria-label="Data przeniesienia"
                 value={confirmedPortDateValue}
                 onChange={(event) => handleConfirmedPortDateChange(event.target.value)}
+                onBlur={(event) => commitConfirmedPortDateFromInputValue(event.target.value)}
                 className="input-field h-10 w-full"
               />
               <span className="text-[11px] font-normal text-ink-400">
