@@ -6,7 +6,20 @@
       "Bash(git commit -m ' *)",
       "Bash(npm install *)",
       "Bash(npx vitest *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(git fetch *)",
+      "Bash(npm run *)",
+      "Read(//d/Projekt/np-manager/apps/backend/**)",
+      "Read(//d/Projekt/np-manager/**)",
+      "Bash(DATABASE_URL=\"postgresql://np_user:np_password@localhost:5432/np_manager\" npx tsx prisma/seed.ts)",
+      "Bash(PGPASSWORD=np_password psql -h localhost -U np_user -d np_manager -c \"SELECT \\\\\"caseNumber\\\\\", status, \\\\\"assignedUserId\\\\\", \\\\\"confirmedPortDate\\\\\", \\\\\"rejectionCode\\\\\" FROM \\\\\"PortingCase\\\\\" WHERE \\\\\"caseNumber\\\\\" LIKE 'FNP-SEED-%' ORDER BY \\\\\"caseNumber\\\\\";\")",
+      "Bash(cp /tmp/check.ts ./check-fixtures.ts)",
+      "Bash(DATABASE_URL=\"postgresql://np_user:np_password@localhost:5432/np_manager\" npx tsx check-fixtures.ts)",
+      "Bash(DATABASE_URL=\"postgresql://np_user:np_password@localhost:5432/np_manager\" npx vitest run prisma/__tests__ --reporter=basic)",
+      "Bash(DATABASE_URL=\"postgresql://np_user:np_password@localhost:5432/np_manager\" npx vitest run prisma/__tests__)",
+      "Bash(wait)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git commit -m 'chore\\(claude\\): expand local permission allowlist for Etap 5B QA *)"
     ]
   }
 }
