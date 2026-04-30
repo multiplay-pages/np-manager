@@ -756,6 +756,24 @@ describe('RequestsPage quick work filters', () => {
     })
   })
 
+  it('commits confirmed port date on blur when value was injected without change event', async () => {
+    renderPage('/requests?page=3')
+    await screen.findByText('Kolejka spraw portowania')
+
+    const dateInput = screen.getByLabelText('Data przeniesienia') as HTMLInputElement
+    dateInput.value = '2026-04-30'
+    fireEvent.blur(dateInput)
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({
+        confirmedPortDateFrom: '2026-04-30',
+        confirmedPortDateTo: '2026-04-30',
+        page: 1,
+      })
+    })
+  })
+
   it('clears both confirmed port date params when date input is cleared', async () => {
     renderPage('/requests?page=3&confirmedPortDateFrom=2026-04-30&confirmedPortDateTo=2026-04-30')
     await screen.findByText('Kolejka spraw portowania')
