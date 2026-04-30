@@ -29,6 +29,7 @@ import {
 import { getPortingOperationalHint } from '@/lib/portingOperationalHint'
 import { getPortingStatusMeta } from '@/lib/portingStatusMeta'
 import { getStatusAwareWorkPriorityBadge } from '@/lib/portingUrgency'
+import { getRequestRowHighlight, rowHighlightClasses } from '@/lib/requestRowHighlight'
 import {
   assignPortingRequestToMe,
   getPortingRequests,
@@ -346,10 +347,16 @@ export function RequestRow({
     onClick()
   }
 
+  const highlight = getRequestRowHighlight(request)
+  const highlightClass = rowHighlightClasses(highlight)
+
   return (
     <tr
       onClick={onClick}
-      className="group cursor-pointer border-b border-line/70 transition-colors last:border-b-0 hover:bg-brand-50/50"
+      className={cx(
+        'group cursor-pointer border-b border-line/70 transition-colors last:border-b-0 hover:bg-brand-50/50',
+        highlightClass,
+      )}
     >
       <td className="px-4 py-3.5 align-top">
         <div className="max-w-[210px] truncate font-mono text-sm font-bold text-ink-900">
