@@ -572,6 +572,10 @@ export function RequestsPage() {
   const page = parsePage(searchParams.get('page'))
   const confirmedPortDateFrom = searchParams.get('confirmedPortDateFrom') ?? ''
   const confirmedPortDateTo = searchParams.get('confirmedPortDateTo') ?? ''
+  const confirmedPortDateValue =
+    confirmedPortDateFrom && confirmedPortDateFrom === confirmedPortDateTo
+      ? confirmedPortDateFrom
+      : ''
 
   const filters = useMemo(
     () => ({
@@ -658,6 +662,14 @@ export function RequestsPage() {
     debounceRef.current = setTimeout(() => {
       setParam({ search: value || null, page: null })
     }, 400)
+  }
+
+  const handleConfirmedPortDateChange = (value: string) => {
+    setParam({
+      confirmedPortDateFrom: value || null,
+      confirmedPortDateTo: value || null,
+      page: null,
+    })
   }
 
   useEffect(() => {
@@ -795,21 +807,19 @@ export function RequestsPage() {
       })
     }
 
-    if (confirmedPortDateFrom) {
+    if (confirmedPortDateFrom && confirmedPortDateFrom === confirmedPortDateTo) {
       chips.push({
-        id: 'confirmedPortDateFrom',
-        label: 'Data od',
+        id: 'confirmedPortDate',
+        label: 'Data przeniesienia',
         value: confirmedPortDateFrom,
-        updates: { confirmedPortDateFrom: null, page: null },
+        updates: { confirmedPortDateFrom: null, confirmedPortDateTo: null, page: null },
       })
-    }
-
-    if (confirmedPortDateTo) {
+    } else if (confirmedPortDateFrom || confirmedPortDateTo) {
       chips.push({
-        id: 'confirmedPortDateTo',
-        label: 'Data do',
-        value: confirmedPortDateTo,
-        updates: { confirmedPortDateTo: null, page: null },
+        id: 'confirmedPortDateRange',
+        label: 'Zakres dat',
+        value: `${confirmedPortDateFrom || '...'} - ${confirmedPortDateTo || '...'}`,
+        updates: { confirmedPortDateFrom: null, confirmedPortDateTo: null, page: null },
       })
     }
 
@@ -1022,33 +1032,19 @@ export function RequestsPage() {
               ))}
             </select>
 
-            <input
-              type="date"
-              aria-label="Data przeniesienia od"
-              value={confirmedPortDateFrom}
-              onChange={(event) => {
-                setParam({
-                  confirmedPortDateFrom: event.target.value || null,
-                  page: null,
-                })
-              }}
-              className="input-field h-10 w-full"
-              placeholder="Data od"
-            />
-
-            <input
-              type="date"
-              aria-label="Data przeniesienia do"
-              value={confirmedPortDateTo}
-              onChange={(event) => {
-                setParam({
-                  confirmedPortDateTo: event.target.value || null,
-                  page: null,
-                })
-              }}
-              className="input-field h-10 w-full"
-              placeholder="Data do"
-            />
+            <label className="flex flex-col gap-1 text-xs font-semibold text-ink-500">
+              <span>Data przeniesienia</span>
+              <input
+                type="date"
+                aria-label="Data przeniesienia"
+                value={confirmedPortDateValue}
+                onChange={(event) => handleConfirmedPortDateChange(event.target.value)}
+                className="input-field h-10 w-full"
+              />
+              <span className="text-[11px] font-normal text-ink-400">
+                Pokaż sprawy z wybranego dnia
+              </span>
+            </label>
 
             <select
               aria-label="Sortowanie listy"
