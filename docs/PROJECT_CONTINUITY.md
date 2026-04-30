@@ -4,7 +4,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-04-23)
+## Aktualny stan projektu (2026-05-01)
 
 ### Stan prac / etapy
 
@@ -55,6 +55,7 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 | PR58 | Historia zmian danych sprawy v1 w `RequestDetailPage` (read path dla AuditLog tych 4 pol) | DONE |
 | PR59 | Reczne uzupelnienie confirmedPortDate w trybie manualnym (PATCH /port-date + RequestPortDatePanel) | DONE |
 | PR60 | Manualna akcja biznesowa "Potwierdz date przeniesienia" (POST `/manual-actions/confirm-port-date`) | DONE |
+| PR108/PR109 | RequestsPage: filtr dat `confirmedPortDate` + status-aware podswietlenie wiersza (overdue) | DONE |
 
 ---
 
@@ -896,6 +897,14 @@ Decyzje:
 - Endpoint dedykowany (nie przez /details) — inna semantyka domenowa.
 - Sekcja widoczna tylko w trybie manualnym (fail-closed zgodne z istniejacym wzorcem capabilities).
 - Historia `confirmedPortDate` trafia do istniejacego panelu `RequestDetailsHistoryPanel` bez nowych endpointow.
+
+## PR108/PR109 — Filtr dat i status-aware podswietlenie wiersza na liscie (2026-05-01)
+
+- Po merge PR #108/#109 uznajemy za zakonczone (closeout: dokumentacja).
+- `confirmedPortDateTo` jest inkluzywne dla calego wybranego dnia (do konca dnia).
+- Podswietlenie wiersza jest status-aware: statusy zamkniete (np. `PORTED`) nie sa pokazywane jako overdue.
+- Input `confirmedPortDate` ma fallback na `onBlur`, aby wspierac automaty/browser cases gdzie ustawienie `input[type=date]` nie emituje standardowego `change`.
+- Ewentualny status/blokada deployu backendu na Vercel to osobny problem deployment/config (poza zakresem PR108/PR109) i nie powinien byc mieszany z tym cleanupem.
 
 ## Kolejne kroki
 
