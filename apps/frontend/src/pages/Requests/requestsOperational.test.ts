@@ -25,6 +25,8 @@ function makeFilters(
     quickWorkFilter: 'ALL',
     commercialOwnerFilter: 'ALL',
     notificationHealthFilter: 'ALL',
+    confirmedPortDateFrom: '',
+    confirmedPortDateTo: '',
     sort: 'CREATED_AT_DESC',
     page: 1,
     pageSize: 20,

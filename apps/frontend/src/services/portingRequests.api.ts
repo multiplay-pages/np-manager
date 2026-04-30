@@ -68,6 +68,8 @@ function appendListFiltersToQuery(
     quickWorkFilter?: string
     commercialOwnerFilter?: string
     notificationHealthFilter?: string
+    confirmedPortDateFrom?: string
+    confirmedPortDateTo?: string
   },
   options: {
     includeQuickWorkFilter?: boolean
@@ -86,6 +88,12 @@ function appendListFiltersToQuery(
   }
   if (params.notificationHealthFilter && params.notificationHealthFilter !== 'ALL') {
     query.set('notificationHealthFilter', params.notificationHealthFilter)
+  }
+  if (params.confirmedPortDateFrom) {
+    query.set('confirmedPortDateFrom', params.confirmedPortDateFrom)
+  }
+  if (params.confirmedPortDateTo) {
+    query.set('confirmedPortDateTo', params.confirmedPortDateTo)
   }
 }
 

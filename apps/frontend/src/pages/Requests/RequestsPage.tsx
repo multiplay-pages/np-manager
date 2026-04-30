@@ -124,6 +124,37 @@ const sortOptions: Array<{ id: PortingRequestListSort; label: string }> = [
   { id: 'WORK_PRIORITY', label: 'Priorytet pracy' },
 ]
 
+interface SortableColumnConfig {
+  label: string
+  asc: PortingRequestListSort
+  desc: PortingRequestListSort
+}
+
+const SORTABLE_COLUMNS = {
+  number: { label: 'Numer i klient', asc: 'NUMBER_ASC', desc: 'NUMBER_DESC' },
+  status: { label: 'Status', asc: 'STATUS_ASC', desc: 'STATUS_DESC' },
+  confirmedPortDate: {
+    label: 'Data przeniesienia',
+    asc: 'CONFIRMED_PORT_DATE_ASC',
+    desc: 'CONFIRMED_PORT_DATE_DESC',
+  },
+  donorOperator: {
+    label: 'Operator / tryb',
+    asc: 'DONOR_OPERATOR_ASC',
+    desc: 'DONOR_OPERATOR_DESC',
+  },
+  assignedUser: {
+    label: 'Przypisanie',
+    asc: 'ASSIGNED_USER_ASC',
+    desc: 'ASSIGNED_USER_DESC',
+  },
+  commercialOwner: {
+    label: 'Opiekun handlowy',
+    asc: 'COMMERCIAL_OWNER_ASC',
+    desc: 'COMMERCIAL_OWNER_DESC',
+  },
+} as const satisfies Record<string, SortableColumnConfig>
+
 interface ActiveFilterChip {
   id: string
   label: string
@@ -472,6 +503,44 @@ export function RequestRow({
   )
 }
 
+function SortableHeader({
+  column,
+  currentSort,
+  onClick,
+}: {
+  column: SortableColumnConfig
+  currentSort: PortingRequestListSort
+  onClick: (column: SortableColumnConfig) => void
+}) {
+  const direction =
+    currentSort === column.asc ? 'asc' : currentSort === column.desc ? 'desc' : null
+  const arrow = direction === 'asc' ? '▲' : direction === 'desc' ? '▼' : ''
+  const ariaSort = direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'
+
+  return (
+    <th
+      scope="col"
+      aria-sort={ariaSort}
+      className="px-4 py-3 text-left"
+    >
+      <button
+        type="button"
+        onClick={() => onClick(column)}
+        className={cx(
+          'inline-flex items-center gap-1 text-left uppercase tracking-[0.06em]',
+          direction ? 'text-ink-900' : 'text-ink-500 hover:text-ink-700',
+        )}
+        aria-label={`Sortuj wg ${column.label}`}
+      >
+        <span>{column.label}</span>
+        <span aria-hidden className="text-[10px]">
+          {arrow}
+        </span>
+      </button>
+    </th>
+  )
+}
+
 export function RequestsPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -501,6 +570,12 @@ export function RequestsPage() {
   )
   const sort = parseListSort(searchParams.get('sort'))
   const page = parsePage(searchParams.get('page'))
+  const confirmedPortDateFrom = searchParams.get('confirmedPortDateFrom') ?? ''
+  const confirmedPortDateTo = searchParams.get('confirmedPortDateTo') ?? ''
+  const confirmedPortDateValue =
+    confirmedPortDateFrom && confirmedPortDateFrom === confirmedPortDateTo
+      ? confirmedPortDateFrom
+      : ''
 
   const filters = useMemo(
     () => ({
@@ -512,6 +587,8 @@ export function RequestsPage() {
       quickWorkFilter,
       commercialOwnerFilter,
       notificationHealthFilter,
+      confirmedPortDateFrom,
+      confirmedPortDateTo,
       sort,
       page,
       pageSize: PAGE_SIZE,
@@ -527,6 +604,8 @@ export function RequestsPage() {
       portingModeFilter,
       searchInput,
       statusFilter,
+      confirmedPortDateFrom,
+      confirmedPortDateTo,
     ],
   )
 
@@ -549,6 +628,14 @@ export function RequestsPage() {
       setSearchParams((prev) => applyQueryParamUpdates(prev, updates))
     },
     [setSearchParams],
+  )
+
+  const handleSortHeaderClick = useCallback(
+    (column: SortableColumnConfig) => {
+      const next = sort === column.asc ? column.desc : column.asc
+      setParam({ sort: next, page: null })
+    },
+    [setParam, sort],
   )
 
   const setQuickWorkFilter = useCallback(
@@ -575,6 +662,14 @@ export function RequestsPage() {
     debounceRef.current = setTimeout(() => {
       setParam({ search: value || null, page: null })
     }, 400)
+  }
+
+  const handleConfirmedPortDateChange = (value: string) => {
+    setParam({
+      confirmedPortDateFrom: value || null,
+      confirmedPortDateTo: value || null,
+      page: null,
+    })
   }
 
   useEffect(() => {
@@ -712,9 +807,27 @@ export function RequestsPage() {
       })
     }
 
+    if (confirmedPortDateFrom && confirmedPortDateFrom === confirmedPortDateTo) {
+      chips.push({
+        id: 'confirmedPortDate',
+        label: 'Data przeniesienia',
+        value: confirmedPortDateFrom,
+        updates: { confirmedPortDateFrom: null, confirmedPortDateTo: null, page: null },
+      })
+    } else if (confirmedPortDateFrom || confirmedPortDateTo) {
+      chips.push({
+        id: 'confirmedPortDateRange',
+        label: 'Zakres dat',
+        value: `${confirmedPortDateFrom || '...'} - ${confirmedPortDateTo || '...'}`,
+        updates: { confirmedPortDateFrom: null, confirmedPortDateTo: null, page: null },
+      })
+    }
+
     return chips
   }, [
     commercialOwnerFilter,
+    confirmedPortDateFrom,
+    confirmedPortDateTo,
     donorOperatorId,
     notificationHealthFilter,
     operators,
@@ -919,6 +1032,20 @@ export function RequestsPage() {
               ))}
             </select>
 
+            <label className="flex flex-col gap-1 text-xs font-semibold text-ink-500">
+              <span>Data przeniesienia</span>
+              <input
+                type="date"
+                aria-label="Data przeniesienia"
+                value={confirmedPortDateValue}
+                onChange={(event) => handleConfirmedPortDateChange(event.target.value)}
+                className="input-field h-10 w-full"
+              />
+              <span className="text-[11px] font-normal text-ink-400">
+                Pokaż sprawy z wybranego dnia
+              </span>
+            </label>
+
             <select
               aria-label="Sortowanie listy"
               value={sort}
@@ -936,6 +1063,9 @@ export function RequestsPage() {
                   Sortuj: {option.label}
                 </option>
               ))}
+              {!sortOptions.some((option) => option.id === sort) && (
+                <option value={sort}>Sortuj: kolumna</option>
+              )}
             </select>
 
           </div>
@@ -1052,12 +1182,28 @@ export function RequestsPage() {
             <table className="w-full min-w-[1120px] text-sm">
               <thead className="bg-ink-50/80 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-500">
                 <tr>
-                  <th className="px-4 py-3 text-left">Numer i klient</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-left">Data przeniesienia</th>
-                  <th className="px-4 py-3 text-left">Operator / tryb</th>
-                  <th className="px-4 py-3 text-left">Przypisanie</th>
-                  <th className="px-4 py-3 text-left">Opiekun handlowy</th>
+                  <SortableHeader column={SORTABLE_COLUMNS.number} currentSort={sort} onClick={handleSortHeaderClick} />
+                  <SortableHeader column={SORTABLE_COLUMNS.status} currentSort={sort} onClick={handleSortHeaderClick} />
+                  <SortableHeader
+                    column={SORTABLE_COLUMNS.confirmedPortDate}
+                    currentSort={sort}
+                    onClick={handleSortHeaderClick}
+                  />
+                  <SortableHeader
+                    column={SORTABLE_COLUMNS.donorOperator}
+                    currentSort={sort}
+                    onClick={handleSortHeaderClick}
+                  />
+                  <SortableHeader
+                    column={SORTABLE_COLUMNS.assignedUser}
+                    currentSort={sort}
+                    onClick={handleSortHeaderClick}
+                  />
+                  <SortableHeader
+                    column={SORTABLE_COLUMNS.commercialOwner}
+                    currentSort={sort}
+                    onClick={handleSortHeaderClick}
+                  />
                   <th className="min-w-[130px] whitespace-nowrap px-4 py-3 text-left">Notyfikacje</th>
                   <th className="min-w-[64px] whitespace-nowrap px-3 py-3 text-left">Akcje</th>
                 </tr>
