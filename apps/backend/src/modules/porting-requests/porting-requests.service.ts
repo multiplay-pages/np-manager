@@ -346,6 +346,11 @@ function toDateOnlyValue(value?: string): Date | undefined {
   return new Date(`${value}T00:00:00.000Z`)
 }
 
+function toDateOnlyEndValue(value?: string): Date | undefined {
+  if (!value) return undefined
+  return new Date(`${value}T23:59:59.999Z`)
+}
+
 function buildConfirmedPortDateFilterWhere(
   query: PortingRequestListQuery | PortingRequestSummaryQuery,
 ): Prisma.PortingRequestWhereInput | null {
@@ -360,7 +365,7 @@ function buildConfirmedPortDateFilterWhere(
     if (fromDate) constraint.gte = fromDate
   }
   if (to) {
-    const toDate = toDateOnlyValue(to)
+    const toDate = toDateOnlyEndValue(to)
     if (toDate) constraint.lte = toDate
   }
   if (constraint.gte === undefined && constraint.lte === undefined) {
