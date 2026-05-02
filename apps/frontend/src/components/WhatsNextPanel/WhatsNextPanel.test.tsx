@@ -68,6 +68,17 @@ const STATUS_ACTION: PortingRequestStatusActionDto = {
   description: 'Potwierdza sprawę.',
 }
 
+const CANCEL_ACTION: PortingRequestStatusActionDto = {
+  actionId: 'CANCEL',
+  label: 'Anuluj',
+  targetStatus: 'CANCELLED',
+  requiresReason: true,
+  requiresComment: false,
+  reasonLabel: 'Powod anulowania',
+  commentLabel: 'Komentarz operacyjny',
+  description: 'Anuluje sprawe.',
+}
+
 const COMM_ACTION: PortingRequestCommunicationActionDto = {
   type: 'CLIENT_CONFIRMATION',
   label: 'Wyślij notyfikację',
@@ -266,7 +277,7 @@ describe('WhatsNextPanel', () => {
     expect(text).toContain('Akcje statusu')
   })
 
-  it('CONFIRMED without MARK_PORTED: shows generic actions-section hint', () => {
+  it('CONFIRMED without MARK_PORTED: shows neutral role-based hint', () => {
     const tree = WhatsNextPanel(
       makeProps({
         status: 'CONFIRMED' as PortingCaseStatus,
@@ -274,7 +285,23 @@ describe('WhatsNextPanel', () => {
       }),
     )
     const text = getTextContent(tree)
-    expect(text).toContain('Sprawdź sekcję Akcje statusu')
+    expect(text).toContain('Dostępne akcje zależą od Twojej roli')
+    expect(text).toContain('sekcję akcji statusu')
+    expect(text.toLowerCase()).not.toContain('przeniesion')
+    expect(text).not.toContain('Oznacz jako przeniesiona')
+  })
+
+  it('CONFIRMED with CANCEL but without MARK_PORTED: shows neutral role-based hint', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'CONFIRMED' as PortingCaseStatus,
+        availableStatusActions: [CANCEL_ACTION],
+      }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('Dostępne akcje zależą od Twojej roli')
+    expect(text).toContain('sekcję akcji statusu')
+    expect(text.toLowerCase()).not.toContain('przeniesion')
     expect(text).not.toContain('Oznacz jako przeniesiona')
   })
 

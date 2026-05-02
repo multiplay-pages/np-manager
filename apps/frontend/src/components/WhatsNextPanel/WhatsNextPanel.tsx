@@ -81,7 +81,7 @@ function buildNextStep(
     const hasMarkPorted = availableStatusActions.some((a) => a.actionId === 'MARK_PORTED')
     return hasMarkPorted
       ? 'Numer przeniesiony? Użyj akcji "Oznacz jako przeniesiona" w sekcji Akcje statusu.'
-      : 'Sprawdź sekcję Akcje statusu, aby oznaczyć sprawę jako przeniesioną.'
+      : 'Sprawa jest potwierdzona. Dostępne akcje zależą od Twojej roli - sprawdź sekcję akcji statusu.'
   }
   return NEXT_STEP_COPY[status] ?? null
 }
