@@ -196,7 +196,7 @@ export function RequestWorkflowActionsSection({
             </div>
           )}
 
-          {canUseManualPortDateAction && (
+          {canUseManualPortDateAction && canUseManualPortDateForCurrentStatus && (
             <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/60 p-4">
               <div>
                 <h3 className="text-sm font-semibold text-sky-900">Potwierdz date przeniesienia</h3>
@@ -207,67 +207,59 @@ export function RequestWorkflowActionsSection({
                 </p>
               </div>
 
-              {canUseManualPortDateForCurrentStatus ? (
-                <>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-sky-900">
-                      Data przeniesienia
-                    </span>
-                    <input
-                      type="date"
-                      value={manualConfirmedPortDate}
-                      onChange={(event) => onManualConfirmedPortDateChange(event.target.value)}
-                      className="input-field"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    />
-                  </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-sky-900">
+                  Data przeniesienia
+                </span>
+                <input
+                  type="date"
+                  value={manualConfirmedPortDate}
+                  onChange={(event) => onManualConfirmedPortDateChange(event.target.value)}
+                  className="input-field"
+                  disabled={
+                    isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                  }
+                />
+              </label>
 
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-sky-900">
-                      Komentarz operacyjny (opcjonalnie)
-                    </span>
-                    <textarea
-                      value={manualPortDateComment}
-                      onChange={(event) => onManualPortDateCommentChange(event.target.value)}
-                      rows={3}
-                      className="input-field"
-                      placeholder="Dodaj komentarz do historii operacyjnej"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    />
-                  </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-sky-900">
+                  Komentarz operacyjny (opcjonalnie)
+                </span>
+                <textarea
+                  value={manualPortDateComment}
+                  onChange={(event) => onManualPortDateCommentChange(event.target.value)}
+                  rows={3}
+                  className="input-field"
+                  placeholder="Dodaj komentarz do historii operacyjnej"
+                  disabled={
+                    isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                  }
+                />
+              </label>
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onConfirmManualPortDate()}
-                      className="btn-primary"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    >
-                      {isSubmittingManualPortDate
-                        ? 'Zapisywanie potwierdzenia'
-                        : 'Potwierdz date przeniesienia'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onManualPortDateCommentChange('')}
-                      className="btn-secondary"
-                      disabled={isSubmittingManualPortDate}
-                    >
-                      Wyczysc komentarz
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                  Akcja dostepna tylko dla statusow: Zlozona, Oczekuje na dawce, Potwierdzona.
-                </div>
-              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onConfirmManualPortDate()}
+                  className="btn-primary"
+                  disabled={
+                    isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                  }
+                >
+                  {isSubmittingManualPortDate
+                    ? 'Zapisywanie potwierdzenia'
+                    : 'Potwierdz date przeniesienia'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onManualPortDateCommentChange('')}
+                  className="btn-secondary"
+                  disabled={isSubmittingManualPortDate}
+                >
+                  Wyczysc komentarz
+                </button>
+              </div>
 
               {manualPortDateSuccess && (
                 <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
