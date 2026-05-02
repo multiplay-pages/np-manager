@@ -283,7 +283,15 @@ export function RequestWorkflowActionsSection({
             </div>
           )}
 
-          {canUsePliCbdExternalActions && pliCbdExternalActionsSlot}
+          {canUsePliCbdExternalActions && pliCbdExternalActionsSlot && (
+            <div className="mt-6 border-t border-line pt-4">
+              <p className="mb-3 text-xs text-ink-500">
+                Czynności zewnętrzne dokumentują etap procesu zewnętrznego i są niezależne od akcji
+                statusu sprawy.
+              </p>
+              {pliCbdExternalActionsSlot}
+            </div>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">

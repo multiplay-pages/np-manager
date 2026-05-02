@@ -323,6 +323,52 @@ describe('RequestWorkflowActionsSection', () => {
     expect(screen.queryByRole('button', { name: 'Oznacz jako przeniesiona' })).toBeNull()
   })
 
+  it('renders external slot inside separator wrapper when canUsePliCbdExternalActions is true', () => {
+    const { container } = render(
+      <RequestWorkflowActionsSection
+        {...buildProps({
+          canUsePliCbdExternalActions: true,
+          pliCbdExternalActionsSlot: <div data-testid="ext-slot">EXT</div>,
+        })}
+      />,
+    )
+
+    const slot = screen.getByTestId('ext-slot')
+    expect(slot).toBeDefined()
+    // separator wrapper must be an ancestor
+    const wrapper = slot.closest('.border-t')
+    expect(wrapper).not.toBeNull()
+  })
+
+  it('shows external slot even when status is terminal and status actions are empty', () => {
+    render(
+      <RequestWorkflowActionsSection
+        {...buildProps({
+          statusInternal: 'PORTED',
+          availableStatusActions: [],
+          canUsePliCbdExternalActions: true,
+          pliCbdExternalActionsSlot: <div data-testid="ext-slot">EXT</div>,
+        })}
+      />,
+    )
+
+    expect(screen.getByText(/Sprawa zako/)).toBeDefined()
+    expect(screen.getByTestId('ext-slot')).toBeDefined()
+  })
+
+  it('does not render external slot wrapper when pliCbdExternalActionsSlot is null', () => {
+    const { container } = render(
+      <RequestWorkflowActionsSection
+        {...buildProps({
+          canUsePliCbdExternalActions: true,
+          pliCbdExternalActionsSlot: null,
+        })}
+      />,
+    )
+
+    expect(container.querySelector('.border-t')).toBeNull()
+  })
+
   it('disables status action buttons when isUpdatingStatus is true', () => {
     render(
       <RequestWorkflowActionsSection
