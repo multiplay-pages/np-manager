@@ -191,7 +191,7 @@ describe('RequestWorkflowActionsSection', () => {
     expect(screen.getByText(/zapisuje krok procesu/)).toBeDefined()
   })
 
-  it('shows status-restricted hint when manual port date action available but status disallows it', () => {
+  it('hides manual port date form when status disallows it', () => {
     render(
       <RequestWorkflowActionsSection
         {...buildProps({
@@ -201,7 +201,8 @@ describe('RequestWorkflowActionsSection', () => {
       />,
     )
 
-    expect(screen.getByText(/Akcja dostepna tylko dla statusow/)).toBeDefined()
+    expect(screen.queryByText(/Potwierdz date przeniesienia/)).toBeNull()
+    expect(screen.queryByText(/Akcja dostepna tylko dla statusow/)).toBeNull()
   })
 
   it('renders manual port date success and error feedback', () => {
