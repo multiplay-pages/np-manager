@@ -145,6 +145,49 @@ describe('RequestCommandCenter', () => {
     expect(onScrollToNotifications).toHaveBeenCalledTimes(1)
   })
 
+  it('DRAFT without confirmedPortDate does not show missing-port-date attention banner', () => {
+    render(
+      <RequestAttentionStrip
+        request={{
+          ...BASE_REQUEST,
+          statusInternal: 'DRAFT' as const,
+          confirmedPortDate: null,
+          assignedUser: null,
+        }}
+        canManageAssignment
+        canManageStatus
+        workflowErrorMessage=""
+        onScrollToAssignment={vi.fn()}
+        onScrollToNotifications={vi.fn()}
+        onScrollToPortingDates={vi.fn()}
+        onScrollToStatusActions={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Brak potwierdzonej daty przeniesienia')).toBeNull()
+  })
+
+  it('SUBMITTED without confirmedPortDate shows missing-port-date attention banner', () => {
+    render(
+      <RequestAttentionStrip
+        request={{
+          ...BASE_REQUEST,
+          statusInternal: 'SUBMITTED' as const,
+          confirmedPortDate: null,
+        }}
+        canManageAssignment={false}
+        canManageStatus
+        workflowErrorMessage=""
+        onScrollToAssignment={vi.fn()}
+        onScrollToNotifications={vi.fn()}
+        onScrollToPortingDates={vi.fn()}
+        onScrollToStatusActions={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Brak potwierdzonej daty przeniesienia')).toBeDefined()
+  })
+
   it('hero-number has large font and mode chip shows "Tryb: DAY"', () => {
     render(
       <MemoryRouter>
