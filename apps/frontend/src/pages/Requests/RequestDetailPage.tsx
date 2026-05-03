@@ -2087,7 +2087,7 @@ export function RequestDetailPage() {
                 <Field label="Data od dawcy" value={request.donorAssignedPortDate} mono />
                 <Field label="Godzina od dawcy" value={request.donorAssignedPortTime} mono />
 
-                {canUseManualPortDateAction && !request.confirmedPortDate && (
+                {canUseManualPortDateAction && canUseManualPortDateForCurrentStatus && !request.confirmedPortDate && (
                   <div className="sm:col-span-2" data-testid="terminy-process-confirm-hint">
                     <AlertBanner
                       tone="info"

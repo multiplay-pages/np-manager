@@ -142,7 +142,7 @@ function buildAttentionItems({
     })
   }
 
-  if (!request.confirmedPortDate) {
+  if (!request.confirmedPortDate && request.statusInternal !== 'DRAFT') {
     items.push({
       key: 'missing-port-date',
       tone: 'warning',
