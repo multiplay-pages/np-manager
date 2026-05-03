@@ -35,9 +35,9 @@ const TERMINAL_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED
 
 // Statuses where a missing status action can be truthfully attributed to the
 // current user's role — i.e. some role in the workflow has a transition from
-// this status. Excludes PENDING_DONOR (waiting on donor) and ERROR (backend
-// workflow defines no transitions from ERROR for any role).
-const ROLE_GATED_STATUSES: PortingCaseStatus[] = ['DRAFT', 'SUBMITTED', 'CONFIRMED']
+// this status. Excludes PENDING_DONOR (waiting on donor).
+// ERROR is included: REVIEW_ROLES have CANCEL_FROM_ERROR, so BOK missing it is a role gap.
+const ROLE_GATED_STATUSES: PortingCaseStatus[] = ['DRAFT', 'SUBMITTED', 'CONFIRMED', 'ERROR']
 
 const TERMINAL_COPY: Partial<Record<PortingCaseStatus, { headline: string; body: string }>> = {
   PORTED: {

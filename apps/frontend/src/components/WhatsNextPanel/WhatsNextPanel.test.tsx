@@ -226,9 +226,9 @@ describe('WhatsNextPanel', () => {
     expect(getTextContent(blocker)).toContain('podgląd')
   })
 
-  it('does not attribute missing ERROR actions to user role', () => {
-    // Backend workflow defines no transitions from ERROR for any role, so the
-    // panel must not mislead operators into thinking it is a permissions gap.
+  it('ERROR with no actions: shows role-gap blocker (REVIEW_ROLES have CANCEL_FROM_ERROR)', () => {
+    // CANCEL_FROM_ERROR exists for REVIEW_ROLES — so a user with no actions for ERROR
+    // genuinely lacks the required role. Panel should surface this as a role gap.
     const tree = WhatsNextPanel(
       makeProps({
         status: 'ERROR' as PortingCaseStatus,
@@ -237,10 +237,8 @@ describe('WhatsNextPanel', () => {
       }),
     )
     const blocker = findByTestId(tree, 'whats-next-blocker')
-    expect(blocker).toBeUndefined()
-    const text = getTextContent(tree)
-    expect(text).not.toContain('dla Twojej roli')
-    expect(text).toContain('błędu')
+    expect(blocker).toBeDefined()
+    expect(getTextContent(blocker)).toContain('dla Twojej roli')
   })
 
   it('does not show role-gap blocker while waiting on donor', () => {
@@ -348,5 +346,30 @@ describe('WhatsNextPanel', () => {
     const text = getTextContent(tree)
     expect(text).toContain('błędu')
     expect(text).toContain('interwencji')
+  })
+
+  it('ERROR with CANCEL_FROM_ERROR action: shows action button, no dead-end blocker', () => {
+    const cancelFromErrorAction: PortingRequestStatusActionDto = {
+      actionId: 'CANCEL_FROM_ERROR',
+      label: 'Anuluj z bledu',
+      targetStatus: 'CANCELLED',
+      requiresReason: true,
+      requiresComment: false,
+      reasonLabel: 'Powod anulowania z bledu',
+      commentLabel: 'Komentarz operacyjny',
+      description: 'Zamknij sprawe w stanie bledu jako anulowana.',
+    }
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'ERROR' as PortingCaseStatus,
+        availableStatusActions: [cancelFromErrorAction],
+        canManageStatus: true,
+      }),
+    )
+    const actions = findByTestId(tree, 'whats-next-actions')
+    expect(actions).toBeDefined()
+    expect(getTextContent(actions)).toContain('Anuluj z bledu')
+    const blocker = findByTestId(tree, 'whats-next-blocker')
+    expect(blocker).toBeUndefined()
   })
 })
