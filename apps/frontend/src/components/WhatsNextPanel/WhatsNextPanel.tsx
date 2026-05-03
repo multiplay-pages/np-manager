@@ -83,6 +83,12 @@ function buildNextStep(
       ? 'Numer przeniesiony? Użyj akcji "Oznacz jako przeniesiona" w sekcji Akcje statusu.'
       : 'Sprawa jest potwierdzona. Dostępne akcje zależą od Twojej roli - sprawdź sekcję akcji statusu.'
   }
+  if (status === 'ERROR') {
+    const hasResume = availableStatusActions.some((a) => a.actionId === 'RESUME_FROM_ERROR')
+    return hasResume
+      ? 'Sprawdź diagnozę i wybierz: Wznów obsługę albo Anuluj z błędu.'
+      : 'Sprawdź przyczynę błędu i skontaktuj się z przełożonym w celu podjęcia decyzji.'
+  }
   return NEXT_STEP_COPY[status] ?? null
 }
 

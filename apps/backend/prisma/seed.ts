@@ -1974,6 +1974,29 @@ export async function seedMain() {
     requestIdByCaseNumberEtap5a.set(fx.caseNumber, result.id)
   }
 
+  // Case history dla FNP-SEED-ERROR-001 — MARK_ERROR z SUBMITTED (potrzebne do RESUME_FROM_ERROR)
+  const errorSeedRequestId = requestIdByCaseNumberEtap5a.get('FNP-SEED-ERROR-001')
+  if (errorSeedRequestId) {
+    await prisma.portingRequestCaseHistory.deleteMany({
+      where: { requestId: errorSeedRequestId, statusAfter: 'ERROR' },
+    })
+    await prisma.portingRequestCaseHistory.create({
+      data: {
+        requestId: errorSeedRequestId,
+        eventType: 'STATUS_CHANGED',
+        statusBefore: 'SUBMITTED',
+        statusAfter: 'ERROR',
+        reason: 'Seed QA: blad walidacji dokumentu.',
+        comment: 'Seed QA: szczegoly bledu — brak zgodnosci numeru PESEL.',
+        actorUserId: adminUser.id,
+        metadata: {
+          actionId: 'MARK_ERROR',
+          actionLabel: 'Oznacz blad',
+        },
+      },
+    })
+  }
+
   // Notification failure attempt — własny ID (delete + create dla idempotencji)
   await prisma.internalNotificationDeliveryAttempt.deleteMany({
     where: { id: QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT.id },
