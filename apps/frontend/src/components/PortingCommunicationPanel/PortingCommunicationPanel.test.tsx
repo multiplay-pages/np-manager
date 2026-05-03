@@ -127,7 +127,7 @@ describe('PortingCommunicationPanel', () => {
     expect(html).toContain('Brak komunikacji zapisanych dla tej sprawy.')
   })
 
-  it('renders status-blocked draft action as disabled secondary UI with operational reason', () => {
+  it('renders status-blocked draft action for non-terminal status with future availability reason', () => {
     const html = renderToStaticMarkup(
       <PortingCommunicationPanel
         actions={[
@@ -168,6 +168,51 @@ describe('PortingCommunicationPanel', () => {
     expect(html).toContain('Aktualny status:')
     expect(html).toContain('bg-ink-50 text-ink-400')
     expect(html).not.toContain('bg-brand-600')
+  })
+
+  it('renders status-blocked draft action for terminal status without future availability promise', () => {
+    const html = renderToStaticMarkup(
+      <PortingCommunicationPanel
+        actions={[
+          {
+            type: 'MISSING_DOCUMENTS',
+            label: 'Brakujace dokumenty',
+            description: 'Prosba do klienta o doslanie brakujacych dokumentow lub korekte danych.',
+            canPreview: false,
+            canCreateDraft: false,
+            canMarkSent: false,
+            disabled: true,
+            disabledReason:
+              'Akcja jest dostepna dopiero dla spraw w statusie zgodnym z polityka komunikacji.',
+            existingDraftId: null,
+            existingDraftInfo: null,
+            allowsMultipleDrafts: false,
+          },
+        ]}
+        summary={EMPTY_SUMMARY}
+        items={[]}
+        isLoadingHistory={false}
+        preview={null}
+        feedbackError={null}
+        feedbackSuccess={null}
+        previewingActionType={null}
+        creatingDraftActionType={null}
+        markingSentId={null}
+        currentStatus="PORTED"
+        onPreviewDraft={vi.fn()}
+        onCreateDraft={vi.fn()}
+        onMarkAsSent={vi.fn()}
+        {...NEW_DELIVERY_PROPS}
+      />,
+    )
+
+    expect(html).toContain('Niedostepne teraz')
+    expect(html).not.toContain('Akcja bedzie dostepna')
+    expect(html).toContain('Ta akcja nie jest dostepna dla zakonczonej sprawy.')
+    expect(html).toContain('Przewidziana jest dla statusow:')
+    expect(html).toContain('Szkic')
+    expect(html).toContain('Zlozona')
+    expect(html).toContain('Oczekuje na dawce')
   })
 
   it('does not keep a stale success message when the panel is rendered again without feedback', () => {

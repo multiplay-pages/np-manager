@@ -70,6 +70,8 @@ const actionAvailabilityByType: Record<PortingRequestCommunicationActionType, Po
   INTERNAL_NOTE_EMAIL: ['DRAFT', 'SUBMITTED', 'PENDING_DONOR', 'CONFIRMED', 'ERROR'],
 }
 
+const TERMINAL_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
+
 function formatStatusList(statuses: PortingCaseStatus[]): string {
   return statuses.map((status) => PORTING_CASE_STATUS_LABELS[status]).join(', ')
 }
@@ -89,6 +91,10 @@ function buildBlockedReason(
   const availableStatuses = actionAvailabilityByType[action.type]
 
   if (availableStatuses.length > 0) {
+    if (currentStatus && TERMINAL_STATUSES.includes(currentStatus)) {
+      return `Ta akcja nie jest dostepna dla zakonczonej sprawy. Przewidziana jest dla statusow: ${formatStatusList(availableStatuses)}.`
+    }
+
     const currentStatusLabel = currentStatus ? PORTING_CASE_STATUS_LABELS[currentStatus] : 'nieznany'
     return `Akcja bedzie dostepna dla statusow: ${formatStatusList(availableStatuses)}. Aktualny status: ${currentStatusLabel}.`
   }
