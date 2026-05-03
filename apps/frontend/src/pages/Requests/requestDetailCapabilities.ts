@@ -1,4 +1,9 @@
-import type { PortingCaseStatus, SystemCapabilitiesDto, UserRole } from '@np-manager/shared'
+import type {
+  PortingCaseStatus,
+  PortingRequestCaseHistoryItemDto,
+  SystemCapabilitiesDto,
+  UserRole,
+} from '@np-manager/shared'
 
 const MANUAL_PORT_DATE_CONFIRMATION_ROLES: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
 const MANUAL_PORT_DATE_CONFIRMATION_STATUSES: PortingCaseStatus[] = [
@@ -40,4 +45,11 @@ export function canUseManualPortDateConfirmation(
 
 export function canConfirmPortDateForStatus(status: PortingCaseStatus): boolean {
   return MANUAL_PORT_DATE_CONFIRMATION_STATUSES.includes(status)
+}
+
+export function getErrorDiagnosticsEntry(
+  items: PortingRequestCaseHistoryItemDto[],
+): PortingRequestCaseHistoryItemDto | null {
+  const errorEntries = items.filter((item) => item.statusAfter === 'ERROR')
+  return errorEntries.at(-1) ?? null
 }

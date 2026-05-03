@@ -115,6 +115,7 @@ import {
 import {
   canConfirmPortDateForStatus,
   canUseManualPortDateConfirmation,
+  getErrorDiagnosticsEntry,
   getWorkflowErrorEmptyStateMessage,
   shouldShowPliCbdOperationalMeta,
 } from './requestDetailCapabilities'
@@ -1888,6 +1889,7 @@ export function RequestDetailPage() {
   const hasQuickActions =
     quickStatusActions.length > 0 || canManageAssignment || availableCommunicationActions.length > 0
   const workflowErrorMessage = getWorkflowErrorEmptyStateMessage(canUsePliCbdExternalActions)
+  const errorDiagnosticsEntry = getErrorDiagnosticsEntry(caseHistoryItems)
   const workflowActionsSection = (
     <RequestWorkflowActionsSection
       canManageStatus={canManageStatus}
@@ -1918,6 +1920,7 @@ export function RequestDetailPage() {
       onManualConfirmedPortDateChange={setManualConfirmedPortDate}
       onManualPortDateCommentChange={setManualPortDateComment}
       onConfirmManualPortDate={() => void handleConfirmManualPortDate()}
+      errorDiagnosticsEntry={errorDiagnosticsEntry}
       pliCbdExternalActionsSlot={
         <PortingExternalActionsPanel
           availableActions={availableExternalActions}

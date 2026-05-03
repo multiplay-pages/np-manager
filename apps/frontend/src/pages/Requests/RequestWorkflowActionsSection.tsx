@@ -1,7 +1,9 @@
 import type {
   PortingCaseStatus,
+  PortingRequestCaseHistoryItemDto,
   PortingRequestStatusActionDto,
 } from '@np-manager/shared'
+import { PORTING_CASE_STATUS_LABELS } from '@np-manager/shared'
 
 const TERMINAL_CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
 
@@ -38,6 +40,7 @@ export interface RequestWorkflowActionsSectionProps {
   onConfirmManualPortDate: () => void
 
   pliCbdExternalActionsSlot?: React.ReactNode
+  errorDiagnosticsEntry?: PortingRequestCaseHistoryItemDto | null
 }
 
 export function RequestWorkflowActionsSection({
@@ -70,6 +73,7 @@ export function RequestWorkflowActionsSection({
   onManualPortDateCommentChange,
   onConfirmManualPortDate,
   pliCbdExternalActionsSlot,
+  errorDiagnosticsEntry,
 }: RequestWorkflowActionsSectionProps) {
   return (
     <section id="workflow-actions" className="panel scroll-mt-6 p-4">
@@ -81,6 +85,57 @@ export function RequestWorkflowActionsSection({
           </p>
         </div>
       </div>
+
+      {statusInternal === 'ERROR' && (
+        <div
+          className="mb-4 rounded-panel border border-red-200 bg-red-50 p-4"
+          data-testid="error-diagnostics-panel"
+        >
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-700">
+            Diagnoza błędu
+          </p>
+          {errorDiagnosticsEntry ? (
+            <dl className="space-y-1 text-sm text-red-900">
+              {errorDiagnosticsEntry.reason && (
+                <div>
+                  <dt className="inline font-medium">Powód: </dt>
+                  <dd className="inline">{errorDiagnosticsEntry.reason}</dd>
+                </div>
+              )}
+              {errorDiagnosticsEntry.comment && (
+                <div>
+                  <dt className="inline font-medium">Szczegóły: </dt>
+                  <dd className="inline">{errorDiagnosticsEntry.comment}</dd>
+                </div>
+              )}
+              {errorDiagnosticsEntry.statusBefore && (
+                <div>
+                  <dt className="inline font-medium">Status przed błędem: </dt>
+                  <dd className="inline">
+                    {PORTING_CASE_STATUS_LABELS[errorDiagnosticsEntry.statusBefore]}
+                  </dd>
+                </div>
+              )}
+              {errorDiagnosticsEntry.actorDisplayName && (
+                <div>
+                  <dt className="inline font-medium">Oznaczył(a): </dt>
+                  <dd className="inline">{errorDiagnosticsEntry.actorDisplayName}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="inline font-medium">Data: </dt>
+                <dd className="inline">
+                  {new Date(errorDiagnosticsEntry.timestamp).toLocaleString('pl-PL')}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-red-700">
+              Nie znaleziono szczegółów błędu w historii sprawy.
+            </p>
+          )}
+        </div>
+      )}
 
       {canManageStatus ? (
         <div className="space-y-4">
