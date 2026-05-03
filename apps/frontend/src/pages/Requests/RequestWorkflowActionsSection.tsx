@@ -134,6 +134,9 @@ export function RequestWorkflowActionsSection({
               Nie znaleziono szczegółów błędu w historii sprawy.
             </p>
           )}
+          <p className="mt-2 text-xs text-red-600">
+            Wznowienie przywróci sprawę do statusu sprzed wejścia w błąd, jeśli historia na to pozwala.
+          </p>
         </div>
       )}
 

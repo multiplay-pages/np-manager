@@ -150,4 +150,28 @@ describe('porting-request-workflow', () => {
       ).toThrowError(/Twoja rola nie moze wykonac tej zmiany statusu/)
     })
   })
+
+  describe('RESUME_FROM_ERROR', () => {
+    it('available for ADMIN/BACK_OFFICE/MANAGER from ERROR', () => {
+      for (const role of ['ADMIN', 'BACK_OFFICE', 'MANAGER'] as const) {
+        const actions = getAvailableStatusActions('ERROR', role)
+        expect(actions.map((a) => a.actionId)).toContain('RESUME_FROM_ERROR')
+      }
+    })
+
+    it('not available for BOK_CONSULTANT from ERROR', () => {
+      const actions = getAvailableStatusActions('ERROR', 'BOK_CONSULTANT')
+      expect(actions.map((a) => a.actionId)).not.toContain('RESUME_FROM_ERROR')
+    })
+
+    it('requires comment (targetStatus ERROR as placeholder is same as current, so resolveWorkflowTransition is bypassed in service)', () => {
+      // RESUME_FROM_ERROR uses actionId-based path in service, not resolveWorkflowTransition.
+      // This test confirms the action is present in getAvailableStatusActions with correct requiresComment.
+      const actions = getAvailableStatusActions('ERROR', 'ADMIN')
+      const action = actions.find((a) => a.actionId === 'RESUME_FROM_ERROR')
+      expect(action).toBeDefined()
+      expect(action?.requiresComment).toBe(true)
+      expect(action?.requiresReason).toBe(false)
+    })
+  })
 })

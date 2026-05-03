@@ -1390,6 +1390,7 @@ export function RequestDetailPage() {
     try {
       const updatedRequest = await updatePortingRequestStatus(id, {
         targetStatus: selectedStatusAction.targetStatus,
+        actionId: selectedStatusAction.actionId,
         reason: statusReason.trim() || undefined,
         comment: statusComment.trim() || undefined,
       })
