@@ -376,6 +376,10 @@ export type CreatePortingRequestBody = z.infer<typeof createPortingRequestSchema
 
 export const updatePortingRequestStatusSchema = z.object({
   targetStatus: statusEnum,
+  actionId: z.enum([
+    'SUBMIT', 'MARK_PENDING_DONOR', 'CONFIRM', 'REJECT', 'CANCEL',
+    'MARK_ERROR', 'MARK_PORTED', 'CANCEL_FROM_ERROR', 'RESUME_FROM_ERROR',
+  ]).optional(),
   reason: optionalTrimmedString(300),
   comment: optionalTrimmedString(5000),
 })

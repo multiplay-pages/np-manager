@@ -6,7 +6,7 @@ export type RowHighlight = 'ported' | 'error' | 'overdue' | 'today' | 'tomorrow'
 /**
  * Zwraca token podswietlenia wiersza na podstawie statusu i daty przeniesienia.
  *
- * Priorytet: PORTED > ERROR > CANCELLED/REJECTED > overdue > dzis > jutro > brak stylu.
+ * Priorytet: PORTED > CANCELLED/REJECTED > ERROR > overdue > dzis > jutro > brak stylu.
  */
 export function getRequestRowHighlight(
   request: Pick<PortingRequestListItemDto, 'statusInternal' | 'confirmedPortDate'>,
@@ -15,8 +15,8 @@ export function getRequestRowHighlight(
   const { statusInternal, confirmedPortDate } = request
 
   if (statusInternal === 'PORTED') return 'ported'
-  if (statusInternal === 'ERROR') return 'error'
   if (statusInternal === 'CANCELLED' || statusInternal === 'REJECTED') return 'closed'
+  if (statusInternal === 'ERROR') return 'error'
 
   const daysDiff = calculateDaysDiff(confirmedPortDate, now)
   if (daysDiff === null) return 'none'
@@ -32,7 +32,7 @@ export function rowHighlightClasses(highlight: RowHighlight): string {
     case 'ported':
       return 'bg-sky-50'
     case 'error':
-      return 'bg-red-100'
+      return 'bg-amber-50'
     case 'overdue':
       return 'bg-red-50'
     case 'today':

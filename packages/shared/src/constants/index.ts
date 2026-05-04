@@ -257,7 +257,7 @@ export const PORTING_CASE_STATUS_TRANSITIONS: Record<PortingCaseStatus, PortingC
   REJECTED: [],
   CANCELLED: [],
   PORTED: [],
-  ERROR: [],
+  ERROR: ['CANCELLED', 'SUBMITTED', 'PENDING_DONOR', 'CONFIRMED'],
 }
 
 export const PORTING_CASE_STATUS_ACTION_LABELS: Partial<Record<PortingCaseStatus, string>> = {
@@ -291,6 +291,8 @@ export const PORTING_REQUEST_STATUS_ACTION_IDS = {
   CANCEL: 'CANCEL',
   MARK_ERROR: 'MARK_ERROR',
   MARK_PORTED: 'MARK_PORTED',
+  CANCEL_FROM_ERROR: 'CANCEL_FROM_ERROR',
+  RESUME_FROM_ERROR: 'RESUME_FROM_ERROR',
 } as const
 
 export type PortingRequestStatusActionId =

@@ -91,12 +91,12 @@ const notificationQuickOptions: Array<{ id: 'ALL' | 'HAS_FAILURES'; label: strin
 
 const quickWorkFilterOptions: Array<{ id: RequestsQuickWorkFilter; label: string; icon: AppIconAssetName }> = [
   { id: 'ALL', label: 'Wszystkie', icon: 'request-queue' },
-  { id: 'ERROR', label: 'Wymaga interwencji', icon: 'urgent' },
   { id: 'MINE', label: 'Moje', icon: 'assign-user' },
   { id: 'UNASSIGNED', label: 'Nieprzypisane', icon: 'assign-user' },
   { id: 'URGENT', label: 'Pilne', icon: 'urgent' },
   { id: 'NO_DATE', label: 'Bez daty', icon: 'no-date' },
   { id: 'NEEDS_ACTION_TODAY', label: 'Wymaga reakcji dzis', icon: 'needs-action-today' },
+  { id: 'STATUS_ERROR', label: 'Wymaga interwencji', icon: 'warning' },
 ]
 
 const commercialOwnerFilterLabels: Record<CommercialOwnerFilter, string> = {
@@ -108,12 +108,12 @@ const commercialOwnerFilterLabels: Record<CommercialOwnerFilter, string> = {
 
 const quickWorkFilterLabels: Record<RequestsQuickWorkFilter, string> = {
   ALL: 'Wszystkie',
-  ERROR: 'Wymaga interwencji',
   MINE: 'Moje',
   UNASSIGNED: 'Nieprzypisane',
   URGENT: 'Pilne',
   NO_DATE: 'Bez daty',
   NEEDS_ACTION_TODAY: 'Wymaga reakcji dzis',
+  STATUS_ERROR: 'Wymaga interwencji',
 }
 
 const notificationHealthFilterLabels: Record<NotificationHealthFilter, string> = {
@@ -195,8 +195,9 @@ function formatDate(iso: string): string {
   })
 }
 
-function getSummaryCardTone(cardId: 'ALL' | 'ERROR' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES') {
-  if (cardId === 'ERROR' || cardId === 'HAS_FAILURES') return 'danger'
+function getSummaryCardTone(cardId: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES' | 'ERROR') {
+  if (cardId === 'ERROR') return 'danger'
+  if (cardId === 'HAS_FAILURES') return 'danger'
   if (cardId === 'WITHOUT_OWNER') return 'warning'
   if (cardId === 'WITH_OWNER') return 'success'
   if (cardId === 'MINE') return 'brand'
@@ -649,29 +650,16 @@ export function RequestsPage() {
 
   const setQuickWorkFilter = useCallback(
     (next: RequestsQuickWorkFilter) => {
-      if (next === 'ERROR') {
+      if (next === 'STATUS_ERROR') {
+        setParam({ status: 'ERROR', quickWorkFilter: null, ownership: null, page: null })
+      } else {
         setParam({
-          status: 'ERROR',
-          quickWorkFilter: null,
+          quickWorkFilter: next === 'ALL' ? null : next,
           ownership: null,
           page: null,
+          ...(statusFilter === 'ERROR' ? { status: null } : {}),
         })
-        return
       }
-
-      const updates: Record<string, string | null> = {
-        quickWorkFilter: next === 'ALL' ? null : next,
-        ownership: null,
-        page: null,
-      }
-
-      if (statusFilter === 'ERROR') {
-        updates.status = null
-      }
-
-      setParam({
-        ...updates,
-      })
     },
     [setParam, statusFilter],
   )
@@ -908,7 +896,13 @@ export function RequestsPage() {
               value={card.value}
               active={card.isActive}
               tone={getSummaryCardTone(card.id)}
-              detail={card.id === 'HAS_FAILURES' ? 'Wymaga kontroli operacyjnej' : 'Kliknij, aby zawezic kolejke'}
+              detail={
+                card.id === 'HAS_FAILURES'
+                  ? 'Wymaga kontroli operacyjnej'
+                  : card.id === 'ERROR'
+                    ? 'Sprawy z bledem procesu'
+                    : 'Kliknij, aby zawezic kolejke'
+              }
               onClick={() => setParam(card.filterUpdates)}
             />
           ))}
@@ -928,21 +922,17 @@ export function RequestsPage() {
           </span>
           {quickWorkFilterOptions.map((filter) => {
             const active =
-              filter.id === 'ALL'
-                ? quickWorkFilter === 'ALL' && statusFilter !== 'ERROR'
-                : filter.id === 'ERROR'
-                  ? statusFilter === 'ERROR'
-                  : quickWorkFilter === filter.id
+              filter.id === 'STATUS_ERROR' ? statusFilter === 'ERROR' : quickWorkFilter === filter.id
             const count =
-              summary && filter.id === 'ERROR'
+              summary && filter.id === 'STATUS_ERROR'
                 ? summary.requestsInError
                 : summary && filter.id === 'URGENT'
-                ? summary.quickWorkCounts.urgent
-                : summary && filter.id === 'NO_DATE'
-                  ? summary.quickWorkCounts.noDate
-                  : summary && filter.id === 'NEEDS_ACTION_TODAY'
-                    ? summary.quickWorkCounts.needsActionToday
-                    : null
+                  ? summary.quickWorkCounts.urgent
+                  : summary && filter.id === 'NO_DATE'
+                    ? summary.quickWorkCounts.noDate
+                    : summary && filter.id === 'NEEDS_ACTION_TODAY'
+                      ? summary.quickWorkCounts.needsActionToday
+                      : null
             return (
               <FilterChip
                 key={filter.id}

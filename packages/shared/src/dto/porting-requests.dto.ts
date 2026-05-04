@@ -209,6 +209,7 @@ export interface CreatePortingRequestDto {
 
 export interface UpdatePortingRequestStatusDto {
   targetStatus: PortingCaseStatus
+  actionId?: PortingRequestStatusActionId
   reason?: string
   comment?: string
 }

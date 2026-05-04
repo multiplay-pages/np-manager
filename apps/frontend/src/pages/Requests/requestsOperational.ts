@@ -28,8 +28,8 @@ export type RequestsQuickWorkFilter =
   | 'ALL'
   | 'MINE'
   | 'UNASSIGNED'
-  | 'ERROR'
   | PortingRequestQuickWorkFilter
+  | 'STATUS_ERROR'
 
 const QUICK_WORK_FILTERS: RequestsQuickWorkFilter[] = [
   'ALL',
@@ -38,6 +38,7 @@ const QUICK_WORK_FILTERS: RequestsQuickWorkFilter[] = [
   'URGENT',
   'NO_DATE',
   'NEEDS_ACTION_TODAY',
+  'STATUS_ERROR',
 ]
 
 const LIST_SORTS: PortingRequestListSort[] = [
@@ -79,7 +80,7 @@ export interface RequestsOperationalFilterState {
 }
 
 export interface RequestsSummaryCard {
-  id: 'ALL' | 'ERROR' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES'
+  id: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES' | 'ERROR'
   title: string
   value: number
   isActive: boolean
@@ -213,7 +214,6 @@ export function buildRequestsSummaryCards(
   filters: RequestsOperationalFilterState,
 ): RequestsSummaryCard[] {
   const allActive =
-    filters.statusFilter === null &&
     filters.commercialOwnerFilter === 'ALL' && filters.notificationHealthFilter === 'ALL'
 
   return [
@@ -223,21 +223,8 @@ export function buildRequestsSummaryCards(
       value: summary.totalRequests,
       isActive: allActive,
       filterUpdates: {
-        status: null,
         commercialOwnerFilter: null,
         notificationHealthFilter: null,
-        page: null,
-      },
-    },
-    {
-      id: 'ERROR',
-      title: 'Wymaga interwencji',
-      value: summary.requestsInError,
-      isActive: filters.statusFilter === 'ERROR',
-      filterUpdates: {
-        status: 'ERROR',
-        quickWorkFilter: null,
-        ownership: null,
         page: null,
       },
     },
@@ -282,6 +269,16 @@ export function buildRequestsSummaryCards(
       filterUpdates: {
         commercialOwnerFilter: null,
         notificationHealthFilter: 'HAS_FAILURES',
+        page: null,
+      },
+    },
+    {
+      id: 'ERROR',
+      title: 'Wymaga interwencji',
+      value: summary.requestsInError,
+      isActive: filters.statusFilter === 'ERROR',
+      filterUpdates: {
+        status: 'ERROR',
         page: null,
       },
     },

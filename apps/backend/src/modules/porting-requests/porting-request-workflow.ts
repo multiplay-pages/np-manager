@@ -202,6 +202,30 @@ const WORKFLOW_TRANSITIONS: WorkflowTransitionConfig[] = [
     reasonLabel: 'Powod bledu',
     commentLabel: 'Szczegoly bledu',
   },
+  {
+    actionId: PORTING_REQUEST_STATUS_ACTION_IDS.CANCEL_FROM_ERROR,
+    fromStatus: 'ERROR',
+    targetStatus: 'CANCELLED',
+    label: 'Anuluj z bledu',
+    description: 'Zamknij sprawe w stanie bledu jako anulowana po decyzji operacyjnej.',
+    allowedRoles: REVIEW_ROLES,
+    requiresReason: true,
+    requiresComment: false,
+    reasonLabel: 'Powod anulowania z bledu',
+    commentLabel: 'Komentarz operacyjny',
+  },
+  {
+    actionId: PORTING_REQUEST_STATUS_ACTION_IDS.RESUME_FROM_ERROR,
+    fromStatus: 'ERROR',
+    targetStatus: 'ERROR',
+    label: 'Wznow obsluge',
+    description: 'Przywroc sprawe do statusu sprzed wejscia w blad.',
+    allowedRoles: REVIEW_ROLES,
+    requiresReason: false,
+    requiresComment: true,
+    reasonLabel: null,
+    commentLabel: 'Komentarz wznowienia',
+  },
 ]
 
 function toStatusActionDto(config: WorkflowTransitionConfig): PortingRequestStatusActionDto {

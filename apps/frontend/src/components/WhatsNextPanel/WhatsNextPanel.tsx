@@ -35,9 +35,9 @@ const TERMINAL_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED
 
 // Statuses where a missing status action can be truthfully attributed to the
 // current user's role — i.e. some role in the workflow has a transition from
-// this status. Excludes PENDING_DONOR (waiting on donor) and ERROR (backend
-// workflow defines no transitions from ERROR for any role).
-const ROLE_GATED_STATUSES: PortingCaseStatus[] = ['DRAFT', 'SUBMITTED', 'CONFIRMED']
+// this status. Excludes PENDING_DONOR (waiting on donor).
+// ERROR is included: REVIEW_ROLES have CANCEL_FROM_ERROR, so BOK missing it is a role gap.
+const ROLE_GATED_STATUSES: PortingCaseStatus[] = ['DRAFT', 'SUBMITTED', 'CONFIRMED', 'ERROR']
 
 const TERMINAL_COPY: Partial<Record<PortingCaseStatus, { headline: string; body: string }>> = {
   PORTED: {
@@ -82,6 +82,12 @@ function buildNextStep(
     return hasMarkPorted
       ? 'Numer przeniesiony? Użyj akcji "Oznacz jako przeniesiona" w sekcji Akcje statusu.'
       : 'Sprawa jest potwierdzona. Dostępne akcje zależą od Twojej roli - sprawdź sekcję akcji statusu.'
+  }
+  if (status === 'ERROR') {
+    const hasResume = availableStatusActions.some((a) => a.actionId === 'RESUME_FROM_ERROR')
+    return hasResume
+      ? 'Sprawdź diagnozę i wybierz: Wznów obsługę albo Anuluj z błędu.'
+      : 'Sprawdź przyczynę błędu i skontaktuj się z przełożonym w celu podjęcia decyzji.'
   }
   return NEXT_STEP_COPY[status] ?? null
 }

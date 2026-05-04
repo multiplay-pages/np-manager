@@ -42,22 +42,6 @@ describe('getRequestRowHighlight', () => {
     expect(getRequestRowHighlight(makeRequest('SUBMITTED', '2026-04-01'), NOW)).toBe('overdue')
   })
 
-  it('ERROR with overdue date -> error, not overdue', () => {
-    expect(getRequestRowHighlight(makeRequest('ERROR', '2026-04-01'), NOW)).toBe('error')
-  })
-
-  it('ERROR with today date -> error, not today', () => {
-    expect(getRequestRowHighlight(makeRequest('ERROR', '2026-04-30'), NOW)).toBe('error')
-  })
-
-  it('ERROR with tomorrow date -> error, not tomorrow', () => {
-    expect(getRequestRowHighlight(makeRequest('ERROR', '2026-05-01'), NOW)).toBe('error')
-  })
-
-  it('ERROR with no date -> error', () => {
-    expect(getRequestRowHighlight(makeRequest('ERROR', null), NOW)).toBe('error')
-  })
-
   it('active case with no date -> none', () => {
     expect(getRequestRowHighlight(makeRequest('SUBMITTED', null), NOW)).toBe('none')
   })
@@ -81,6 +65,18 @@ describe('getRequestRowHighlight', () => {
   it('REJECTED with today date -> closed, not today', () => {
     expect(getRequestRowHighlight(makeRequest('REJECTED', '2026-04-30'), NOW)).toBe('closed')
   })
+
+  it('ERROR with no date -> error (amber)', () => {
+    expect(getRequestRowHighlight(makeRequest('ERROR', null), NOW)).toBe('error')
+  })
+
+  it('ERROR with overdue date -> error, not overdue', () => {
+    expect(getRequestRowHighlight(makeRequest('ERROR', '2026-01-01'), NOW)).toBe('error')
+  })
+
+  it('ERROR with today date -> error, not today', () => {
+    expect(getRequestRowHighlight(makeRequest('ERROR', '2026-04-30'), NOW)).toBe('error')
+  })
 })
 
 describe('rowHighlightClasses', () => {
@@ -88,12 +84,12 @@ describe('rowHighlightClasses', () => {
     expect(rowHighlightClasses('ported')).toBe('bg-sky-50')
   })
 
-  it('overdue -> bg-red-50', () => {
-    expect(rowHighlightClasses('overdue')).toBe('bg-red-50')
+  it('error -> bg-amber-50', () => {
+    expect(rowHighlightClasses('error')).toBe('bg-amber-50')
   })
 
-  it('error -> bg-red-100', () => {
-    expect(rowHighlightClasses('error')).toBe('bg-red-100')
+  it('overdue -> bg-red-50', () => {
+    expect(rowHighlightClasses('overdue')).toBe('bg-red-50')
   })
 
   it('today -> bg-blue-50', () => {

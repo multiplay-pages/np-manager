@@ -115,6 +115,7 @@ import {
 import {
   canConfirmPortDateForStatus,
   canUseManualPortDateConfirmation,
+  getErrorDiagnosticsEntry,
   getWorkflowErrorEmptyStateMessage,
   shouldShowPliCbdOperationalMeta,
 } from './requestDetailCapabilities'
@@ -1389,6 +1390,7 @@ export function RequestDetailPage() {
     try {
       const updatedRequest = await updatePortingRequestStatus(id, {
         targetStatus: selectedStatusAction.targetStatus,
+        actionId: selectedStatusAction.actionId,
         reason: statusReason.trim() || undefined,
         comment: statusComment.trim() || undefined,
       })
@@ -1888,6 +1890,7 @@ export function RequestDetailPage() {
   const hasQuickActions =
     quickStatusActions.length > 0 || canManageAssignment || availableCommunicationActions.length > 0
   const workflowErrorMessage = getWorkflowErrorEmptyStateMessage(canUsePliCbdExternalActions)
+  const errorDiagnosticsEntry = getErrorDiagnosticsEntry(caseHistoryItems)
   const workflowActionsSection = (
     <RequestWorkflowActionsSection
       canManageStatus={canManageStatus}
@@ -1918,6 +1921,7 @@ export function RequestDetailPage() {
       onManualConfirmedPortDateChange={setManualConfirmedPortDate}
       onManualPortDateCommentChange={setManualPortDateComment}
       onConfirmManualPortDate={() => void handleConfirmManualPortDate()}
+      errorDiagnosticsEntry={errorDiagnosticsEntry}
       pliCbdExternalActionsSlot={
         <PortingExternalActionsPanel
           availableActions={availableExternalActions}
@@ -2087,7 +2091,7 @@ export function RequestDetailPage() {
                 <Field label="Data od dawcy" value={request.donorAssignedPortDate} mono />
                 <Field label="Godzina od dawcy" value={request.donorAssignedPortTime} mono />
 
-                {canUseManualPortDateAction && !request.confirmedPortDate && (
+                {canUseManualPortDateAction && canUseManualPortDateForCurrentStatus && !request.confirmedPortDate && (
                   <div className="sm:col-span-2" data-testid="terminy-process-confirm-hint">
                     <AlertBanner
                       tone="info"

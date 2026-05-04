@@ -116,7 +116,6 @@ describe('portingRequests.api assignment flow', () => {
           withoutCommercialOwner: 3,
           myCommercialRequests: 2,
           requestsWithNotificationFailures: 1,
-          requestsInError: 0,
         },
       },
     })

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFindUnique = vi.fn()
+const mockCaseHistoryFindFirst = vi.fn()
 const mockTransaction = vi.fn()
 const mockUpdate = vi.fn()
 const mockCaseHistoryCreate = vi.fn()
@@ -11,6 +12,9 @@ vi.mock('../../../config/database', () => ({
   prisma: {
     portingRequest: {
       findUnique: (...args: unknown[]) => mockFindUnique(...args),
+    },
+    portingRequestCaseHistory: {
+      findFirst: (...args: unknown[]) => mockCaseHistoryFindFirst(...args),
     },
     $transaction: (...args: unknown[]) => mockTransaction(...args),
   },
@@ -209,5 +213,126 @@ describe('changePortingRequestStatus', () => {
     ).rejects.toThrow(/Sprawa ma juz wskazany status/)
 
     expect(mockTransaction).not.toHaveBeenCalled()
+  })
+
+  describe('RESUME_FROM_ERROR', () => {
+    beforeEach(() => {
+      mockFindUnique.mockResolvedValue({
+        id: 'req-1',
+        caseNumber: 'FNP-SEED-ERROR-001',
+        statusInternal: 'ERROR',
+      })
+      mockCaseHistoryFindFirst.mockResolvedValue({
+        statusBefore: 'SUBMITTED',
+        statusAfter: 'ERROR',
+      })
+    })
+
+    it('SUBMITTED → ERROR → RESUME restores SUBMITTED', async () => {
+      mockCaseHistoryFindFirst.mockResolvedValue({ statusBefore: 'SUBMITTED', statusAfter: 'ERROR' })
+
+      await changePortingRequestStatus(
+        'req-1',
+        { targetStatus: 'ERROR', actionId: 'RESUME_FROM_ERROR', comment: 'Blad naprawiony' },
+        'user-admin',
+        'ADMIN',
+      )
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { statusInternal: 'SUBMITTED' } }),
+      )
+      expect(mockCaseHistoryCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            statusBefore: 'ERROR',
+            statusAfter: 'SUBMITTED',
+          }),
+        }),
+      )
+    })
+
+    it('PENDING_DONOR → ERROR → RESUME restores PENDING_DONOR', async () => {
+      mockCaseHistoryFindFirst.mockResolvedValue({ statusBefore: 'PENDING_DONOR', statusAfter: 'ERROR' })
+
+      await changePortingRequestStatus(
+        'req-1',
+        { targetStatus: 'ERROR', actionId: 'RESUME_FROM_ERROR', comment: 'Blad naprawiony' },
+        'user-admin',
+        'ADMIN',
+      )
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { statusInternal: 'PENDING_DONOR' } }),
+      )
+    })
+
+    it('CONFIRMED → ERROR → RESUME restores CONFIRMED', async () => {
+      mockCaseHistoryFindFirst.mockResolvedValue({ statusBefore: 'CONFIRMED', statusAfter: 'ERROR' })
+
+      await changePortingRequestStatus(
+        'req-1',
+        { targetStatus: 'ERROR', actionId: 'RESUME_FROM_ERROR', comment: 'Blad naprawiony' },
+        'user-admin',
+        'ADMIN',
+      )
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { statusInternal: 'CONFIRMED' } }),
+      )
+    })
+
+    it('blocks when no history entry found', async () => {
+      mockCaseHistoryFindFirst.mockResolvedValue(null)
+
+      await expect(
+        changePortingRequestStatus(
+          'req-1',
+          { targetStatus: 'ERROR', actionId: 'RESUME_FROM_ERROR', comment: 'x' },
+          'user-admin',
+          'ADMIN',
+        ),
+      ).rejects.toThrow(/statusu sprzed wejscia w blad/)
+
+      expect(mockTransaction).not.toHaveBeenCalled()
+    })
+
+    it('blocks when statusBefore is not an allowed resume target', async () => {
+      mockCaseHistoryFindFirst.mockResolvedValue({ statusBefore: 'DRAFT', statusAfter: 'ERROR' })
+
+      await expect(
+        changePortingRequestStatus(
+          'req-1',
+          { targetStatus: 'ERROR', actionId: 'RESUME_FROM_ERROR', comment: 'x' },
+          'user-admin',
+          'ADMIN',
+        ),
+      ).rejects.toThrow(/statusu sprzed wejscia w blad/)
+    })
+
+    it('blocks when comment is missing', async () => {
+      await expect(
+        changePortingRequestStatus(
+          'req-1',
+          { targetStatus: 'ERROR', actionId: 'RESUME_FROM_ERROR' },
+          'user-admin',
+          'ADMIN',
+        ),
+      ).rejects.toThrow(/Komentarz wznowienia jest wymagany/)
+
+      expect(mockTransaction).not.toHaveBeenCalled()
+    })
+
+    it('blocks BOK_CONSULTANT from RESUME_FROM_ERROR', async () => {
+      await expect(
+        changePortingRequestStatus(
+          'req-1',
+          { targetStatus: 'ERROR', actionId: 'RESUME_FROM_ERROR', comment: 'x' },
+          'user-bok',
+          'BOK_CONSULTANT',
+        ),
+      ).rejects.toThrow(/Twoja rola nie moze wznowic sprawy z bledu/)
+
+      expect(mockTransaction).not.toHaveBeenCalled()
+    })
   })
 })

@@ -23,6 +23,7 @@ import {
   getPortingUrgencyDateBoundaries,
   getPortingWorkPriorityRank,
   PORTING_CASE_STATUS_LABELS,
+  PORTING_REQUEST_STATUS_ACTION_IDS,
 } from '@np-manager/shared'
 import type {
   ConfirmPortingRequestPortDateBody,
@@ -1490,6 +1491,28 @@ export async function getPortingRequestIntegrationEvents(
   return getPliCbdIntegrationEvents(requestId)
 }
 
+const RESUME_FROM_ERROR_ALLOWED_ROLES: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
+const RESUME_FROM_ERROR_ALLOWED_TARGETS: PortingCaseStatus[] = ['SUBMITTED', 'PENDING_DONOR', 'CONFIRMED']
+
+async function resolveResumeFromErrorTarget(requestId: string): Promise<PortingCaseStatus> {
+  const entry = await prisma.portingRequestCaseHistory.findFirst({
+    where: {
+      requestId,
+      statusAfter: 'ERROR',
+    },
+    orderBy: { occurredAt: 'desc' },
+  })
+
+  const statusBefore = entry?.statusBefore as PortingCaseStatus | null | undefined
+  if (!statusBefore || !(RESUME_FROM_ERROR_ALLOWED_TARGETS as string[]).includes(statusBefore)) {
+    throw AppError.badRequest(
+      'Nie mozna ustalic statusu sprzed wejscia w blad. Uzyj opcji anulowania.',
+      'ERROR_RESUME_TARGET_NOT_FOUND',
+    )
+  }
+  return statusBefore
+}
+
 export async function changePortingRequestStatus(
   requestId: string,
   body: UpdatePortingRequestStatusBody,
@@ -1500,6 +1523,82 @@ export async function changePortingRequestStatus(
 ): Promise<void> {
   const request = await getPortingRequestForStatusChangeOrThrow(requestId)
   const currentStatus = request.statusInternal
+
+  if (body.actionId === PORTING_REQUEST_STATUS_ACTION_IDS.RESUME_FROM_ERROR) {
+    if (currentStatus !== 'ERROR') {
+      throw AppError.badRequest(
+        'Wznowienie mozliwe tylko ze statusu ERROR.',
+        'PORTING_REQUEST_STATUS_TRANSITION_NOT_ALLOWED',
+      )
+    }
+    if (!RESUME_FROM_ERROR_ALLOWED_ROLES.includes(userRole)) {
+      throw AppError.forbidden(
+        'Twoja rola nie moze wznowic sprawy z bledu.',
+        'PORTING_REQUEST_STATUS_TRANSITION_ROLE_NOT_ALLOWED',
+      )
+    }
+    const comment = body.comment?.trim() || null
+    if (!comment) {
+      throw AppError.badRequest(
+        'Komentarz wznowienia jest wymagany.',
+        'PORTING_REQUEST_STATUS_COMMENT_REQUIRED',
+      )
+    }
+
+    const targetStatus = await resolveResumeFromErrorTarget(requestId)
+    const actionLabel = 'Wznow obsluge'
+    const descriptionLines = [
+      `Status sprawy zostal zmieniony z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[targetStatus]}.`,
+      `Komentarz: ${comment}`,
+    ]
+
+    await prisma.$transaction(async (tx) => {
+      await tx.portingRequest.update({
+        where: { id: requestId },
+        data: { statusInternal: targetStatus },
+      })
+
+      await createCaseHistoryEntry(tx, {
+        requestId,
+        eventType: 'STATUS_CHANGED',
+        statusBefore: 'ERROR',
+        statusAfter: targetStatus,
+        comment,
+        actorUserId: userId,
+        metadata: {
+          actionId: PORTING_REQUEST_STATUS_ACTION_IDS.RESUME_FROM_ERROR,
+          actionLabel,
+        },
+      })
+
+      await tx.portingRequestEvent.create({
+        data: {
+          request: { connect: { id: requestId } },
+          eventSource: 'INTERNAL',
+          eventType: 'STATUS_CHANGED',
+          title: `Zmiana statusu na: ${PORTING_CASE_STATUS_LABELS[targetStatus]}`,
+          description: descriptionLines.join(' '),
+          statusBefore: 'ERROR',
+          statusAfter: targetStatus,
+          createdBy: { connect: { id: userId } },
+        },
+      })
+    })
+
+    await logAuditEvent({
+      action: 'STATUS_CHANGE',
+      userId,
+      entityType: 'porting_request',
+      entityId: requestId,
+      requestId,
+      oldValue: 'ERROR',
+      newValue: targetStatus,
+      ipAddress,
+      userAgent,
+    })
+    return
+  }
+
   const { config, reason, comment } = resolveWorkflowTransition(currentStatus, body, userRole)
   const descriptionLines = [
     `Status sprawy zostal zmieniony z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[config.targetStatus]}.`,

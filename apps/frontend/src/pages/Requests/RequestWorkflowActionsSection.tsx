@@ -1,7 +1,9 @@
 import type {
   PortingCaseStatus,
+  PortingRequestCaseHistoryItemDto,
   PortingRequestStatusActionDto,
 } from '@np-manager/shared'
+import { PORTING_CASE_STATUS_LABELS } from '@np-manager/shared'
 
 const TERMINAL_CLOSED_STATUSES: PortingCaseStatus[] = ['REJECTED', 'CANCELLED', 'PORTED']
 
@@ -38,6 +40,7 @@ export interface RequestWorkflowActionsSectionProps {
   onConfirmManualPortDate: () => void
 
   pliCbdExternalActionsSlot?: React.ReactNode
+  errorDiagnosticsEntry?: PortingRequestCaseHistoryItemDto | null
 }
 
 export function RequestWorkflowActionsSection({
@@ -70,6 +73,7 @@ export function RequestWorkflowActionsSection({
   onManualPortDateCommentChange,
   onConfirmManualPortDate,
   pliCbdExternalActionsSlot,
+  errorDiagnosticsEntry,
 }: RequestWorkflowActionsSectionProps) {
   return (
     <section id="workflow-actions" className="panel scroll-mt-6 p-4">
@@ -81,6 +85,60 @@ export function RequestWorkflowActionsSection({
           </p>
         </div>
       </div>
+
+      {statusInternal === 'ERROR' && (
+        <div
+          className="mb-4 rounded-panel border border-red-200 bg-red-50 p-4"
+          data-testid="error-diagnostics-panel"
+        >
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-700">
+            Diagnoza błędu
+          </p>
+          {errorDiagnosticsEntry ? (
+            <dl className="space-y-1 text-sm text-red-900">
+              {errorDiagnosticsEntry.reason && (
+                <div>
+                  <dt className="inline font-medium">Powód: </dt>
+                  <dd className="inline">{errorDiagnosticsEntry.reason}</dd>
+                </div>
+              )}
+              {errorDiagnosticsEntry.comment && (
+                <div>
+                  <dt className="inline font-medium">Szczegóły: </dt>
+                  <dd className="inline">{errorDiagnosticsEntry.comment}</dd>
+                </div>
+              )}
+              {errorDiagnosticsEntry.statusBefore && (
+                <div>
+                  <dt className="inline font-medium">Status przed błędem: </dt>
+                  <dd className="inline">
+                    {PORTING_CASE_STATUS_LABELS[errorDiagnosticsEntry.statusBefore]}
+                  </dd>
+                </div>
+              )}
+              {errorDiagnosticsEntry.actorDisplayName && (
+                <div>
+                  <dt className="inline font-medium">Oznaczył(a): </dt>
+                  <dd className="inline">{errorDiagnosticsEntry.actorDisplayName}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="inline font-medium">Data: </dt>
+                <dd className="inline">
+                  {new Date(errorDiagnosticsEntry.timestamp).toLocaleString('pl-PL')}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-red-700">
+              Nie znaleziono szczegółów błędu w historii sprawy.
+            </p>
+          )}
+          <p className="mt-2 text-xs text-red-600">
+            Wznowienie przywróci sprawę do statusu sprzed wejścia w błąd, jeśli historia na to pozwala.
+          </p>
+        </div>
+      )}
 
       {canManageStatus ? (
         <div className="space-y-4">
@@ -196,7 +254,7 @@ export function RequestWorkflowActionsSection({
             </div>
           )}
 
-          {canUseManualPortDateAction && (
+          {canUseManualPortDateAction && canUseManualPortDateForCurrentStatus && (
             <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/60 p-4">
               <div>
                 <h3 className="text-sm font-semibold text-sky-900">Potwierdz date przeniesienia</h3>
@@ -207,67 +265,59 @@ export function RequestWorkflowActionsSection({
                 </p>
               </div>
 
-              {canUseManualPortDateForCurrentStatus ? (
-                <>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-sky-900">
-                      Data przeniesienia
-                    </span>
-                    <input
-                      type="date"
-                      value={manualConfirmedPortDate}
-                      onChange={(event) => onManualConfirmedPortDateChange(event.target.value)}
-                      className="input-field"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    />
-                  </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-sky-900">
+                  Data przeniesienia
+                </span>
+                <input
+                  type="date"
+                  value={manualConfirmedPortDate}
+                  onChange={(event) => onManualConfirmedPortDateChange(event.target.value)}
+                  className="input-field"
+                  disabled={
+                    isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                  }
+                />
+              </label>
 
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-sky-900">
-                      Komentarz operacyjny (opcjonalnie)
-                    </span>
-                    <textarea
-                      value={manualPortDateComment}
-                      onChange={(event) => onManualPortDateCommentChange(event.target.value)}
-                      rows={3}
-                      className="input-field"
-                      placeholder="Dodaj komentarz do historii operacyjnej"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    />
-                  </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-sky-900">
+                  Komentarz operacyjny (opcjonalnie)
+                </span>
+                <textarea
+                  value={manualPortDateComment}
+                  onChange={(event) => onManualPortDateCommentChange(event.target.value)}
+                  rows={3}
+                  className="input-field"
+                  placeholder="Dodaj komentarz do historii operacyjnej"
+                  disabled={
+                    isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                  }
+                />
+              </label>
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onConfirmManualPortDate()}
-                      className="btn-primary"
-                      disabled={
-                        isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
-                      }
-                    >
-                      {isSubmittingManualPortDate
-                        ? 'Zapisywanie potwierdzenia'
-                        : 'Potwierdz date przeniesienia'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onManualPortDateCommentChange('')}
-                      className="btn-secondary"
-                      disabled={isSubmittingManualPortDate}
-                    >
-                      Wyczysc komentarz
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                  Akcja dostepna tylko dla statusow: Zlozona, Oczekuje na dawce, Potwierdzona.
-                </div>
-              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onConfirmManualPortDate()}
+                  className="btn-primary"
+                  disabled={
+                    isSubmittingManualPortDate || isUpdatingStatus || isExporting || isSyncing
+                  }
+                >
+                  {isSubmittingManualPortDate
+                    ? 'Zapisywanie potwierdzenia'
+                    : 'Potwierdz date przeniesienia'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onManualPortDateCommentChange('')}
+                  className="btn-secondary"
+                  disabled={isSubmittingManualPortDate}
+                >
+                  Wyczysc komentarz
+                </button>
+              </div>
 
               {manualPortDateSuccess && (
                 <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -283,7 +333,15 @@ export function RequestWorkflowActionsSection({
             </div>
           )}
 
-          {canUsePliCbdExternalActions && pliCbdExternalActionsSlot}
+          {canUsePliCbdExternalActions && pliCbdExternalActionsSlot && (
+            <div className="mt-6 border-t border-line pt-4">
+              <p className="mb-3 text-xs text-ink-500">
+                Czynności zewnętrzne dokumentują etap procesu zewnętrznego i są niezależne od akcji
+                statusu sprawy.
+              </p>
+              {pliCbdExternalActionsSlot}
+            </div>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">

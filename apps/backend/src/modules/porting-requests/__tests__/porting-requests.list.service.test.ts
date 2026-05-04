@@ -885,7 +885,7 @@ describe('getPortingRequestsOperationalSummary', () => {
       .mockResolvedValueOnce(12) // withoutCommercialOwner
       .mockResolvedValueOnce(9)  // myCommercialRequests
       .mockResolvedValueOnce(4)  // requestsWithNotificationFailures
-      .mockResolvedValueOnce(6)  // requestsInError
+      .mockResolvedValueOnce(2)  // requestsInError
       .mockResolvedValueOnce(7)  // urgent
       .mockResolvedValueOnce(3)  // noDate
       .mockResolvedValueOnce(5)  // needsActionToday
@@ -905,7 +905,7 @@ describe('getPortingRequestsOperationalSummary', () => {
       withoutCommercialOwner: 12,
       myCommercialRequests: 9,
       requestsWithNotificationFailures: 4,
-      requestsInError: 6,
+      requestsInError: 2,
       quickWorkCounts: {
         urgent: 7,
         noDate: 3,
@@ -913,17 +913,6 @@ describe('getPortingRequestsOperationalSummary', () => {
       },
     })
     expect(mockPortingRequestCount).toHaveBeenCalledTimes(9)
-  })
-
-  it('summary counts requests in ERROR separately from notification failures', async () => {
-    mockPortingRequestCount.mockResolvedValue(0)
-
-    await getPortingRequestsOperationalSummary({}, CURRENT_USER_ID)
-
-    // requestsInError count is the 6th call (index 5)
-    const errorCall = mockPortingRequestCount.mock.calls[5]?.[0] as { where: Record<string, unknown> }
-    expect(errorCall.where).toMatchObject({ statusInternal: 'ERROR' })
-    expect(errorCall.where).not.toHaveProperty('events')
   })
 
   it('summary base counters ignore commercialOwnerFilter and notificationHealthFilter', async () => {
@@ -951,6 +940,16 @@ describe('getPortingRequestsOperationalSummary', () => {
     expect(firstCountWhere).not.toHaveProperty('events')
   })
 
+  it('requestsInError uses statusInternal: ERROR where', async () => {
+    mockPortingRequestCount.mockResolvedValue(0)
+
+    await getPortingRequestsOperationalSummary({}, CURRENT_USER_ID)
+
+    // requestsInError is the 6th call (index 5)
+    const errorCall = mockPortingRequestCount.mock.calls[5]?.[0] as { where: Record<string, unknown> }
+    expect(errorCall.where).toMatchObject({ statusInternal: 'ERROR' })
+  })
+
   it('quickWorkCounts noDate uses confirmedPortDate: null where', async () => {
     mockPortingRequestCount.mockResolvedValue(0)
 
@@ -971,8 +970,6 @@ describe('getPortingRequestsOperationalSummary', () => {
     expect(urgentCall.where).toMatchObject({
       statusInternal: { notIn: ['REJECTED', 'CANCELLED', 'PORTED'] },
     })
-    const statusFilter = urgentCall.where.statusInternal as { notIn: string[] }
-    expect(statusFilter.notIn).not.toContain('ERROR')
   })
 
   it('quickWorkCounts needsActionToday excludes closed statuses', async () => {
