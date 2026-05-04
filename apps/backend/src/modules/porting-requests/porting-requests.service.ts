@@ -1268,6 +1268,7 @@ export async function getPortingRequestsOperationalSummary(
     withoutCommercialOwner,
     myCommercialRequests,
     requestsWithNotificationFailures,
+    requestsInError,
     urgentCount,
     noDateCount,
     needsActionTodayCount,
@@ -1294,6 +1295,11 @@ export async function getPortingRequestsOperationalSummary(
       }),
     }),
     prisma.portingRequest.count({
+      where: withAdditionalWhere(baseWhere, {
+        statusInternal: 'ERROR',
+      }),
+    }),
+    prisma.portingRequest.count({
       where: urgentWhere ? withAdditionalWhere(baseWhere, urgentWhere) : baseWhere,
     }),
     prisma.portingRequest.count({
@@ -1310,6 +1316,7 @@ export async function getPortingRequestsOperationalSummary(
     withoutCommercialOwner,
     myCommercialRequests,
     requestsWithNotificationFailures,
+    requestsInError,
     quickWorkCounts: {
       urgent: urgentCount,
       noDate: noDateCount,

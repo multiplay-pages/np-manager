@@ -13,6 +13,7 @@
  * Sprawy testowe:
  *  - FNP-SEED-ACTIVE-001: aktywna, pre-export (SUBMITTED)
  *  - FNP-SEED-ACTIVE-OVERDUE-001: aktywna, CONFIRMED z data w przeszlosci do QA pilnosci
+ *  - FNP-SEED-LIST-ERROR-001: aktywna ERROR z data w przeszlosci do QA listy i highlightu
  *  - FNP-SEED-PORTED-001: zakończona po E18 (blocked)
  *  - FNP-SEED-E18-001: etap READY_TO_PORT, happy path Draft E18
  *  - FNP-SEED-COMM-DRAFT-001: detail z dostepnym "Utworz draft" dla komunikacji
@@ -233,6 +234,21 @@ export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
     rejectionReason:
       'Seed QA: PLI CBD odrzuciło wniosek — brak zgodności danych abonenta.',
     internalNotes: 'Seed QA: status ERROR + attention strip + komunikat odrzucenia.',
+  },
+  {
+    caseNumber: 'FNP-SEED-LIST-ERROR-001',
+    statusInternal: 'ERROR',
+    donorRouting: 'PLAY',
+    primaryNumber: '221234581',
+    requestDocumentNumber: 'DOC-SEED-LER-001',
+    confirmedPortDate: '2026-04-14T00:00:00.000Z',
+    assigneeEmail: null,
+    useLongClient: false,
+    rejectionCode: 'LIST_ERROR_QA',
+    rejectionReason:
+      'Seed QA: stabilna sprawa ERROR do testu listy, karty Wymaga interwencji i highlightu.',
+    internalNotes:
+      'Seed QA: stabilna sprawa ERROR z data w przeszlosci do weryfikacji priorytetu highlightu ERROR nad overdue.',
   },
   {
     caseNumber: 'FNP-SEED-LONG-DATA-001',
@@ -2059,7 +2075,7 @@ export async function seedMain() {
     })
   }
   console.info(
-    '   ✓ Etap 5A: 6 spraw QA + notification attempt + draft SMS template gotowe',
+    `   ✓ Etap 5A: ${QA_ETAP5A_PORTING_FIXTURES.length} spraw QA + notification attempt + draft SMS template gotowe`,
   )
 
   // ----------------------------------------------------------

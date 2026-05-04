@@ -91,6 +91,7 @@ const notificationQuickOptions: Array<{ id: 'ALL' | 'HAS_FAILURES'; label: strin
 
 const quickWorkFilterOptions: Array<{ id: RequestsQuickWorkFilter; label: string; icon: AppIconAssetName }> = [
   { id: 'ALL', label: 'Wszystkie', icon: 'request-queue' },
+  { id: 'ERROR', label: 'Wymaga interwencji', icon: 'urgent' },
   { id: 'MINE', label: 'Moje', icon: 'assign-user' },
   { id: 'UNASSIGNED', label: 'Nieprzypisane', icon: 'assign-user' },
   { id: 'URGENT', label: 'Pilne', icon: 'urgent' },
@@ -107,6 +108,7 @@ const commercialOwnerFilterLabels: Record<CommercialOwnerFilter, string> = {
 
 const quickWorkFilterLabels: Record<RequestsQuickWorkFilter, string> = {
   ALL: 'Wszystkie',
+  ERROR: 'Wymaga interwencji',
   MINE: 'Moje',
   UNASSIGNED: 'Nieprzypisane',
   URGENT: 'Pilne',
@@ -193,8 +195,8 @@ function formatDate(iso: string): string {
   })
 }
 
-function getSummaryCardTone(cardId: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES') {
-  if (cardId === 'HAS_FAILURES') return 'danger'
+function getSummaryCardTone(cardId: 'ALL' | 'ERROR' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES') {
+  if (cardId === 'ERROR' || cardId === 'HAS_FAILURES') return 'danger'
   if (cardId === 'WITHOUT_OWNER') return 'warning'
   if (cardId === 'WITH_OWNER') return 'success'
   if (cardId === 'MINE') return 'brand'
@@ -647,13 +649,31 @@ export function RequestsPage() {
 
   const setQuickWorkFilter = useCallback(
     (next: RequestsQuickWorkFilter) => {
-      setParam({
+      if (next === 'ERROR') {
+        setParam({
+          status: 'ERROR',
+          quickWorkFilter: null,
+          ownership: null,
+          page: null,
+        })
+        return
+      }
+
+      const updates: Record<string, string | null> = {
         quickWorkFilter: next === 'ALL' ? null : next,
         ownership: null,
         page: null,
+      }
+
+      if (statusFilter === 'ERROR') {
+        updates.status = null
+      }
+
+      setParam({
+        ...updates,
       })
     },
-    [setParam],
+    [setParam, statusFilter],
   )
 
   const hasActiveFilters = hasActiveRequestsFilters(filters)
@@ -880,7 +900,7 @@ export function RequestsPage() {
       />
 
       {summary && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           {summaryCards.map((card) => (
             <MetricCard
               key={card.id}
@@ -907,9 +927,16 @@ export function RequestsPage() {
             Widok
           </span>
           {quickWorkFilterOptions.map((filter) => {
-            const active = quickWorkFilter === filter.id
+            const active =
+              filter.id === 'ALL'
+                ? quickWorkFilter === 'ALL' && statusFilter !== 'ERROR'
+                : filter.id === 'ERROR'
+                  ? statusFilter === 'ERROR'
+                  : quickWorkFilter === filter.id
             const count =
-              summary && filter.id === 'URGENT'
+              summary && filter.id === 'ERROR'
+                ? summary.requestsInError
+                : summary && filter.id === 'URGENT'
                 ? summary.quickWorkCounts.urgent
                 : summary && filter.id === 'NO_DATE'
                   ? summary.quickWorkCounts.noDate

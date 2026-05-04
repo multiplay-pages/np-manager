@@ -173,6 +173,7 @@ export interface PortingRequestOperationalSummaryDto {
   withoutCommercialOwner: number
   myCommercialRequests: number
   requestsWithNotificationFailures: number
+  requestsInError: number
   quickWorkCounts: PortingRequestQuickWorkCountsDto
 }
 

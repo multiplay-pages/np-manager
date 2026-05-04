@@ -147,18 +147,31 @@ describe('requestsOperational helpers', () => {
         withoutCommercialOwner: 30,
         myCommercialRequests: 8,
         requestsWithNotificationFailures: 5,
+        requestsInError: 6,
         quickWorkCounts: { urgent: 0, noDate: 0, needsActionToday: 0 },
       },
-      makeFilters({ commercialOwnerFilter: 'MINE' }),
+      makeFilters({ statusFilter: 'ERROR' }),
     )
 
-    const mineCard = cards.find((card) => card.id === 'MINE')
-    expect(mineCard?.value).toBe(8)
-    expect(mineCard?.isActive).toBe(true)
+    const errorCard = cards.find((card) => card.id === 'ERROR')
+    expect(errorCard?.title).toBe('Wymaga interwencji')
+    expect(errorCard?.value).toBe(6)
+    expect(errorCard?.isActive).toBe(true)
+    expect(errorCard?.filterUpdates).toEqual({
+      status: 'ERROR',
+      quickWorkFilter: null,
+      ownership: null,
+      page: null,
+    })
 
     const failuresCard = cards.find((card) => card.id === 'HAS_FAILURES')
     expect(failuresCard?.value).toBe(5)
     expect(failuresCard?.isActive).toBe(false)
+    expect(failuresCard?.filterUpdates).toEqual({
+      commercialOwnerFilter: null,
+      notificationHealthFilter: 'HAS_FAILURES',
+      page: null,
+    })
   })
 
   it('applies filter updates to URL params and resets pagination for card clicks', () => {

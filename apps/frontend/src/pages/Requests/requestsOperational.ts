@@ -28,6 +28,7 @@ export type RequestsQuickWorkFilter =
   | 'ALL'
   | 'MINE'
   | 'UNASSIGNED'
+  | 'ERROR'
   | PortingRequestQuickWorkFilter
 
 const QUICK_WORK_FILTERS: RequestsQuickWorkFilter[] = [
@@ -78,7 +79,7 @@ export interface RequestsOperationalFilterState {
 }
 
 export interface RequestsSummaryCard {
-  id: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES'
+  id: 'ALL' | 'ERROR' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES'
   title: string
   value: number
   isActive: boolean
@@ -212,6 +213,7 @@ export function buildRequestsSummaryCards(
   filters: RequestsOperationalFilterState,
 ): RequestsSummaryCard[] {
   const allActive =
+    filters.statusFilter === null &&
     filters.commercialOwnerFilter === 'ALL' && filters.notificationHealthFilter === 'ALL'
 
   return [
@@ -221,8 +223,21 @@ export function buildRequestsSummaryCards(
       value: summary.totalRequests,
       isActive: allActive,
       filterUpdates: {
+        status: null,
         commercialOwnerFilter: null,
         notificationHealthFilter: null,
+        page: null,
+      },
+    },
+    {
+      id: 'ERROR',
+      title: 'Wymaga interwencji',
+      value: summary.requestsInError,
+      isActive: filters.statusFilter === 'ERROR',
+      filterUpdates: {
+        status: 'ERROR',
+        quickWorkFilter: null,
+        ownership: null,
         page: null,
       },
     },

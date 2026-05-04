@@ -88,6 +88,7 @@ function mockSummaryResult() {
     withoutCommercialOwner: 1,
     myCommercialRequests: 0,
     requestsWithNotificationFailures: 0,
+    requestsInError: 0,
     quickWorkCounts: {
       urgent: 0,
       noDate: 0,
@@ -700,6 +701,7 @@ describe('RequestsPage quick work filters', () => {
   it('shows quickWorkCounts next to URGENT, NO_DATE, NEEDS_ACTION_TODAY chips', async () => {
     getPortingRequestsSummaryMock.mockResolvedValue({
       ...mockSummaryResult(),
+      requestsInError: 5,
       quickWorkCounts: { urgent: 4, noDate: 2, needsActionToday: 3 },
     })
 
@@ -713,12 +715,66 @@ describe('RequestsPage quick work filters', () => {
       expect(quickFilters.getByRole('button', { name: 'Pilne (4)' })).not.toBeNull()
       expect(quickFilters.getByRole('button', { name: 'Bez daty (2)' })).not.toBeNull()
       expect(quickFilters.getByRole('button', { name: 'Wymaga reakcji dzis (3)' })).not.toBeNull()
+      expect(quickFilters.getByRole('button', { name: 'Wymaga interwencji (5)' })).not.toBeNull()
     })
 
     // Filters without counts stay unchanged
     expect(quickFilters.getByRole('button', { name: 'Wszystkie' })).not.toBeNull()
     expect(quickFilters.getByRole('button', { name: 'Moje' })).not.toBeNull()
     expect(quickFilters.getByRole('button', { name: 'Nieprzypisane' })).not.toBeNull()
+  })
+
+  it('maps the intervention quick filter to status=ERROR without backend quickWorkFilter', async () => {
+    renderPage('/requests?quickWorkFilter=URGENT&page=2')
+    await screen.findByText('Kolejka spraw portowania')
+
+    const quickFilters = within(
+      screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
+    )
+    fireEvent.click(quickFilters.getByRole('button', { name: /^Wymaga interwencji/ }))
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({
+        status: 'ERROR',
+        page: 1,
+        pageSize: 20,
+      })
+      expect(lastListCall.quickWorkFilter).toBeUndefined()
+    })
+  })
+
+  it('shows and activates the intervention summary card through status=ERROR', async () => {
+    getPortingRequestsSummaryMock.mockResolvedValue({
+      ...mockSummaryResult(),
+      requestsInError: 3,
+    })
+
+    renderPage()
+    await screen.findByText('Kolejka spraw portowania')
+
+    const cardTitle = await screen.findByText('Wymaga interwencji')
+    const card = cardTitle.closest('button')
+    expect(card).not.toBeNull()
+    if (!card) throw new Error('Intervention summary card button not found')
+    expect(card.textContent).toContain('3')
+    fireEvent.click(card)
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({
+        status: 'ERROR',
+        page: 1,
+        pageSize: 20,
+      })
+      expect(lastListCall.notificationHealthFilter).toBeUndefined()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Status:')).not.toBeNull()
+      const statusSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement
+      expect(statusSelect.value).toBe('ERROR')
+    })
   })
   it('initializes confirmed port date input when URL params point to one day', async () => {
     renderPage('/requests?confirmedPortDateFrom=2026-04-14&confirmedPortDateTo=2026-04-14')
