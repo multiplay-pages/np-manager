@@ -1,12 +1,12 @@
 import type { PortingRequestListItemDto } from '@np-manager/shared'
 import { calculateDaysDiff } from './portingUrgency'
 
-export type RowHighlight = 'ported' | 'overdue' | 'today' | 'tomorrow' | 'closed' | 'none'
+export type RowHighlight = 'ported' | 'error' | 'overdue' | 'today' | 'tomorrow' | 'closed' | 'none'
 
 /**
  * Zwraca token podswietlenia wiersza na podstawie statusu i daty przeniesienia.
  *
- * Priorytet: PORTED > CANCELLED/REJECTED > overdue > dzis > jutro > brak stylu.
+ * Priorytet: PORTED > CANCELLED/REJECTED > ERROR > overdue > dzis > jutro > brak stylu.
  */
 export function getRequestRowHighlight(
   request: Pick<PortingRequestListItemDto, 'statusInternal' | 'confirmedPortDate'>,
@@ -16,6 +16,7 @@ export function getRequestRowHighlight(
 
   if (statusInternal === 'PORTED') return 'ported'
   if (statusInternal === 'CANCELLED' || statusInternal === 'REJECTED') return 'closed'
+  if (statusInternal === 'ERROR') return 'error'
 
   const daysDiff = calculateDaysDiff(confirmedPortDate, now)
   if (daysDiff === null) return 'none'
@@ -30,6 +31,8 @@ export function rowHighlightClasses(highlight: RowHighlight): string {
   switch (highlight) {
     case 'ported':
       return 'bg-sky-50'
+    case 'error':
+      return 'bg-amber-50'
     case 'overdue':
       return 'bg-red-50'
     case 'today':
