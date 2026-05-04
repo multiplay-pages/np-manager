@@ -195,6 +195,16 @@ export type Etap5aPortingFixture = {
   internalNotes: string
 }
 
+export type Etap5aErrorHistoryFixture = {
+  caseNumber: string
+  statusBefore: 'SUBMITTED'
+  statusAfter: 'ERROR'
+  reason: string
+  comment: string
+  actionId: 'MARK_ERROR'
+  actionLabel: string
+}
+
 export const QA_ETAP5A_LONG_DATA_CLIENT = {
   pesel: '85060512345',
   firstName: 'Bartłomiej-Konstanty',
@@ -319,6 +329,27 @@ export const QA_ETAP5A_PORTING_FIXTURES: readonly Etap5aPortingFixture[] = [
     rejectionReason: null,
     internalNotes:
       'Seed QA: aktywna sprawa CONFIRMED po terminie do testu czerwonego badge Po terminie i filtra Pilne.',
+  },
+]
+
+export const QA_ETAP5A_ERROR_HISTORY_FIXTURES: readonly Etap5aErrorHistoryFixture[] = [
+  {
+    caseNumber: 'FNP-SEED-ERROR-001',
+    statusBefore: 'SUBMITTED',
+    statusAfter: 'ERROR',
+    reason: 'Seed QA: błąd walidacji dokumentu.',
+    comment: 'Seed QA: szczegóły błędu - brak zgodności numeru PESEL.',
+    actionId: 'MARK_ERROR',
+    actionLabel: 'Oznacz błąd',
+  },
+  {
+    caseNumber: 'FNP-SEED-LIST-ERROR-001',
+    statusBefore: 'SUBMITTED',
+    statusAfter: 'ERROR',
+    reason: 'Seed QA: błąd testowy fixture listowego.',
+    comment: 'Seed QA: sprawa listowa w błędzie do testu kolejki Wymaga interwencji.',
+    actionId: 'MARK_ERROR',
+    actionLabel: 'Oznacz błąd',
   },
 ]
 
@@ -1990,24 +2021,31 @@ export async function seedMain() {
     requestIdByCaseNumberEtap5a.set(fx.caseNumber, result.id)
   }
 
-  // Case history dla FNP-SEED-ERROR-001 — MARK_ERROR z SUBMITTED (potrzebne do RESUME_FROM_ERROR)
-  const errorSeedRequestId = requestIdByCaseNumberEtap5a.get('FNP-SEED-ERROR-001')
-  if (errorSeedRequestId) {
+  // Case history dla fixture'ow ERROR - MARK_ERROR z SUBMITTED (diagnostyka detaila i RESUME_FROM_ERROR)
+  for (const errorHistoryFixture of QA_ETAP5A_ERROR_HISTORY_FIXTURES) {
+    const errorSeedRequestId = requestIdByCaseNumberEtap5a.get(errorHistoryFixture.caseNumber)
+    if (!errorSeedRequestId) {
+      continue
+    }
+
     await prisma.portingRequestCaseHistory.deleteMany({
-      where: { requestId: errorSeedRequestId, statusAfter: 'ERROR' },
+      where: {
+        requestId: errorSeedRequestId,
+        statusAfter: errorHistoryFixture.statusAfter,
+      },
     })
     await prisma.portingRequestCaseHistory.create({
       data: {
         requestId: errorSeedRequestId,
         eventType: 'STATUS_CHANGED',
-        statusBefore: 'SUBMITTED',
-        statusAfter: 'ERROR',
-        reason: 'Seed QA: blad walidacji dokumentu.',
-        comment: 'Seed QA: szczegoly bledu — brak zgodnosci numeru PESEL.',
+        statusBefore: errorHistoryFixture.statusBefore,
+        statusAfter: errorHistoryFixture.statusAfter,
+        reason: errorHistoryFixture.reason,
+        comment: errorHistoryFixture.comment,
         actorUserId: adminUser.id,
         metadata: {
-          actionId: 'MARK_ERROR',
-          actionLabel: 'Oznacz blad',
+          actionId: errorHistoryFixture.actionId,
+          actionLabel: errorHistoryFixture.actionLabel,
         },
       },
     })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   COMMUNICATION_TEMPLATE_SEED_DATA,
+  QA_ETAP5A_ERROR_HISTORY_FIXTURES,
   QA_ETAP5A_DRAFT_SMS_TEMPLATE_FIXTURE,
   QA_ETAP5A_LONG_DATA_CLIENT,
   QA_ETAP5A_NOTIFICATION_FAILED_ATTEMPT,
@@ -42,9 +43,16 @@ describe('Etap 5A QA porting seed fixtures', () => {
     const fx = QA_ETAP5A_PORTING_FIXTURES.find(
       (f) => f.caseNumber === 'FNP-SEED-ERROR-001',
     )
+    const historyFx = QA_ETAP5A_ERROR_HISTORY_FIXTURES.find(
+      (f) => f.caseNumber === 'FNP-SEED-ERROR-001',
+    )
+
     expect(fx?.statusInternal).toBe('ERROR')
     expect(fx?.rejectionCode).toBe('E06_REJECTED')
     expect(fx?.rejectionReason).toContain('PLI CBD')
+    expect(historyFx?.actionId).toBe('MARK_ERROR')
+    expect(historyFx?.statusBefore).toBe('SUBMITTED')
+    expect(historyFx?.statusAfter).toBe('ERROR')
   })
 
   it('exposes stable LIST-ERROR fixture counted by requestsInError', () => {
@@ -54,11 +62,20 @@ describe('Etap 5A QA porting seed fixtures', () => {
     const requestsInError = QA_ETAP5A_PORTING_FIXTURES.filter(
       (f) => f.statusInternal === 'ERROR',
     ).length
+    const historyFx = QA_ETAP5A_ERROR_HISTORY_FIXTURES.find(
+      (f) => f.caseNumber === 'FNP-SEED-LIST-ERROR-001',
+    )
 
     expect(fx).toBeDefined()
     expect(fx?.caseNumber).toBe('FNP-SEED-LIST-ERROR-001')
     expect(fx?.statusInternal).toBe('ERROR')
     expect(fx?.confirmedPortDate).toBe('2026-04-14T00:00:00.000Z')
+    expect(historyFx).toMatchObject({
+      statusBefore: 'SUBMITTED',
+      statusAfter: 'ERROR',
+      actionId: 'MARK_ERROR',
+    })
+    expect(historyFx?.comment).toContain('sprawa listowa w błędzie')
     expect(requestsInError).toBeGreaterThanOrEqual(1)
   })
 
