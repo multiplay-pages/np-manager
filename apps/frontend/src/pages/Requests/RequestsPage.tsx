@@ -657,10 +657,11 @@ export function RequestsPage() {
           quickWorkFilter: next === 'ALL' ? null : next,
           ownership: null,
           page: null,
+          ...(statusFilter === 'ERROR' ? { status: null } : {}),
         })
       }
     },
-    [setParam],
+    [setParam, statusFilter],
   )
 
   const hasActiveFilters = hasActiveRequestsFilters(filters)
