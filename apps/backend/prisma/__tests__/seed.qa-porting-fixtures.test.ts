@@ -13,6 +13,7 @@ describe('Etap 5A QA porting seed fixtures', () => {
     expect(caseNumbers).toEqual([
       'FNP-SEED-DRAFT-001',
       'FNP-SEED-ERROR-001',
+      'FNP-SEED-LIST-ERROR-001',
       'FNP-SEED-LONG-DATA-001',
       'FNP-SEED-NO-ASSIGNEE-001',
       'FNP-SEED-NO-DATE-001',
@@ -44,6 +45,21 @@ describe('Etap 5A QA porting seed fixtures', () => {
     expect(fx?.statusInternal).toBe('ERROR')
     expect(fx?.rejectionCode).toBe('E06_REJECTED')
     expect(fx?.rejectionReason).toContain('PLI CBD')
+  })
+
+  it('exposes stable LIST-ERROR fixture counted by requestsInError', () => {
+    const fx = QA_ETAP5A_PORTING_FIXTURES.find(
+      (f) => f.caseNumber === 'FNP-SEED-LIST-ERROR-001',
+    )
+    const requestsInError = QA_ETAP5A_PORTING_FIXTURES.filter(
+      (f) => f.statusInternal === 'ERROR',
+    ).length
+
+    expect(fx).toBeDefined()
+    expect(fx?.caseNumber).toBe('FNP-SEED-LIST-ERROR-001')
+    expect(fx?.statusInternal).toBe('ERROR')
+    expect(fx?.confirmedPortDate).toBe('2026-04-14T00:00:00.000Z')
+    expect(requestsInError).toBeGreaterThanOrEqual(1)
   })
 
   it('routes LONG-DATA fixture to dedicated long client with overflow-friendly values', () => {
