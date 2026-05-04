@@ -96,6 +96,7 @@ const quickWorkFilterOptions: Array<{ id: RequestsQuickWorkFilter; label: string
   { id: 'URGENT', label: 'Pilne', icon: 'urgent' },
   { id: 'NO_DATE', label: 'Bez daty', icon: 'no-date' },
   { id: 'NEEDS_ACTION_TODAY', label: 'Wymaga reakcji dzis', icon: 'needs-action-today' },
+  { id: 'STATUS_ERROR', label: 'Wymaga interwencji', icon: 'warning' },
 ]
 
 const commercialOwnerFilterLabels: Record<CommercialOwnerFilter, string> = {
@@ -112,6 +113,7 @@ const quickWorkFilterLabels: Record<RequestsQuickWorkFilter, string> = {
   URGENT: 'Pilne',
   NO_DATE: 'Bez daty',
   NEEDS_ACTION_TODAY: 'Wymaga reakcji dzis',
+  STATUS_ERROR: 'Wymaga interwencji',
 }
 
 const notificationHealthFilterLabels: Record<NotificationHealthFilter, string> = {
@@ -193,7 +195,8 @@ function formatDate(iso: string): string {
   })
 }
 
-function getSummaryCardTone(cardId: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES') {
+function getSummaryCardTone(cardId: 'ALL' | 'WITH_OWNER' | 'WITHOUT_OWNER' | 'MINE' | 'HAS_FAILURES' | 'ERROR') {
+  if (cardId === 'ERROR') return 'danger'
   if (cardId === 'HAS_FAILURES') return 'danger'
   if (cardId === 'WITHOUT_OWNER') return 'warning'
   if (cardId === 'WITH_OWNER') return 'success'
@@ -647,11 +650,15 @@ export function RequestsPage() {
 
   const setQuickWorkFilter = useCallback(
     (next: RequestsQuickWorkFilter) => {
-      setParam({
-        quickWorkFilter: next === 'ALL' ? null : next,
-        ownership: null,
-        page: null,
-      })
+      if (next === 'STATUS_ERROR') {
+        setParam({ status: 'ERROR', quickWorkFilter: null, ownership: null, page: null })
+      } else {
+        setParam({
+          quickWorkFilter: next === 'ALL' ? null : next,
+          ownership: null,
+          page: null,
+        })
+      }
     },
     [setParam],
   )
@@ -880,7 +887,7 @@ export function RequestsPage() {
       />
 
       {summary && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           {summaryCards.map((card) => (
             <MetricCard
               key={card.id}
@@ -888,7 +895,13 @@ export function RequestsPage() {
               value={card.value}
               active={card.isActive}
               tone={getSummaryCardTone(card.id)}
-              detail={card.id === 'HAS_FAILURES' ? 'Wymaga kontroli operacyjnej' : 'Kliknij, aby zawezic kolejke'}
+              detail={
+                card.id === 'HAS_FAILURES'
+                  ? 'Wymaga kontroli operacyjnej'
+                  : card.id === 'ERROR'
+                    ? 'Sprawy z bledem procesu'
+                    : 'Kliknij, aby zawezic kolejke'
+              }
               onClick={() => setParam(card.filterUpdates)}
             />
           ))}
@@ -907,15 +920,18 @@ export function RequestsPage() {
             Widok
           </span>
           {quickWorkFilterOptions.map((filter) => {
-            const active = quickWorkFilter === filter.id
+            const active =
+              filter.id === 'STATUS_ERROR' ? statusFilter === 'ERROR' : quickWorkFilter === filter.id
             const count =
-              summary && filter.id === 'URGENT'
-                ? summary.quickWorkCounts.urgent
-                : summary && filter.id === 'NO_DATE'
-                  ? summary.quickWorkCounts.noDate
-                  : summary && filter.id === 'NEEDS_ACTION_TODAY'
-                    ? summary.quickWorkCounts.needsActionToday
-                    : null
+              summary && filter.id === 'STATUS_ERROR'
+                ? summary.requestsInError
+                : summary && filter.id === 'URGENT'
+                  ? summary.quickWorkCounts.urgent
+                  : summary && filter.id === 'NO_DATE'
+                    ? summary.quickWorkCounts.noDate
+                    : summary && filter.id === 'NEEDS_ACTION_TODAY'
+                      ? summary.quickWorkCounts.needsActionToday
+                      : null
             return (
               <FilterChip
                 key={filter.id}

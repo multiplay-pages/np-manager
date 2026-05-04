@@ -65,11 +65,27 @@ describe('getRequestRowHighlight', () => {
   it('REJECTED with today date -> closed, not today', () => {
     expect(getRequestRowHighlight(makeRequest('REJECTED', '2026-04-30'), NOW)).toBe('closed')
   })
+
+  it('ERROR with no date -> error (amber)', () => {
+    expect(getRequestRowHighlight(makeRequest('ERROR', null), NOW)).toBe('error')
+  })
+
+  it('ERROR with overdue date -> error, not overdue', () => {
+    expect(getRequestRowHighlight(makeRequest('ERROR', '2026-01-01'), NOW)).toBe('error')
+  })
+
+  it('ERROR with today date -> error, not today', () => {
+    expect(getRequestRowHighlight(makeRequest('ERROR', '2026-04-30'), NOW)).toBe('error')
+  })
 })
 
 describe('rowHighlightClasses', () => {
   it('ported -> bg-sky-50', () => {
     expect(rowHighlightClasses('ported')).toBe('bg-sky-50')
+  })
+
+  it('error -> bg-amber-50', () => {
+    expect(rowHighlightClasses('error')).toBe('bg-amber-50')
   })
 
   it('overdue -> bg-red-50', () => {
