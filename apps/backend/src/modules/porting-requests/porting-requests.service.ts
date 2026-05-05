@@ -22,6 +22,7 @@ import type {
 import {
   getPortingUrgencyDateBoundaries,
   getPortingWorkPriorityRank,
+  normalizePhoneNumber,
   PORTING_CASE_STATUS_LABELS,
   PORTING_REQUEST_STATUS_ACTION_IDS,
 } from '@np-manager/shared'
@@ -498,6 +499,11 @@ function normalizeIdentityValue(
   return trimmed
 }
 
+function normalizePortingNumber(value: string | null | undefined): string | null {
+  if (!value) return null
+  return normalizePhoneNumber(value)
+}
+
 async function generateCaseNumber(): Promise<string> {
   const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '')
 
@@ -950,11 +956,16 @@ export async function createPortingRequest(
     ? await getActiveOperatorOrThrow(body.infrastructureOperatorId, 'Operator infrastrukturalny')
     : null
 
+  const numberType = body.numberType ?? 'FIXED_LINE'
   const primaryNumber = body.numberRangeKind === 'SINGLE'
-    ? body.primaryNumber ?? null
-    : body.rangeStart ?? null
-  const rangeStart = body.numberRangeKind === 'DDI_RANGE' ? body.rangeStart ?? null : null
-  const rangeEnd = body.numberRangeKind === 'DDI_RANGE' ? body.rangeEnd ?? null : null
+    ? normalizePortingNumber(body.primaryNumber)
+    : normalizePortingNumber(body.rangeStart)
+  const rangeStart = body.numberRangeKind === 'DDI_RANGE'
+    ? normalizePortingNumber(body.rangeStart)
+    : null
+  const rangeEnd = body.numberRangeKind === 'DDI_RANGE'
+    ? normalizePortingNumber(body.rangeEnd)
+    : null
 
   await assertNoDuplicateOpenRequest(primaryNumber, body.numberRangeKind, rangeStart, rangeEnd)
 
@@ -965,7 +976,7 @@ export async function createPortingRequest(
       data: {
         caseNumber,
         clientId: client.id,
-        numberType: body.numberType,
+        numberType,
         numberRangeKind: body.numberRangeKind,
         primaryNumber,
         rangeStart,
