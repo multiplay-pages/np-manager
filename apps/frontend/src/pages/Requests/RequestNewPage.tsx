@@ -392,7 +392,9 @@ export function RequestNewPage() {
     }
     try {
       const request = await createPortingRequest(payload)
-      void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.id))
+      void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.id), {
+        state: { createdRequest: true },
+      })
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 409) {

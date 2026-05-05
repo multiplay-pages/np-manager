@@ -72,6 +72,10 @@ describe('AppLayout admin navigation', () => {
     expect(html).toContain('Diagnostyka dostarczen')
     expect(html).toContain('Bledy notyfikacji')
     expect(html).toContain('Kolejka diagnostyczna')
+    expect(html).not.toContain('Zadania')
+    expect(html).not.toContain('Praca zespolu')
+    expect(html).not.toContain('Raporty')
+    expect(html).not.toContain('Kontrola i wyniki')
   })
 
   it('hides Users navigation link for non-admin', () => {
@@ -98,5 +102,7 @@ describe('AppLayout admin navigation', () => {
     expect(html).not.toContain('Administracja')
     expect(html).not.toContain('Proby notyfikacji')
     expect(html).not.toContain('Bledy notyfikacji')
+    expect(html).not.toContain('Zadania')
+    expect(html).not.toContain('Raporty')
   })
 })
