@@ -851,6 +851,37 @@ const transitionData: TransitionDef[] = [
 ]
 
 // ============================================================
+// QA SEED USERS
+// ============================================================
+
+export const QA_SEED_USERS = [
+  {
+    email: 'admin@np-manager.local',
+    role: 'ADMIN' as const,
+    firstName: 'Admin',
+    lastName: 'NP-Manager',
+  },
+  {
+    email: 'bok@np-manager.local',
+    role: 'BOK_CONSULTANT' as const,
+    firstName: 'Anna',
+    lastName: 'Konsultant',
+  },
+  {
+    email: 'back-office@np-manager.local',
+    role: 'BACK_OFFICE' as const,
+    firstName: 'Back Office',
+    lastName: 'QA',
+  },
+  {
+    email: 'manager@np-manager.local',
+    role: 'MANAGER' as const,
+    firstName: 'Manager',
+    lastName: 'QA',
+  },
+] as const
+
+// ============================================================
 // MAIN SEED
 // ============================================================
 
@@ -1198,6 +1229,58 @@ export async function seedMain() {
   console.info('   ✓ Konto testowe BOK_CONSULTANT gotowe')
   console.info('   📧  E-mail:  bok@np-manager.local')
   console.info('   🔑  Hasło:   Bok@NP2026!')
+
+  // Konto testowe BACK_OFFICE — do weryfikacji RBAC akcji naprawczych ERROR
+  const backOfficePassword = 'BackOffice@NP2026!'
+  const backOfficePasswordHash = await bcrypt.hash(backOfficePassword, 12)
+
+  await prisma.user.upsert({
+    where: { email: 'back-office@np-manager.local' },
+    update: {
+      passwordHash: backOfficePasswordHash,
+      firstName: 'Back Office',
+      lastName: 'QA',
+      role: 'BACK_OFFICE',
+      isActive: true,
+    },
+    create: {
+      email: 'back-office@np-manager.local',
+      passwordHash: backOfficePasswordHash,
+      firstName: 'Back Office',
+      lastName: 'QA',
+      role: 'BACK_OFFICE',
+      isActive: true,
+    },
+  })
+  console.info('   ✓ Konto testowe BACK_OFFICE gotowe')
+  console.info('   📧  E-mail:  back-office@np-manager.local')
+  console.info('   🔑  Hasło:   BackOffice@NP2026!')
+
+  // Konto testowe MANAGER — do weryfikacji RBAC akcji naprawczych ERROR
+  const managerPassword = 'Manager@NP2026!'
+  const managerPasswordHash = await bcrypt.hash(managerPassword, 12)
+
+  await prisma.user.upsert({
+    where: { email: 'manager@np-manager.local' },
+    update: {
+      passwordHash: managerPasswordHash,
+      firstName: 'Manager',
+      lastName: 'QA',
+      role: 'MANAGER',
+      isActive: true,
+    },
+    create: {
+      email: 'manager@np-manager.local',
+      passwordHash: managerPasswordHash,
+      firstName: 'Manager',
+      lastName: 'QA',
+      role: 'MANAGER',
+      isActive: true,
+    },
+  })
+  console.info('   ✓ Konto testowe MANAGER gotowe')
+  console.info('   📧  E-mail:  manager@np-manager.local')
+  console.info('   🔑  Hasło:   Manager@NP2026!')
 
   // ----------------------------------------------------------
   // 6. DANE QA â€” klient i sprawy portowania
@@ -2279,7 +2362,7 @@ export async function seedMain() {
   console.info(`  • ${transitionCount} przejść statusów`)
   console.info(`  • ${documentTypes.length} typów dokumentów`)
   console.info(`  • ${operators.length} operatorów`)
-  console.info('  • 2 konta użytkowników (ADMIN + BOK_CONSULTANT)')
+  console.info('  • 4 konta użytkowników (ADMIN + BOK_CONSULTANT + BACK_OFFICE + MANAGER)')
   console.info(`  • ${settings.length} ustawień systemowych`)
   console.info(`  • ${holidays2026.length} dni wolnych 2026`)
   console.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
