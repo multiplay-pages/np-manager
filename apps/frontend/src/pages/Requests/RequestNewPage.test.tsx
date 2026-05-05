@@ -82,6 +82,7 @@ describe('RequestNewPage form logic', () => {
   it('clears inactive number fields when switching between SINGLE and DDI_RANGE', () => {
     expect(
       getRequestNumberKindPatch('DDI_RANGE', {
+        numberRangeKind: 'SINGLE',
         primaryNumber: '+48 22 123 45 67',
         rangeStart: '',
         rangeEnd: '',
@@ -95,6 +96,7 @@ describe('RequestNewPage form logic', () => {
 
     expect(
       getRequestNumberKindPatch('SINGLE', {
+        numberRangeKind: 'DDI_RANGE',
         primaryNumber: '',
         rangeStart: '+48 22 555 10 00',
         rangeEnd: '+48 22 555 10 99',
@@ -104,6 +106,38 @@ describe('RequestNewPage form logic', () => {
       primaryNumber: '',
       rangeStart: '',
       rangeEnd: '',
+    })
+  })
+
+  it('keeps entered SINGLE number when clicking active SINGLE again', () => {
+    expect(
+      getRequestNumberKindPatch('SINGLE', {
+        numberRangeKind: 'SINGLE',
+        primaryNumber: '+48 22 123 45 67',
+        rangeStart: '',
+        rangeEnd: '',
+      }),
+    ).toEqual({
+      numberRangeKind: 'SINGLE',
+      primaryNumber: '+48 22 123 45 67',
+      rangeStart: '',
+      rangeEnd: '',
+    })
+  })
+
+  it('keeps entered DDI_RANGE numbers when clicking active DDI_RANGE again', () => {
+    expect(
+      getRequestNumberKindPatch('DDI_RANGE', {
+        numberRangeKind: 'DDI_RANGE',
+        primaryNumber: '',
+        rangeStart: '+48 22 555 10 00',
+        rangeEnd: '+48 22 555 10 99',
+      }),
+    ).toEqual({
+      numberRangeKind: 'DDI_RANGE',
+      primaryNumber: '',
+      rangeStart: '+48 22 555 10 00',
+      rangeEnd: '+48 22 555 10 99',
     })
   })
 

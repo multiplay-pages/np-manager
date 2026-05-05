@@ -90,13 +90,22 @@ export function normalizeRequestNewPhone(value: string): string {
 
 export function getRequestNumberKindPatch(
   numberRangeKind: PortedNumberKind,
-  _current: Pick<RequestNewFormFields, 'primaryNumber' | 'rangeStart' | 'rangeEnd'>,
+  current: Pick<RequestNewFormFields, 'numberRangeKind' | 'primaryNumber' | 'rangeStart' | 'rangeEnd'>,
 ): Pick<RequestNewFormFields, 'numberRangeKind' | 'primaryNumber' | 'rangeStart' | 'rangeEnd'> {
+  if (numberRangeKind === current.numberRangeKind) {
+    return {
+      numberRangeKind,
+      primaryNumber: current.primaryNumber,
+      rangeStart: current.rangeStart,
+      rangeEnd: current.rangeEnd,
+    }
+  }
+
   return {
     numberRangeKind,
-    primaryNumber: '',
-    rangeStart: '',
-    rangeEnd: '',
+    primaryNumber: numberRangeKind === 'SINGLE' ? current.primaryNumber : '',
+    rangeStart: numberRangeKind === 'DDI_RANGE' ? current.rangeStart : '',
+    rangeEnd: numberRangeKind === 'DDI_RANGE' ? current.rangeEnd : '',
   }
 }
 
