@@ -11,6 +11,7 @@ import {
   PORTING_MODE_DESCRIPTIONS,
   PORTING_MODE_LABELS,
   SUBSCRIBER_IDENTITY_TYPE_LABELS,
+  normalizePhoneNumber,
 } from '@np-manager/shared'
 import type {
   ClientDetailDto,
@@ -22,7 +23,7 @@ import type {
   SubscriberIdentityType,
 } from '@np-manager/shared'
 
-interface FormFields {
+export interface RequestNewFormFields {
   donorOperatorId: string
   numberRangeKind: PortedNumberKind
   primaryNumber: string
@@ -45,9 +46,9 @@ interface FormFields {
   internalNotes: string
 }
 
-type FormErrors = Partial<Record<keyof FormFields | 'clientId' | '_root', string>>
+export type RequestNewFormErrors = Partial<Record<keyof RequestNewFormFields | 'clientId' | '_root', string>>
 
-const EMPTY_FORM: FormFields = {
+const EMPTY_FORM: RequestNewFormFields = {
   donorOperatorId: '',
   numberRangeKind: 'SINGLE',
   primaryNumber: '',
@@ -83,8 +84,33 @@ function isWeekend(value: string): boolean {
   return day === 0 || day === 6
 }
 
-function normalizeComparablePhone(value: string): string {
-  return value.replace(/[\s\-().]/g, '').replace(/^0048/, '+48')
+export function normalizeRequestNewPhone(value: string): string {
+  return normalizePhoneNumber(value.trim())
+}
+
+export function getRequestNumberKindPatch(
+  numberRangeKind: PortedNumberKind,
+  current: Pick<RequestNewFormFields, 'numberRangeKind' | 'primaryNumber' | 'rangeStart' | 'rangeEnd'>,
+): Pick<RequestNewFormFields, 'numberRangeKind' | 'primaryNumber' | 'rangeStart' | 'rangeEnd'> {
+  if (numberRangeKind === current.numberRangeKind) {
+    return {
+      numberRangeKind,
+      primaryNumber: current.primaryNumber,
+      rangeStart: current.rangeStart,
+      rangeEnd: current.rangeEnd,
+    }
+  }
+
+  return {
+    numberRangeKind,
+    primaryNumber: numberRangeKind === 'SINGLE' ? current.primaryNumber : '',
+    rangeStart: numberRangeKind === 'DDI_RANGE' ? current.rangeStart : '',
+    rangeEnd: numberRangeKind === 'DDI_RANGE' ? current.rangeEnd : '',
+  }
+}
+
+export function getCreatedRequestDetailPath(caseNumber: string): string {
+  return buildPath(ROUTES.REQUEST_DETAIL, caseNumber)
 }
 
 function buildCorrespondenceAddress(client: ClientDetailDto): string {
@@ -109,6 +135,94 @@ function getDeferredModeHelperText(mode: PortingMode): string {
   return mode === 'EOP'
     ? 'Finalna date przeniesienia wyznaczy Dawca zgodnie z koncem okresu promocyjnego. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy i nie moze wskazywac daty z przeszlosci.'
     : 'Finalna date przeniesienia wyznaczy Dawca zgodnie z okresem wypowiedzenia. To pole okresla najwczesniejszy termin akceptowalny po stronie Biorcy i nie moze wskazywac daty z przeszlosci.'
+}
+
+export function getRequestNewValidationErrors(
+  fields: RequestNewFormFields,
+  selectedClient: ClientDetailDto | null,
+  today = todayString(),
+): RequestNewFormErrors {
+  const nextErrors: RequestNewFormErrors = {}
+  if (!selectedClient) nextErrors.clientId = 'Wybierz klienta z kartoteki.'
+  if (!fields.donorOperatorId) nextErrors.donorOperatorId = 'Operator oddajacy jest wymagany.'
+  if (fields.numberRangeKind === 'SINGLE') {
+    if (!fields.primaryNumber.trim()) nextErrors.primaryNumber = 'Podaj numer glowny.'
+  } else {
+    if (!fields.rangeStart.trim()) nextErrors.rangeStart = 'Podaj numer poczatkowy zakresu.'
+    if (!fields.rangeEnd.trim()) nextErrors.rangeEnd = 'Podaj numer koncowy zakresu.'
+    if (fields.rangeStart.trim() && fields.rangeEnd.trim()) {
+      const start = normalizeRequestNewPhone(fields.rangeStart)
+      const end = normalizeRequestNewPhone(fields.rangeEnd)
+      if (start.length !== end.length) nextErrors.rangeEnd = 'Numery zakresu musza miec zgodny format.'
+      else if (start > end) nextErrors.rangeEnd = 'Numer koncowy zakresu nie moze byc mniejszy niz poczatkowy.'
+    }
+  }
+  if (fields.portingMode === 'DAY') {
+    if (!fields.requestedPortDate) nextErrors.requestedPortDate = 'Dla trybu DAY wskaz wnioskowany dzien przeniesienia.'
+    else if (fields.requestedPortDate < today) nextErrors.requestedPortDate = 'Wnioskowany dzien przeniesienia nie moze byc z przeszlosci.'
+    else if (isWeekend(fields.requestedPortDate)) nextErrors.requestedPortDate = 'Wnioskowany dzien przeniesienia nie moze przypasc w weekend.'
+    if (!fields.hasPowerOfAttorney) nextErrors.hasPowerOfAttorney = 'Tryb DAY wymaga pelnomocnictwa.'
+  } else if (!fields.earliestAcceptablePortDate) {
+    nextErrors.earliestAcceptablePortDate = 'Wskaz najwczesniejsza akceptowalna date po stronie Biorcy.'
+  } else if (fields.earliestAcceptablePortDate < today) {
+    nextErrors.earliestAcceptablePortDate = 'Najwczesniejsza akceptowalna data nie moze byc z przeszlosci.'
+  }
+  if (fields.linkedWholesaleServiceOnRecipientSide) {
+    if (!fields.hasPowerOfAttorney) nextErrors.hasPowerOfAttorney = WHOLESALE_HELPER
+    if (!fields.infrastructureOperatorId) nextErrors.infrastructureOperatorId = 'Wskaz operatora infrastrukturalnego.'
+  }
+  if (selectedClient?.clientType === 'INDIVIDUAL') {
+    if (!fields.subscriberFirstName.trim()) nextErrors.subscriberFirstName = 'Imie abonenta jest wymagane.'
+    if (!fields.subscriberLastName.trim()) nextErrors.subscriberLastName = 'Nazwisko abonenta jest wymagane.'
+  }
+  if (selectedClient?.clientType === 'BUSINESS' && !fields.subscriberCompanyName.trim()) {
+    nextErrors.subscriberCompanyName = 'Nazwa firmy abonenta jest wymagana.'
+  }
+  if (!fields.identityValue.trim()) nextErrors.identityValue = 'Wartosc identyfikatora jest wymagana.'
+  else if (fields.identityType === 'PESEL' && !/^\d{11}$/.test(fields.identityValue.trim())) nextErrors.identityValue = 'PESEL musi zawierac dokladnie 11 cyfr.'
+  else if (fields.identityType === 'NIP' && !/^\d{10}$/.test(fields.identityValue.replace(/[-\s]/g, ''))) nextErrors.identityValue = 'NIP musi zawierac 10 cyfr.'
+  else if (fields.identityType === 'REGON' && !/^(\d{9}|\d{14})$/.test(fields.identityValue.trim())) nextErrors.identityValue = 'REGON musi zawierac 9 albo 14 cyfr.'
+  if (!fields.correspondenceAddress.trim()) nextErrors.correspondenceAddress = 'Adres korespondencyjny jest wymagany.'
+  return nextErrors
+}
+
+export function buildRequestNewPayload(
+  fields: RequestNewFormFields,
+  selectedClient: ClientDetailDto,
+): CreatePortingRequestDto {
+  return {
+    clientId: selectedClient.id,
+    donorOperatorId: fields.donorOperatorId,
+    numberType: 'FIXED_LINE',
+    numberRangeKind: fields.numberRangeKind,
+    primaryNumber: fields.numberRangeKind === 'SINGLE'
+      ? normalizeRequestNewPhone(fields.primaryNumber)
+      : undefined,
+    rangeStart: fields.numberRangeKind === 'DDI_RANGE'
+      ? normalizeRequestNewPhone(fields.rangeStart)
+      : undefined,
+    rangeEnd: fields.numberRangeKind === 'DDI_RANGE'
+      ? normalizeRequestNewPhone(fields.rangeEnd)
+      : undefined,
+    requestDocumentNumber: fields.requestDocumentNumber.trim() || undefined,
+    portingMode: fields.portingMode,
+    requestedPortDate: fields.portingMode === 'DAY' ? fields.requestedPortDate || undefined : undefined,
+    earliestAcceptablePortDate: fields.portingMode !== 'DAY' ? fields.earliestAcceptablePortDate || undefined : undefined,
+    subscriberKind: selectedClient.clientType,
+    subscriberFirstName: selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberFirstName.trim() : undefined,
+    subscriberLastName: selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberLastName.trim() : undefined,
+    subscriberCompanyName: selectedClient.clientType === 'BUSINESS' ? fields.subscriberCompanyName.trim() : undefined,
+    identityType: fields.identityType,
+    identityValue: fields.identityValue.trim(),
+    correspondenceAddress: fields.correspondenceAddress.trim(),
+    hasPowerOfAttorney: fields.hasPowerOfAttorney,
+    linkedWholesaleServiceOnRecipientSide: fields.linkedWholesaleServiceOnRecipientSide,
+    infrastructureOperatorId: fields.linkedWholesaleServiceOnRecipientSide && fields.infrastructureOperatorId
+      ? fields.infrastructureOperatorId
+      : undefined,
+    contactChannel: fields.contactChannel,
+    internalNotes: fields.internalNotes.trim() || undefined,
+  }
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -149,8 +263,8 @@ export function RequestNewPage() {
   const [selectedClient, setSelectedClient] = useState<ClientDetailDto | null>(null)
   const [isLoadingClient, setIsLoadingClient] = useState(false)
   const [initializedClientId, setInitializedClientId] = useState<string | null>(null)
-  const [fields, setFields] = useState<FormFields>(EMPTY_FORM)
-  const [errors, setErrors] = useState<FormErrors>({})
+  const [fields, setFields] = useState<RequestNewFormFields>(EMPTY_FORM)
+  const [errors, setErrors] = useState<RequestNewFormErrors>({})
   const [isSaving, setIsSaving] = useState(false)
   const isBusiness = selectedClient?.clientType === 'BUSINESS'
   const selectedClientIdFromQuery = searchParams.get('clientId')
@@ -202,14 +316,14 @@ export function RequestNewPage() {
   }, [clientQuery, selectedClient])
 
   const setTextField =
-    (key: keyof FormFields) =>
+    (key: keyof RequestNewFormFields) =>
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setFields((previous) => ({ ...previous, [key]: event.target.value }))
       setErrors((previous) => ({ ...previous, [key]: undefined, _root: undefined }))
     }
 
   const setCheckboxField =
-    (key: keyof FormFields) =>
+    (key: keyof RequestNewFormFields) =>
     (event: ChangeEvent<HTMLInputElement>) => {
       setFields((previous) => ({ ...previous, [key]: event.target.checked }))
       setErrors((previous) => ({ ...previous, [key]: undefined, _root: undefined }))
@@ -310,89 +424,34 @@ export function RequestNewPage() {
     }))
   }
 
-  function validate(): FormErrors {
-    const nextErrors: FormErrors = {}
-    const today = todayString()
-    if (!selectedClient) nextErrors.clientId = 'Wybierz klienta z kartoteki.'
-    if (!fields.donorOperatorId) nextErrors.donorOperatorId = 'Operator oddajacy jest wymagany.'
-    if (fields.numberRangeKind === 'SINGLE') {
-      if (!fields.primaryNumber.trim()) nextErrors.primaryNumber = 'Podaj numer glowny.'
-    } else {
-      if (!fields.rangeStart.trim()) nextErrors.rangeStart = 'Podaj numer poczatkowy zakresu.'
-      if (!fields.rangeEnd.trim()) nextErrors.rangeEnd = 'Podaj numer koncowy zakresu.'
-      if (fields.rangeStart.trim() && fields.rangeEnd.trim()) {
-        const start = normalizeComparablePhone(fields.rangeStart.trim())
-        const end = normalizeComparablePhone(fields.rangeEnd.trim())
-        if (start.length !== end.length) nextErrors.rangeEnd = 'Numery zakresu musza miec zgodny format.'
-        else if (start > end) nextErrors.rangeEnd = 'Numer koncowy zakresu nie moze byc mniejszy niz poczatkowy.'
-      }
-    }
-    if (fields.portingMode === 'DAY') {
-      if (!fields.requestedPortDate) nextErrors.requestedPortDate = 'Dla trybu DAY wskaz wnioskowany dzien przeniesienia.'
-      else if (fields.requestedPortDate < today) nextErrors.requestedPortDate = 'Wnioskowany dzien przeniesienia nie moze byc z przeszlosci.'
-      else if (isWeekend(fields.requestedPortDate)) nextErrors.requestedPortDate = 'Wnioskowany dzien przeniesienia nie moze przypasc w weekend.'
-      if (!fields.hasPowerOfAttorney) nextErrors.hasPowerOfAttorney = 'Tryb DAY wymaga pelnomocnictwa.'
-    } else if (!fields.earliestAcceptablePortDate) {
-      nextErrors.earliestAcceptablePortDate = 'Wskaz najwczesniejsza akceptowalna date po stronie Biorcy.'
-    } else if (fields.earliestAcceptablePortDate < today) {
-      nextErrors.earliestAcceptablePortDate = 'Najwczesniejsza akceptowalna data nie moze byc z przeszlosci.'
-    }
-    if (fields.linkedWholesaleServiceOnRecipientSide) {
-      if (!fields.hasPowerOfAttorney) nextErrors.hasPowerOfAttorney = WHOLESALE_HELPER
-      if (!fields.infrastructureOperatorId) nextErrors.infrastructureOperatorId = 'Wskaz operatora infrastrukturalnego.'
-    }
-    if (selectedClient?.clientType === 'INDIVIDUAL') {
-      if (!fields.subscriberFirstName.trim()) nextErrors.subscriberFirstName = 'Imie abonenta jest wymagane.'
-      if (!fields.subscriberLastName.trim()) nextErrors.subscriberLastName = 'Nazwisko abonenta jest wymagane.'
-    }
-    if (selectedClient?.clientType === 'BUSINESS' && !fields.subscriberCompanyName.trim()) {
-      nextErrors.subscriberCompanyName = 'Nazwa firmy abonenta jest wymagana.'
-    }
-    if (!fields.identityValue.trim()) nextErrors.identityValue = 'Wartosc identyfikatora jest wymagana.'
-    else if (fields.identityType === 'PESEL' && !/^\d{11}$/.test(fields.identityValue.trim())) nextErrors.identityValue = 'PESEL musi zawierac dokladnie 11 cyfr.'
-    else if (fields.identityType === 'NIP' && !/^\d{10}$/.test(fields.identityValue.replace(/[-\s]/g, ''))) nextErrors.identityValue = 'NIP musi zawierac 10 cyfr.'
-    else if (fields.identityType === 'REGON' && !/^(\d{9}|\d{14})$/.test(fields.identityValue.trim())) nextErrors.identityValue = 'REGON musi zawierac 9 albo 14 cyfr.'
-    if (!fields.correspondenceAddress.trim()) nextErrors.correspondenceAddress = 'Adres korespondencyjny jest wymagany.'
-    return nextErrors
+  const handleNumberKindChange = (numberRangeKind: PortedNumberKind) => {
+    setFields((previous) => ({
+      ...previous,
+      ...getRequestNumberKindPatch(numberRangeKind, previous),
+    }))
+    setErrors((previous) => ({
+      ...previous,
+      primaryNumber: undefined,
+      rangeStart: undefined,
+      rangeEnd: undefined,
+      _root: undefined,
+    }))
   }
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     if (isSaving || !selectedClient) return
-    const validationErrors = validate()
+    const validationErrors = getRequestNewValidationErrors(fields, selectedClient)
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
       return
     }
     setIsSaving(true)
     setErrors({})
-    const payload: CreatePortingRequestDto = {
-      clientId: selectedClient.id,
-      donorOperatorId: fields.donorOperatorId,
-      numberRangeKind: fields.numberRangeKind,
-      primaryNumber: fields.numberRangeKind === 'SINGLE' ? fields.primaryNumber.trim() : undefined,
-      rangeStart: fields.numberRangeKind === 'DDI_RANGE' ? fields.rangeStart.trim() : undefined,
-      rangeEnd: fields.numberRangeKind === 'DDI_RANGE' ? fields.rangeEnd.trim() : undefined,
-      requestDocumentNumber: fields.requestDocumentNumber.trim() || undefined,
-      portingMode: fields.portingMode,
-      requestedPortDate: fields.portingMode === 'DAY' ? fields.requestedPortDate || undefined : undefined,
-      earliestAcceptablePortDate: fields.portingMode !== 'DAY' ? fields.earliestAcceptablePortDate || undefined : undefined,
-      subscriberKind: selectedClient.clientType,
-      subscriberFirstName: selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberFirstName.trim() : undefined,
-      subscriberLastName: selectedClient.clientType === 'INDIVIDUAL' ? fields.subscriberLastName.trim() : undefined,
-      subscriberCompanyName: selectedClient.clientType === 'BUSINESS' ? fields.subscriberCompanyName.trim() : undefined,
-      identityType: fields.identityType,
-      identityValue: fields.identityValue.trim(),
-      correspondenceAddress: fields.correspondenceAddress.trim(),
-      hasPowerOfAttorney: fields.hasPowerOfAttorney,
-      linkedWholesaleServiceOnRecipientSide: fields.linkedWholesaleServiceOnRecipientSide,
-      infrastructureOperatorId: fields.linkedWholesaleServiceOnRecipientSide && fields.infrastructureOperatorId ? fields.infrastructureOperatorId : undefined,
-      contactChannel: fields.contactChannel,
-      internalNotes: fields.internalNotes.trim() || undefined,
-    }
+    const payload = buildRequestNewPayload(fields, selectedClient)
     try {
       const request = await createPortingRequest(payload)
-      void navigate(buildPath(ROUTES.REQUEST_DETAIL, request.id), {
+      void navigate(getCreatedRequestDetailPath(request.caseNumber), {
         state: { createdRequest: true },
       })
     } catch (error) {
@@ -402,9 +461,9 @@ export function RequestNewPage() {
         } else if (error.response?.status === 400) {
           const details = (error.response.data as { error?: { details?: Record<string, string[]> } } )?.error?.details
           if (details) {
-            const fieldErrors: FormErrors = {}
+            const fieldErrors: RequestNewFormErrors = {}
             for (const [field, messages] of Object.entries(details)) {
-              if (messages?.[0]) fieldErrors[field as keyof FormErrors] = messages[0]
+              if (messages?.[0]) fieldErrors[field as keyof RequestNewFormErrors] = messages[0]
             }
             setErrors(fieldErrors)
           } else {
@@ -425,6 +484,16 @@ export function RequestNewPage() {
 
   const identityTypeOptions: SubscriberIdentityType[] = isBusiness ? ['NIP', 'REGON', 'OTHER'] : ['PESEL', 'ID_CARD', 'PASSPORT', 'OTHER']
   const modeDescription = PORTING_MODE_DESCRIPTIONS[fields.portingMode]
+  const selectedDonorOperator = donorOptions.find((operator) => operator.id === fields.donorOperatorId)
+  const selectedInfrastructureOperator = infrastructureOptions.find(
+    (operator) => operator.id === fields.infrastructureOperatorId,
+  )
+  const numberingSummary = fields.numberRangeKind === 'SINGLE'
+    ? fields.primaryNumber.trim() || 'Nie podano'
+    : `${fields.rangeStart.trim() || 'Nie podano'} - ${fields.rangeEnd.trim() || 'Nie podano'}`
+  const dateSummary = fields.portingMode === 'DAY'
+    ? fields.requestedPortDate || 'Nie podano'
+    : fields.earliestAcceptablePortDate || 'Nie podano'
 
   return (
     <div className="p-6 max-w-4xl">
@@ -477,10 +546,12 @@ export function RequestNewPage() {
           )}
         </SectionCard>
         <SectionCard title="2. Zakres numeracji">
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">Typ uslugi dla B3: numer stacjonarny / FNP.</div>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            Ten formularz dotyczy numerów stacjonarnych FNP.
+          </div>
           <div className="flex rounded-lg border border-gray-300 overflow-hidden w-fit">
             {(['SINGLE', 'DDI_RANGE'] as PortedNumberKind[]).map((kind) => (
-              <button key={kind} type="button" onClick={() => setFields((previous) => ({ ...previous, numberRangeKind: kind }))} className={`px-6 py-2 text-sm font-medium transition-colors ${fields.numberRangeKind === kind ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
+              <button key={kind} type="button" onClick={() => handleNumberKindChange(kind)} className={`px-6 py-2 text-sm font-medium transition-colors ${fields.numberRangeKind === kind ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
                 {PORTED_NUMBER_KIND_LABELS[kind]}
               </button>
             ))}
@@ -587,6 +658,9 @@ export function RequestNewPage() {
             <input type="checkbox" checked={fields.hasPowerOfAttorney} onChange={setCheckboxField('hasPowerOfAttorney')} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
             <span className="text-sm text-gray-700">Klient udzielil pelnomocnictwa</span>
           </label>
+          <p className="text-xs text-gray-500">
+            System rejestruje informację operacyjną o pełnomocnictwie. Skan dokumentu nie jest przechowywany w tym formularzu.
+          </p>
           {errors.hasPowerOfAttorney && <p className="error-message">{errors.hasPowerOfAttorney}</p>}
 
           <label className="flex items-center gap-3 cursor-pointer">
@@ -625,6 +699,41 @@ export function RequestNewPage() {
           <FormField label="Notatki wewnetrzne (opcjonalnie)" error={errors.internalNotes}>
             <textarea value={fields.internalNotes} onChange={setTextField('internalNotes')} className={`input-field min-h-28 ${errors.internalNotes ? 'input-error' : ''}`} placeholder="Dodatkowe informacje operacyjne, ustalenia z klientem, kontekst sprawy..." />
           </FormField>
+        </SectionCard>
+
+        <SectionCard title="Sprawdź przed utworzeniem">
+          <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-gray-500">Klient</dt>
+              <dd className="font-medium text-gray-900">{selectedClient?.displayName ?? 'Nie wybrano'}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Numeracja</dt>
+              <dd className="font-mono text-gray-900">{numberingSummary}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Operator oddający</dt>
+              <dd className="font-medium text-gray-900">{selectedDonorOperator?.name ?? 'Nie wybrano'}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Tryb i data</dt>
+              <dd className="font-medium text-gray-900">
+                {PORTING_MODE_LABELS[fields.portingMode]} · {dateSummary}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-gray-500">Pełnomocnictwo</dt>
+              <dd className="font-medium text-gray-900">{fields.hasPowerOfAttorney ? 'Zarejestrowane' : 'Brak informacji'}</dd>
+            </div>
+            {fields.linkedWholesaleServiceOnRecipientSide && (
+              <div>
+                <dt className="text-gray-500">Usługa hurtowa</dt>
+                <dd className="font-medium text-gray-900">
+                  {selectedInfrastructureOperator?.name ?? 'Wymaga wskazania operatora infrastrukturalnego'}
+                </dd>
+              </div>
+            )}
+          </dl>
         </SectionCard>
 
         {errors._root && (

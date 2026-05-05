@@ -1938,6 +1938,11 @@ export function RequestDetailPage() {
     quickStatusActions.length > 0 || canManageAssignment || availableCommunicationActions.length > 0
   const workflowErrorMessage = getWorkflowErrorEmptyStateMessage(canUsePliCbdExternalActions)
   const errorDiagnosticsEntry = getErrorDiagnosticsEntry(caseHistoryItems)
+  const wasCreatedFromFlow =
+    typeof location.state === 'object' &&
+    location.state !== null &&
+    'createdRequest' in location.state &&
+    Boolean((location.state as { createdRequest?: unknown }).createdRequest)
   const workflowActionsSection = (
     <RequestWorkflowActionsSection
       canManageStatus={canManageStatus}

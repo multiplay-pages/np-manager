@@ -282,6 +282,14 @@ export const createPortingRequestSchema = z
         })
       }
 
+      if (!data.earliestAcceptablePortDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['earliestAcceptablePortDate'],
+          message: 'Dla trybu END/EOP wskaz najwczesniejsza akceptowalna date przeniesienia.',
+        })
+      }
+
       validateDeferredEarliestDate(data.earliestAcceptablePortDate, ctx)
     }
 
