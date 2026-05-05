@@ -357,6 +357,30 @@ describe('RequestWorkflowActionsSection', () => {
     expect(screen.getByTestId('ext-slot')).toBeDefined()
   })
 
+  it('terminal closed state shows correct Polish copy without encoding artifacts', () => {
+    render(
+      <RequestWorkflowActionsSection
+        {...buildProps({ statusInternal: 'CANCELLED', availableStatusActions: [] })}
+      />,
+    )
+
+    expect(
+      screen.getByText('Sprawa zakończona — brak dostępnych akcji statusowych.'),
+    ).toBeDefined()
+  })
+
+  it('role-gated empty state shows correct Polish copy without encoding artifacts', () => {
+    render(
+      <RequestWorkflowActionsSection
+        {...buildProps({ statusInternal: 'SUBMITTED', availableStatusActions: [] })}
+      />,
+    )
+
+    expect(
+      screen.getByText('Brak akcji dostępnych dla Twojej roli w tym statusie sprawy.'),
+    ).toBeDefined()
+  })
+
   it('does not render external slot wrapper when pliCbdExternalActionsSlot is null', () => {
     const { container } = render(
       <RequestWorkflowActionsSection

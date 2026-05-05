@@ -165,7 +165,7 @@ export function RequestWorkflowActionsSection({
             </div>
           ) : TERMINAL_CLOSED_STATUSES.includes(statusInternal) ? (
             <div className="rounded-panel border border-line bg-ink-50 px-4 py-3 text-sm text-ink-500">
-              Sprawa zakoĹ„czona â€” brak dostÄ™pnych akcji statusowych.
+              Sprawa zakończona — brak dostępnych akcji statusowych.
             </div>
           ) : statusInternal === 'ERROR' ? (
             <div className="rounded-panel border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -173,7 +173,7 @@ export function RequestWorkflowActionsSection({
             </div>
           ) : (
             <div className="rounded-panel border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              Brak akcji dostÄ™pnych dla Twojej roli w tym statusie sprawy.
+              Brak akcji dostępnych dla Twojej roli w tym statusie sprawy.
             </div>
           )}
 
