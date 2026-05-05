@@ -18,14 +18,6 @@ const primaryNavItems: NavItem[] = [
   { label: 'Dashboard', description: 'Pulpit operacyjny', path: ROUTES.DASHBOARD, icon: 'dashboard', exact: true },
   { label: 'Sprawy', description: 'Portowanie numerow', path: ROUTES.REQUESTS, icon: 'request-queue' },
   { label: 'Klienci', description: 'Kartoteka klientow', path: ROUTES.CLIENTS, icon: 'clients' },
-  { label: 'Zadania', description: 'Praca zespolu', path: ROUTES.TASKS, icon: 'tasks' },
-  {
-    label: 'Raporty',
-    description: 'Kontrola i wyniki',
-    path: ROUTES.REPORTS,
-    icon: 'reports',
-    roles: ['ADMIN', 'MANAGER', 'AUDITOR'],
-  },
   { label: 'Operatorzy', description: 'Slownik operatorow', path: ROUTES.OPERATORS, icon: 'operators' },
 ]
 

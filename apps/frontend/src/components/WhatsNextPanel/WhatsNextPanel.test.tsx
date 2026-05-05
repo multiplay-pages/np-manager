@@ -79,6 +79,17 @@ const CANCEL_ACTION: PortingRequestStatusActionDto = {
   description: 'Anuluje sprawe.',
 }
 
+const SUBMIT_ACTION: PortingRequestStatusActionDto = {
+  actionId: 'SUBMIT',
+  label: 'Zloz sprawe',
+  targetStatus: 'SUBMITTED',
+  requiresReason: false,
+  requiresComment: false,
+  reasonLabel: null,
+  commentLabel: null,
+  description: 'Przekazuje sprawe do dalszej obslugi.',
+}
+
 const COMM_ACTION: PortingRequestCommunicationActionDto = {
   type: 'CLIENT_CONFIRMATION',
   label: 'Wyślij notyfikację',
@@ -118,6 +129,33 @@ describe('WhatsNextPanel', () => {
     expect(text).toContain('Sprawa: Złożona')
     expect(text).toContain('Najbliższy krok')
     expect(text).toContain('potwierdź')
+  })
+
+  it('DRAFT with submit action clearly points to submitting the prepared case', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'DRAFT' as PortingCaseStatus,
+        availableStatusActions: [SUBMIT_ACTION, CANCEL_ACTION],
+      }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('szkic')
+    expect(text).toContain('Zloz sprawe')
+    expect(text).toContain('przekazac')
+  })
+
+  it('DRAFT without submit action does not suggest unavailable submission', () => {
+    const tree = WhatsNextPanel(
+      makeProps({
+        status: 'DRAFT' as PortingCaseStatus,
+        availableStatusActions: [],
+      }),
+    )
+    const text = getTextContent(tree)
+    expect(text).toContain('szkic')
+    expect(text).not.toContain('Zloz sprawe')
+    expect(text).not.toContain('zloz sprawe')
+    expect(text).not.toContain('przekazac ja do dalszej obslugi')
   })
 
   it('shows prioritized status action as primary button, wires scroll callback', () => {
@@ -180,7 +218,7 @@ describe('WhatsNextPanel', () => {
     expect(getTextContent(blocker)).toContain('nie ma przypisanego operatora BOK')
     const blockerButton = findAllButtons(blocker).find((b) =>
       getTextContent((b.props as { children?: ReactNode }).children).includes(
-        'Przypisz operatora',
+        'Przypisz do siebie',
       ),
     )
     expect(blockerButton).toBeDefined()

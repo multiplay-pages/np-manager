@@ -73,10 +73,48 @@ const NEXT_STEP_COPY: Partial<Record<PortingCaseStatus, string>> = {
   ERROR: 'Sprawdź przyczynę błędu i wybierz dalsze działanie lub skontaktuj się z przełożonym.',
 }
 
+function hasStatusAction(
+  actions: PortingRequestStatusActionDto[],
+  actionId: PortingRequestStatusActionDto['actionId'],
+): boolean {
+  return actions.some((action) => action.actionId === actionId)
+}
+
 function buildNextStep(
   status: PortingCaseStatus,
   availableStatusActions: PortingRequestStatusActionDto[],
 ): string | null {
+  if (status === 'DRAFT') {
+    if (hasStatusAction(availableStatusActions, 'SUBMIT')) {
+      return 'szkic jest gotowy: uzupelnij brakujace dane, a potem uzyj akcji "Zloz sprawe", zeby przekazac ja dalej.'
+    }
+
+    return 'szkic jest zapisany. Backend nie udostepnia teraz akcji przekazania dalej dla Twojej sesji.'
+  }
+
+  if (status === 'SUBMITTED') {
+    if (
+      hasStatusAction(availableStatusActions, 'MARK_PENDING_DONOR') ||
+      hasStatusAction(availableStatusActions, 'CONFIRM') ||
+      hasStatusAction(availableStatusActions, 'REJECT')
+    ) {
+      return 'Zweryfikuj dane i wybierz jedna z dostepnych akcji statusu: przekazanie do dawcy, potwierdź albo odrzuc.'
+    }
+
+    return 'Sprawa jest zlozona. Jesli nie masz dostepnego kolejnego kroku, wroc do listy spraw i kontynuuj prace na kolejce.'
+  }
+
+  if (status === 'PENDING_DONOR') {
+    if (
+      hasStatusAction(availableStatusActions, 'CONFIRM') ||
+      hasStatusAction(availableStatusActions, 'REJECT')
+    ) {
+      return 'Czekaj na odpowiedz dawcy. Gdy nadejdzie, uzyj dostepnej akcji potwierdzenia albo odrzucenia.'
+    }
+
+    return 'Czekaj na odpowiedz dawcy. Gdy sprawa bedzie wymagala reakcji, dalszy krok pojawi sie w akcjach statusu albo na liscie spraw.'
+  }
+
   if (status === 'CONFIRMED') {
     const hasMarkPorted = availableStatusActions.some((a) => a.actionId === 'MARK_PORTED')
     return hasMarkPorted
@@ -204,8 +242,8 @@ function buildBlocker({
 
   if (!assignedUser) {
     return {
-      text: 'Sprawa nie ma przypisanego operatora BOK.',
-      ctaLabel: canManageAssignment ? 'Przypisz operatora' : 'Zobacz przypisanie',
+      text: 'Sprawa nie ma przypisanego operatora BOK. Jesli zaczynasz obsluge, przypisz ja do siebie.',
+      ctaLabel: canManageAssignment ? 'Przypisz do siebie' : 'Zobacz przypisanie',
       onClick: onScrollToAssignment,
     }
   }
@@ -223,6 +261,26 @@ function buildBlocker({
   }
 
   return null
+}
+
+function buildStatusSummary(status: PortingCaseStatus): string {
+  if (status === 'DRAFT') {
+    return 'To szkic sprawy. Dane sa zapisane, ale sprawa nie zostala jeszcze przekazana dalej.'
+  }
+
+  if (status === 'SUBMITTED') {
+    return 'Sprawa zostala zlozona i czeka na dalsza obsluge operacyjna.'
+  }
+
+  if (status === 'PENDING_DONOR') {
+    return 'Sprawa czeka na odpowiedz operatora oddajacego.'
+  }
+
+  if (status === 'CONFIRMED') {
+    return 'Sprawa jest potwierdzona i czeka na dzien przeniesienia.'
+  }
+
+  return STATUS_SUMMARY[status]
 }
 
 export function WhatsNextPanel({
@@ -270,8 +328,8 @@ export function WhatsNextPanel({
     : `Sprawa: ${statusMeta.label}`
 
   const summary = isTerminal
-    ? terminalCopy?.body ?? STATUS_SUMMARY[status]
-    : STATUS_SUMMARY[status]
+    ? terminalCopy?.body ?? buildStatusSummary(status)
+    : buildStatusSummary(status)
 
   const nextStep = isTerminal ? null : buildNextStep(status, availableStatusActions)
 

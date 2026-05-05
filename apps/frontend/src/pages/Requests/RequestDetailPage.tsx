@@ -129,6 +129,39 @@ const TECHNICAL_PAYLOAD_MESSAGE_TYPES = ['E03', 'E12', 'E18', 'E23'] as const
 
 type TechnicalPayloadMessageType = (typeof TECHNICAL_PAYLOAD_MESSAGE_TYPES)[number]
 type ManualExportResultsState = Record<PliCbdManualExportMessageType, PliCbdManualExportResultDto | null>
+type RequestDetailNavigationState = Record<string, unknown> | null
+
+export function isCreatedRequestNavigationState(state: unknown): boolean {
+  return Boolean(
+    state &&
+      typeof state === 'object' &&
+      'createdRequest' in state &&
+      (state as { createdRequest?: unknown }).createdRequest === true,
+  )
+}
+
+export function clearCreatedRequestNavigationState(
+  state: unknown,
+): RequestDetailNavigationState {
+  if (!state || typeof state !== 'object') {
+    return null
+  }
+
+  const rest = { ...(state as Record<string, unknown>) }
+  delete rest.createdRequest
+
+  return Object.keys(rest).length > 0 ? rest : null
+}
+
+export function RequestCreatedSuccessBanner() {
+  return (
+    <AlertBanner
+      tone="success"
+      title="Sprawa zostala utworzona."
+      description="To jest szkic sprawy. Sprawdz panel Co dalej ze sprawa? i wykonaj dostepny nastepny krok w sekcji Akcje statusu."
+    />
+  )
+}
 type ManualExportLoadingState = Record<PliCbdManualExportMessageType, boolean>
 type TechnicalPayloadResultsState = Record<
   TechnicalPayloadMessageType,
@@ -513,6 +546,9 @@ export function RequestDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuthStore()
+  const [showCreatedRequestSuccess] = useState(() =>
+    isCreatedRequestNavigationState(location.state),
+  )
 
   // UUID of the loaded request — used by all secondary API calls and mutations.
   // Populated by loadRequest after the first successful fetch.
@@ -717,6 +753,17 @@ export function RequestDetailPage() {
     ? canConfirmPortDateForStatus(request.statusInternal)
     : false
   const communicationSummary = request?.communicationSummary ?? EMPTY_COMMUNICATION_SUMMARY
+
+  useEffect(() => {
+    if (!isCreatedRequestNavigationState(location.state)) {
+      return
+    }
+
+    void navigate(location.pathname + location.search, {
+      replace: true,
+      state: clearCreatedRequestNavigationState(location.state),
+    })
+  }, [location.pathname, location.search, location.state, navigate])
 
   const clearCommunicationFeedbackTimer = useCallback(() => {
     if (communicationFeedbackTimeoutRef.current !== null) {
@@ -1960,13 +2007,7 @@ export function RequestDetailPage() {
         onCopyLink={handleCopyLink}
       />
 
-      {wasCreatedFromFlow && (
-        <AlertBanner
-          tone="success"
-          title="Sprawa została utworzona"
-          description={`Numer sprawy: ${request.caseNumber}. Aktualny status: ${PORTING_CASE_STATUS_LABELS[request.statusInternal]}. Najbliższy krok znajdziesz w panelu "Co dalej ze sprawą?" poniżej.`}
-        />
-      )}
+      {showCreatedRequestSuccess && <RequestCreatedSuccessBanner />}
 
       <RequestAttentionStrip
         request={request}
