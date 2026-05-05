@@ -451,11 +451,29 @@ describe('listPortingRequests - WORK_PRIORITY sort (PR50B)', () => {
     id: string,
     confirmedPortDate: Date | null,
     createdAt: Date,
-  ): { id: string; confirmedPortDate: Date | null; createdAt: Date } {
-    return { id, confirmedPortDate, createdAt }
+    statusInternal: 'SUBMITTED' | 'ERROR' | 'PORTED' | 'CANCELLED' | 'REJECTED' = 'SUBMITTED',
+  ): {
+    id: string
+    statusInternal: 'SUBMITTED' | 'ERROR' | 'PORTED' | 'CANCELLED' | 'REJECTED'
+    confirmedPortDate: Date | null
+    createdAt: Date
+  } {
+    return { id, statusInternal, confirmedPortDate, createdAt }
   }
 
-  it('orders rows by work-priority bucket, then date asc, with NO_DATE between THIS_WEEK and LATER', async () => {
+  it('orders ERROR before overdue, then by work-priority bucket, with NO_DATE between THIS_WEEK and LATER', async () => {
+    const errorNoDate = makeCandidate(
+      'error_no_date',
+      null,
+      new Date('2026-04-12T10:00:00.000Z'),
+      'ERROR',
+    )
+    const errorOverdue = makeCandidate(
+      'error_overdue',
+      new Date('2026-04-19T00:00:00.000Z'),
+      new Date('2026-04-12T11:00:00.000Z'),
+      'ERROR',
+    )
     const overdue = makeCandidate(
       'overdue',
       new Date('2026-04-20T00:00:00.000Z'),
@@ -492,11 +510,31 @@ describe('listPortingRequests - WORK_PRIORITY sort (PR50B)', () => {
       new Date('2026-04-01T10:00:00.000Z'),
     )
 
-    const shuffled = [later, noDateNew, thisWeek, overdue, noDateOld, tomorrow, today]
-    // First findMany: candidates (id, confirmedPortDate, createdAt)
+    const portedOverdue = makeCandidate(
+      'ported_overdue',
+      new Date('2026-04-18T00:00:00.000Z'),
+      new Date('2026-04-01T10:00:00.000Z'),
+      'PORTED',
+    )
+
+    const shuffled = [
+      later,
+      noDateNew,
+      thisWeek,
+      overdue,
+      noDateOld,
+      tomorrow,
+      today,
+      errorNoDate,
+      portedOverdue,
+      errorOverdue,
+    ]
+    // First findMany: candidates (id, statusInternal, confirmedPortDate, createdAt)
     // Second findMany: full rows for page
     mockPortingRequestFindMany.mockResolvedValueOnce(shuffled)
     mockPortingRequestFindMany.mockResolvedValueOnce([
+      makeListRow({ id: 'error_overdue', statusInternal: 'ERROR', confirmedPortDate: errorOverdue.confirmedPortDate }),
+      makeListRow({ id: 'error_no_date', statusInternal: 'ERROR', confirmedPortDate: null }),
       makeListRow({ id: 'overdue', confirmedPortDate: overdue.confirmedPortDate }),
       makeListRow({ id: 'today', confirmedPortDate: today.confirmedPortDate }),
       makeListRow({ id: 'tomorrow', confirmedPortDate: tomorrow.confirmedPortDate }),
@@ -504,6 +542,7 @@ describe('listPortingRequests - WORK_PRIORITY sort (PR50B)', () => {
       makeListRow({ id: 'no_date_old', confirmedPortDate: null }),
       makeListRow({ id: 'no_date_new', confirmedPortDate: null }),
       makeListRow({ id: 'later', confirmedPortDate: later.confirmedPortDate }),
+      makeListRow({ id: 'ported_overdue', statusInternal: 'PORTED', confirmedPortDate: portedOverdue.confirmedPortDate }),
     ])
 
     const result = await listPortingRequests(
@@ -511,8 +550,11 @@ describe('listPortingRequests - WORK_PRIORITY sort (PR50B)', () => {
       CURRENT_USER_ID,
     )
 
-    expect(result.pagination.total).toBe(7)
+    expect(result.pagination.total).toBe(10)
     expect(result.items.map((i) => i.id)).toEqual([
+      'error_no_date',
+      'error_overdue',
+      'ported_overdue',
       'overdue',
       'today',
       'tomorrow',
@@ -526,7 +568,7 @@ describe('listPortingRequests - WORK_PRIORITY sort (PR50B)', () => {
     const secondCall = mockPortingRequestFindMany.mock.calls[1]?.[0] as {
       where: { id: { in: string[] } }
     }
-    expect(secondCall.where.id.in).toHaveLength(7)
+    expect(secondCall.where.id.in).toHaveLength(10)
   })
 
   it('respects pagination boundaries for WORK_PRIORITY sort', async () => {
@@ -845,7 +887,12 @@ describe('listPortingRequests - column sorting (Etap 5I-A)', () => {
 
   it('WORK_PRIORITY sort uses candidates select shape, not column orderBy', async () => {
     mockPortingRequestFindMany.mockResolvedValueOnce([
-      { id: 'r-1', confirmedPortDate: null, createdAt: new Date('2026-04-01T10:00:00.000Z') },
+      {
+        id: 'r-1',
+        statusInternal: 'SUBMITTED',
+        confirmedPortDate: null,
+        createdAt: new Date('2026-04-01T10:00:00.000Z'),
+      },
     ])
     mockPortingRequestFindMany.mockResolvedValueOnce([makeListRow({ id: 'r-1' })])
 
@@ -861,6 +908,7 @@ describe('listPortingRequests - column sorting (Etap 5I-A)', () => {
     }
     expect(candidatesCall.select).toMatchObject({
       id: true,
+      statusInternal: true,
       confirmedPortDate: true,
       createdAt: true,
     })

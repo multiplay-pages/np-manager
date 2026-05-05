@@ -1078,7 +1078,7 @@ async function listPortingRequestsByWorkPriority(
   // miedzy stronami.
   const candidates = await prisma.portingRequest.findMany({
     where,
-    select: { id: true, confirmedPortDate: true, createdAt: true },
+    select: { id: true, statusInternal: true, confirmedPortDate: true, createdAt: true },
   })
 
   const now = new Date()
@@ -1113,6 +1113,7 @@ async function listPortingRequestsByWorkPriority(
 
 interface WorkPriorityCandidate {
   id: string
+  statusInternal: PortingCaseStatus
   confirmedPortDate: Date | null
   createdAt: Date
 }
@@ -1124,8 +1125,8 @@ function compareWorkPriority(
 ): number {
   const aIso = toDateOnlyString(a.confirmedPortDate)
   const bIso = toDateOnlyString(b.confirmedPortDate)
-  const aRank = getPortingWorkPriorityRank(aIso, now)
-  const bRank = getPortingWorkPriorityRank(bIso, now)
+  const aRank = getPortingWorkPriorityRank(aIso, now, a.statusInternal)
+  const bRank = getPortingWorkPriorityRank(bIso, now, b.statusInternal)
   if (aRank !== bRank) return aRank - bRank
 
   // Dla dat: rosnaco po confirmedPortDate. NO_DATE: oldest-first wg createdAt.

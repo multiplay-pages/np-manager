@@ -88,6 +88,7 @@ function mockSummaryResult() {
     withoutCommercialOwner: 1,
     myCommercialRequests: 0,
     requestsWithNotificationFailures: 0,
+    requestsInError: 0,
     quickWorkCounts: {
       urgent: 0,
       noDate: 0,
@@ -567,6 +568,43 @@ describe('RequestsPage quick work filters', () => {
       })
       expect(lastListCall.quickWorkFilter).toBeUndefined()
     })
+  })
+
+  it('maps "Wymaga interwencji" quick filter to status=ERROR without quickWorkFilter or notification health', async () => {
+    renderPage('/requests?page=3&quickWorkFilter=URGENT&notificationHealthFilter=HAS_FAILURES')
+    await screen.findByText('Kolejka spraw portowania')
+
+    const quickFilters = within(
+      screen.getByRole('region', { name: 'Szybkie filtry pracy' }),
+    )
+    fireEvent.click(quickFilters.getByRole('button', { name: /^Wymaga interwencji/ }))
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({
+        status: 'ERROR',
+        notificationHealthFilter: 'HAS_FAILURES',
+        page: 1,
+        pageSize: 20,
+      })
+      expect(lastListCall.quickWorkFilter).toBeUndefined()
+    })
+  })
+
+  it('keeps status=ERROR and notification health filter visible together', async () => {
+    renderPage('/requests?status=ERROR&notificationHealthFilter=HAS_FAILURES')
+
+    await waitFor(() => {
+      const lastListCall = getPortingRequestsMock.mock.calls.at(-1)?.[0]
+      expect(lastListCall).toMatchObject({
+        status: 'ERROR',
+        notificationHealthFilter: 'HAS_FAILURES',
+      })
+    })
+
+    expect(screen.getByText('Status:')).not.toBeNull()
+    expect(screen.getByText('Notyfikacje:')).not.toBeNull()
+    expect(screen.getAllByText('Bledy notyfikacji').length).toBeGreaterThan(0)
   })
 
   it('selects "Priorytet pracy" sort, syncs to URL and survives refresh', async () => {

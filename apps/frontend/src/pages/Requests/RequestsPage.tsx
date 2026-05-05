@@ -901,6 +901,8 @@ export function RequestsPage() {
                   ? 'Wymaga kontroli operacyjnej'
                   : card.id === 'ERROR'
                     ? 'Sprawy z bledem procesu'
+                    : card.id === 'WITH_OWNER' || card.id === 'WITHOUT_OWNER' || card.id === 'MINE'
+                      ? 'Opiekun handlowy sprawy'
                     : 'Kliknij, aby zawezic kolejke'
               }
               onClick={() => setParam(card.filterUpdates)}

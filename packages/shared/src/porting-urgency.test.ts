@@ -20,6 +20,7 @@ describe('getPortingWorkPriorityBucket', () => {
 
   it('orders buckets so that NO_DATE sits between THIS_WEEK and LATER', () => {
     const order = PORTING_WORK_PRIORITY_ORDER
+    expect(order.ERROR).toBeLessThan(order.OVERDUE)
     expect(order.OVERDUE).toBeLessThan(order.TODAY)
     expect(order.TODAY).toBeLessThan(order.TOMORROW)
     expect(order.TOMORROW).toBeLessThan(order.THIS_WEEK)
@@ -28,9 +29,16 @@ describe('getPortingWorkPriorityBucket', () => {
   })
 
   it('getPortingWorkPriorityRank returns the numeric priority key', () => {
-    expect(getPortingWorkPriorityRank('2026-04-20', NOW)).toBe(1)
-    expect(getPortingWorkPriorityRank('2026-04-22', NOW)).toBe(2)
-    expect(getPortingWorkPriorityRank(null, NOW)).toBe(5)
-    expect(getPortingWorkPriorityRank('2026-06-01', NOW)).toBe(6)
+    expect(getPortingWorkPriorityRank('2026-04-20', NOW)).toBe(2)
+    expect(getPortingWorkPriorityRank('2026-04-22', NOW)).toBe(3)
+    expect(getPortingWorkPriorityRank(null, NOW)).toBe(6)
+    expect(getPortingWorkPriorityRank('2026-06-01', NOW)).toBe(7)
+  })
+
+  it('treats process ERROR as the top work-priority bucket regardless of date', () => {
+    expect(getPortingWorkPriorityBucket(null, NOW, 'ERROR')).toBe('ERROR')
+    expect(getPortingWorkPriorityBucket('2026-04-20', NOW, 'ERROR')).toBe('ERROR')
+    expect(getPortingWorkPriorityRank(null, NOW, 'ERROR')).toBe(1)
+    expect(getPortingWorkPriorityRank('2026-04-20', NOW, 'PORTED')).toBe(2)
   })
 })

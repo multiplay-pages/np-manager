@@ -1,3 +1,5 @@
+import type { PortingCaseStatus } from './constants'
+
 export type PortingUrgencyLevel =
   | 'NONE'
   | 'OVERDUE'
@@ -136,6 +138,7 @@ export function getPortingUrgencyLevel(
 // a pozniejszymi sprawami LATER.
 
 export type PortingWorkPriorityBucket =
+  | 'ERROR'
   | 'OVERDUE'
   | 'TODAY'
   | 'TOMORROW'
@@ -144,18 +147,22 @@ export type PortingWorkPriorityBucket =
   | 'LATER'
 
 export const PORTING_WORK_PRIORITY_ORDER: Record<PortingWorkPriorityBucket, number> = {
-  OVERDUE: 1,
-  TODAY: 2,
-  TOMORROW: 3,
-  THIS_WEEK: 4,
-  NO_DATE: 5,
-  LATER: 6,
+  ERROR: 1,
+  OVERDUE: 2,
+  TODAY: 3,
+  TOMORROW: 4,
+  THIS_WEEK: 5,
+  NO_DATE: 6,
+  LATER: 7,
 }
 
 export function getPortingWorkPriorityBucket(
   portDateIso: string | null | undefined,
   now: Date = new Date(),
+  statusInternal?: PortingCaseStatus | null,
 ): PortingWorkPriorityBucket {
+  if (statusInternal === 'ERROR') return 'ERROR'
+
   const level = getPortingUrgencyLevel(portDateIso, now)
   if (level === 'NONE') return 'NO_DATE'
   if (level === 'LATER') return 'LATER'
@@ -165,6 +172,7 @@ export function getPortingWorkPriorityBucket(
 export function getPortingWorkPriorityRank(
   portDateIso: string | null | undefined,
   now: Date = new Date(),
+  statusInternal?: PortingCaseStatus | null,
 ): number {
-  return PORTING_WORK_PRIORITY_ORDER[getPortingWorkPriorityBucket(portDateIso, now)]
+  return PORTING_WORK_PRIORITY_ORDER[getPortingWorkPriorityBucket(portDateIso, now, statusInternal)]
 }

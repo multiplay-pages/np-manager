@@ -32,7 +32,7 @@ export function rowHighlightClasses(highlight: RowHighlight): string {
     case 'ported':
       return 'bg-sky-50'
     case 'error':
-      return 'bg-amber-50'
+      return 'bg-red-100'
     case 'overdue':
       return 'bg-red-50'
     case 'today':
