@@ -31,7 +31,7 @@ export interface ResolvedWorkflowTransition {
 }
 
 const WRITE_ROLES: UserRole[] = ['ADMIN', 'BOK_CONSULTANT', 'BACK_OFFICE', 'MANAGER']
-const REVIEW_ROLES: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
+export const REVIEW_ROLES: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
 
 const WORKFLOW_TRANSITIONS: WorkflowTransitionConfig[] = [
   {

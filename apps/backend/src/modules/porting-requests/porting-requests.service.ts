@@ -57,6 +57,7 @@ import {
 } from './porting-request-case-history.service'
 import {
   getAvailableStatusActions,
+  REVIEW_ROLES,
   resolveWorkflowTransition,
 } from './porting-request-workflow'
 import {
@@ -1491,7 +1492,6 @@ export async function getPortingRequestIntegrationEvents(
   return getPliCbdIntegrationEvents(requestId)
 }
 
-const RESUME_FROM_ERROR_ALLOWED_ROLES: UserRole[] = ['ADMIN', 'BACK_OFFICE', 'MANAGER']
 const RESUME_FROM_ERROR_ALLOWED_TARGETS: PortingCaseStatus[] = ['SUBMITTED', 'PENDING_DONOR', 'CONFIRMED']
 
 async function resolveResumeFromErrorTarget(requestId: string): Promise<PortingCaseStatus> {
@@ -1531,7 +1531,7 @@ export async function changePortingRequestStatus(
         'PORTING_REQUEST_STATUS_TRANSITION_NOT_ALLOWED',
       )
     }
-    if (!RESUME_FROM_ERROR_ALLOWED_ROLES.includes(userRole)) {
+    if (!REVIEW_ROLES.includes(userRole)) {
       throw AppError.forbidden(
         'Twoja rola nie moze wznowic sprawy z bledu.',
         'PORTING_REQUEST_STATUS_TRANSITION_ROLE_NOT_ALLOWED',
