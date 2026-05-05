@@ -46,6 +46,10 @@ export function getWorkPriorityBadge(
 
   if (bucket === 'LATER') return null
 
+  if (bucket === 'ERROR') {
+    return { bucket, label: 'Wymaga interwencji', tone: 'red', emphasized: true }
+  }
+
   if (bucket === 'OVERDUE') {
     const daysDiff = calculatePortingDaysDiff(portDateIso, now)
     const days = Math.abs(daysDiff ?? 0)
@@ -54,7 +58,7 @@ export function getWorkPriorityBadge(
   }
 
   const config: Record<
-    Exclude<PortingWorkPriorityBucket, 'OVERDUE' | 'LATER'>,
+    Exclude<PortingWorkPriorityBucket, 'ERROR' | 'OVERDUE' | 'LATER'>,
     WorkPriorityBadge
   > = {
     TODAY: { bucket: 'TODAY', label: 'Dzis', tone: 'red', emphasized: true },
