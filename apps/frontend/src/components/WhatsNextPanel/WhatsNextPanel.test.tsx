@@ -131,7 +131,7 @@ describe('WhatsNextPanel', () => {
     expect(text).toContain('potwierdź')
   })
 
-  it('DRAFT with submit action clearly points to submitting the prepared case', () => {
+  it('DRAFT with CANCEL and SUBMIT explains submit or cancel-and-create-new mistake flow', () => {
     const tree = WhatsNextPanel(
       makeProps({
         status: 'DRAFT' as PortingCaseStatus,
@@ -139,23 +139,23 @@ describe('WhatsNextPanel', () => {
       }),
     )
     const text = getTextContent(tree)
-    expect(text).toContain('szkic')
-    expect(text).toContain('Zloz sprawe')
-    expect(text).toContain('przekaz')
+    expect(text).toContain('To robocza sprawa')
+    expect(text).toContain('Jeśli dane są poprawne, złóż sprawę')
+    expect(text).toContain('Jeśli dane są błędne, anuluj ją z powodem i załóż nową')
+    expect(text).not.toContain('Uzupełnij dane')
   })
 
-  it('DRAFT without submit action does not suggest unavailable submission', () => {
+  it('DRAFT without CANCEL does not suggest cancellation', () => {
     const tree = WhatsNextPanel(
       makeProps({
         status: 'DRAFT' as PortingCaseStatus,
-        availableStatusActions: [],
+        availableStatusActions: [SUBMIT_ACTION],
       }),
     )
     const text = getTextContent(tree)
-    expect(text).toContain('szkic')
-    expect(text).not.toContain('Zloz sprawe')
-    expect(text).not.toContain('zloz sprawe')
-    expect(text).not.toContain('przekazac ja do dalszej obslugi')
+    expect(text).toContain('Jeśli dane są poprawne, złóż sprawę')
+    expect(text).not.toContain('anuluj ją z powodem')
+    expect(text).not.toContain('załóż nową')
   })
 
   it('shows prioritized status action as primary button, wires scroll callback', () => {
@@ -369,6 +369,8 @@ describe('WhatsNextPanel', () => {
     )
     const text = getTextContent(tree)
     expect(text).toContain('anulowana')
+    expect(text).toContain('Jeśli sprawa była błędna, załóż nową poprawną sprawę')
+    expect(text).toContain('podgląd historii')
     expect(text).not.toContain('Najbliższy krok')
     expect(findByTestId(tree, 'whats-next-actions')).toBeUndefined()
   })

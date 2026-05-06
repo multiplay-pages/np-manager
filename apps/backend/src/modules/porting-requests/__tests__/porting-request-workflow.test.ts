@@ -23,6 +23,28 @@ describe('porting-request-workflow', () => {
     expect(actions.map((action) => action.targetStatus)).toEqual(['CANCELLED'])
   })
 
+  it('describes CANCEL actions as cancellation with reason for mistake flow', () => {
+    const draftCancel = getAvailableStatusActions('DRAFT', 'BOK_CONSULTANT').find(
+      (action) => action.actionId === 'CANCEL',
+    )
+    const submittedCancel = getAvailableStatusActions('SUBMITTED', 'BOK_CONSULTANT').find(
+      (action) => action.actionId === 'CANCEL',
+    )
+
+    expect(draftCancel).toMatchObject({
+      label: 'Anuluj',
+      requiresReason: true,
+      reasonLabel: 'Powód anulowania',
+      description: 'Anuluj roboczą sprawę, jeśli dane zostały wprowadzone błędnie.',
+    })
+    expect(submittedCancel).toMatchObject({
+      label: 'Anuluj',
+      requiresReason: true,
+      reasonLabel: 'Powód anulowania',
+      description: 'Anuluj sprawę z powodem i zatrzymaj dalszą obsługę.',
+    })
+  })
+
   it('allows valid transition and normalizes reason/comment', () => {
     const result = resolveWorkflowTransition(
       'PENDING_DONOR',
