@@ -50,7 +50,7 @@ const TERMINAL_COPY: Partial<Record<PortingCaseStatus, { headline: string; body:
   },
   CANCELLED: {
     headline: 'Sprawa została anulowana.',
-    body: 'Żadne akcje nie są dostępne.',
+    body: 'Sprawa została anulowana. Jeśli sprawa była błędna, załóż nową poprawną sprawę. Stara sprawa pozostaje jako ślad procesu; podgląd historii pozostaje dostępny.',
   },
 }
 
@@ -86,11 +86,21 @@ function buildNextStep(
 ): string | null {
   if (status === 'DRAFT') {
     const submitAction = availableStatusActions.find((a) => a.actionId === 'SUBMIT')
-    if (submitAction) {
-      return `szkic jest zapisany. Uzupełnij dane, a następnie użyj akcji „${submitAction.label}", aby przekazać sprawę dalej.`
+    const hasCancel = hasStatusAction(availableStatusActions, 'CANCEL')
+
+    if (submitAction && hasCancel) {
+      return `To robocza sprawa. Jeśli dane są poprawne, złóż sprawę akcją „${submitAction.label}". Jeśli dane są błędne, anuluj ją z powodem i załóż nową.`
     }
 
-    return 'szkic jest zapisany. Sprawdź dane i złóż sprawę, gdy będzie gotowa.'
+    if (submitAction) {
+      return `To robocza sprawa. Jeśli dane są poprawne, złóż sprawę akcją „${submitAction.label}".`
+    }
+
+    if (hasCancel) {
+      return 'To robocza sprawa. Jeśli dane są błędne, anuluj ją z powodem i załóż nową.'
+    }
+
+    return 'To robocza sprawa. Dostępne dalsze kroki zależą od Twojej roli.'
   }
 
   if (status === 'SUBMITTED') {
@@ -99,10 +109,15 @@ function buildNextStep(
       hasStatusAction(availableStatusActions, 'CONFIRM') ||
       hasStatusAction(availableStatusActions, 'REJECT')
     ) {
-      return 'Zweryfikuj dane i wybierz jedną z dostępnych akcji statusu: przekazanie do dawcy, potwierdź albo odrzuć.'
+      const cancelHint = hasStatusAction(availableStatusActions, 'CANCEL')
+        ? ' Jeżeli sprawa nie powinna być dalej obsługiwana, użyj anulowania z powodem.'
+        : ''
+      return `Zweryfikuj sprawę i wybierz jedną z dostępnych akcji statusu: przekazanie do dawcy, potwierdź albo odrzuć.${cancelHint}`
     }
 
-    return 'Sprawa jest złożona. Jeśli nie masz dostępnego kolejnego kroku, wróć do listy spraw i kontynuuj pracę na kolejce.'
+    return hasStatusAction(availableStatusActions, 'CANCEL')
+      ? 'Sprawa jest złożona. Jeżeli nie powinna być dalej obsługiwana, użyj anulowania z powodem.'
+      : 'Sprawa jest złożona. Jeśli nie masz dostępnego kolejnego kroku, wróć do listy spraw i kontynuuj pracę na kolejce.'
   }
 
   if (status === 'PENDING_DONOR') {
@@ -110,17 +125,25 @@ function buildNextStep(
       hasStatusAction(availableStatusActions, 'CONFIRM') ||
       hasStatusAction(availableStatusActions, 'REJECT')
     ) {
-      return 'Czekaj na odpowiedź dawcy. Gdy nadejdzie, użyj dostępnej akcji potwierdzenia albo odrzucenia.'
+      const cancelHint = hasStatusAction(availableStatusActions, 'CANCEL')
+        ? ' Jeżeli sprawa nie powinna być dalej obsługiwana, użyj anulowania z powodem.'
+        : ''
+      return `Czekaj na odpowiedź dawcy. Gdy nadejdzie, użyj dostępnej akcji potwierdzenia albo odrzucenia.${cancelHint}`
     }
 
-    return 'Czekaj na odpowiedź dawcy. Gdy sprawa będzie wymagała reakcji, dalszy krok pojawi się w akcjach statusu albo na liście spraw.'
+    return hasStatusAction(availableStatusActions, 'CANCEL')
+      ? 'Czekaj na odpowiedź dawcy. Jeżeli sprawa nie powinna być dalej obsługiwana, użyj anulowania z powodem.'
+      : 'Czekaj na odpowiedź dawcy. Gdy sprawa będzie wymagała reakcji, dalszy krok pojawi się w akcjach statusu albo na liście spraw.'
   }
 
   if (status === 'CONFIRMED') {
     const markPortedAction = availableStatusActions.find((a) => a.actionId === 'MARK_PORTED')
+    const cancelHint = hasStatusAction(availableStatusActions, 'CANCEL')
+      ? ' Jeżeli sprawa nie powinna być dalej obsługiwana, użyj anulowania z powodem.'
+      : ''
     return markPortedAction
-      ? `Numer przeniesiony? Użyj akcji „${markPortedAction.label}" w sekcji Akcje statusu.`
-      : 'Sprawa jest potwierdzona. Dostępne akcje zależą od Twojej roli — sprawdź sekcję akcji statusu.'
+      ? `Numer przeniesiony? Użyj akcji „${markPortedAction.label}" w sekcji Akcje statusu.${cancelHint}`
+      : `Sprawa jest potwierdzona. Dostępne akcje zależą od Twojej roli — sprawdź sekcję akcji statusu.${cancelHint}`
   }
   if (status === 'ERROR') {
     const hasResume = availableStatusActions.some((a) => a.actionId === 'RESUME_FROM_ERROR')

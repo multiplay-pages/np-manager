@@ -207,6 +207,24 @@ describe('RequestCommandCenter', () => {
     expect(screen.getByText('Tryb: DAY')).toBeDefined()
   })
 
+  it('keeps New request CTA available from the case detail hero', () => {
+    render(
+      <MemoryRouter>
+        <RequestCaseHero
+          request={{ ...BASE_REQUEST, statusInternal: 'CANCELLED' as const }}
+          urgency={URGENCY}
+          copyLinkDone={false}
+          onBackToList={vi.fn()}
+          onCopyLink={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: /\+ Nowa sprawa/ }).getAttribute('href')).toBe(
+      '/requests/new',
+    )
+  })
+
   it('PORTED with past date: urgency shows emerald not red Po terminie', () => {
     const portedUrgency: PortingUrgency = {
       level: 'LATER',

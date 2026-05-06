@@ -40,6 +40,17 @@ const ACTION_MARK_PORTED: PortingRequestStatusActionDto = {
   description: 'Zamknij sprawe jako zrealizowana.',
 }
 
+const ACTION_CANCEL: PortingRequestStatusActionDto = {
+  actionId: 'CANCEL',
+  label: 'Anuluj',
+  targetStatus: 'CANCELLED',
+  requiresReason: true,
+  requiresComment: false,
+  reasonLabel: 'Powód anulowania',
+  commentLabel: 'Komentarz operacyjny',
+  description: 'Anuluj roboczą sprawę, jeśli dane zostały wprowadzone błędnie.',
+}
+
 function buildProps(
   overrides: Partial<RequestWorkflowActionsSectionProps> = {},
 ): RequestWorkflowActionsSectionProps {
@@ -143,6 +154,22 @@ describe('RequestWorkflowActionsSection', () => {
     expect(screen.getByText('Komentarz odrzucenia')).toBeDefined()
     expect(screen.getByPlaceholderText('Powod odrzucenia')).toBeDefined()
     expect(screen.getByPlaceholderText('Dodaj wymagany komentarz')).toBeDefined()
+  })
+
+  it('cancel action form explains that reason is written to case history', () => {
+    render(
+      <RequestWorkflowActionsSection
+        {...buildProps({
+          statusInternal: 'DRAFT',
+          availableStatusActions: [ACTION_CANCEL],
+          selectedStatusAction: ACTION_CANCEL,
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Powód anulowania')).toBeDefined()
+    expect(screen.getByPlaceholderText('Powód anulowania')).toBeDefined()
+    expect(screen.getByText(/powód anulowania trafi do historii sprawy/i)).toBeDefined()
   })
 
   it('hides reason field when selected action does not require it', () => {

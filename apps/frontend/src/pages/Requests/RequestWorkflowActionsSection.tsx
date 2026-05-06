@@ -43,6 +43,10 @@ export interface RequestWorkflowActionsSectionProps {
   errorDiagnosticsEntry?: PortingRequestCaseHistoryItemDto | null
 }
 
+function isCancelStatusAction(action: PortingRequestStatusActionDto): boolean {
+  return action.actionId === 'CANCEL' || action.actionId === 'CANCEL_FROM_ERROR'
+}
+
 export function RequestWorkflowActionsSection({
   canManageStatus,
   statusInternal,
@@ -187,15 +191,20 @@ export function RequestWorkflowActionsSection({
               {selectedStatusAction.requiresReason && (
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-gray-600">
-                    {selectedStatusAction.reasonLabel ?? 'Powod'}
+                    {selectedStatusAction.reasonLabel ?? 'Powód'}
                   </span>
                   <input
                     type="text"
                     value={statusReason}
                     onChange={(event) => onStatusReasonChange(event.target.value)}
                     className="input-field"
-                    placeholder={selectedStatusAction.reasonLabel ?? 'Podaj powod'}
+                    placeholder={selectedStatusAction.reasonLabel ?? 'Podaj powód'}
                   />
+                  {isCancelStatusAction(selectedStatusAction) && (
+                    <span className="mt-1 block text-xs text-gray-500">
+                      Powód anulowania trafi do historii sprawy.
+                    </span>
+                  )}
                 </label>
               )}
 
