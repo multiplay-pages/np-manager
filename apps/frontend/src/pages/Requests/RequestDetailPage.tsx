@@ -42,7 +42,6 @@ import {
   syncPortingRequest,
   updatePortingRequestAssignment,
   updatePortingRequestCommercialOwner,
-  updatePortingRequestDetails,
   updatePortingRequestPortDate,
   updatePortingRequestStatus,
   listCommercialOwnerCandidates,
@@ -81,7 +80,6 @@ import {
   type NotificationFailureHistoryItemDto,
   type PortingRequestDetailsHistoryItemDto,
   type NotificationHealthDiagnosticsDto,
-  type UpdatePortingRequestDetailsDto,
   type UpdatePortingRequestPortDateDto,
 } from '@np-manager/shared'
 import { PortingAssignmentPanel } from '@/components/PortingAssignmentPanel/PortingAssignmentPanel'
@@ -692,8 +690,7 @@ export function RequestDetailPage() {
   const isRequestClosed = request
     ? TERMINAL_CLOSED_STATUSES.includes(request.statusInternal)
     : false
-  const canEditOperationalDetails = canEditDetailsRole && !isRequestClosed
-  const operationalDetailsDisabledReason = !canEditDetailsRole
+  const detailsEditDisabledReason = !canEditDetailsRole
     ? 'Twoja rola nie ma uprawnien do edycji danych sprawy.'
     : isRequestClosed
       ? 'Sprawa w statusie koncowym — edycja zablokowana.'
@@ -1468,29 +1465,6 @@ export function RequestDetailPage() {
     }
   }
 
-  const handleUpdateOperationalDetails = useCallback(
-    async (payload: UpdatePortingRequestDetailsDto) => {
-      if (!id) {
-        throw new Error('Brak identyfikatora sprawy.')
-      }
-
-      try {
-        const updatedRequest = await updatePortingRequestDetails(id, payload)
-        setRequest(updatedRequest)
-        void loadCaseHistory()
-        void loadDetailsHistory()
-      } catch (err) {
-        if (axios.isAxiosError(err)) {
-          const apiError = err.response?.data as { error?: { message?: string } } | undefined
-          const message = apiError?.error?.message
-          throw new Error(message ?? 'Nie udalo sie zapisac zmian.')
-        }
-        throw err instanceof Error ? err : new Error('Nie udalo sie zapisac zmian.')
-      }
-    },
-    [id, loadCaseHistory, loadDetailsHistory],
-  )
-
   const handleUpdatePortDate = useCallback(
     async (payload: UpdatePortingRequestPortDateDto) => {
       if (!id) {
@@ -2174,7 +2148,7 @@ export function RequestDetailPage() {
                     <RequestPortDatePanel
                       confirmedPortDate={request.confirmedPortDate}
                       canEdit={canEditPortDate}
-                      disabledReason={operationalDetailsDisabledReason}
+                      disabledReason={detailsEditDisabledReason}
                       onSave={handleUpdatePortDate}
                     />
                   </div>
@@ -2188,9 +2162,6 @@ export function RequestDetailPage() {
                     contactChannel={request.contactChannel}
                     internalNotes={request.internalNotes}
                     requestDocumentNumber={request.requestDocumentNumber}
-                    canEdit={canEditOperationalDetails}
-                    disabledReason={operationalDetailsDisabledReason}
-                    onSave={handleUpdateOperationalDetails}
                   />
                 </div>
               </SubGroup>
