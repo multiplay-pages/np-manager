@@ -93,7 +93,7 @@ describe('changePortingRequestStatus', () => {
           comment: 'Test QA - odrzucenie z powodem',
           metadata: {
             actionId: 'REJECT',
-            actionLabel: 'Odrzuc',
+            actionLabel: 'Odrzuć',
           },
         }),
       }),
@@ -127,7 +127,7 @@ describe('changePortingRequestStatus', () => {
         'user-1',
         'ADMIN',
       ),
-    ).rejects.toThrow(/Powod odrzucenia jest wymagany/)
+    ).rejects.toThrow(/Powód odrzucenia jest wymagany/)
 
     expect(mockTransaction).not.toHaveBeenCalled()
     expect(mockLogAuditEvent).not.toHaveBeenCalled()
@@ -162,7 +162,7 @@ describe('changePortingRequestStatus', () => {
           statusAfter: 'PORTED',
           metadata: {
             actionId: 'MARK_PORTED',
-            actionLabel: 'Oznacz jako przeniesiona',
+            actionLabel: 'Oznacz jako przeniesioną',
           },
         }),
       }),
@@ -191,7 +191,7 @@ describe('changePortingRequestStatus', () => {
         'user-bok',
         'BOK_CONSULTANT',
       ),
-    ).rejects.toThrow(/Twoja rola nie moze wykonac tej zmiany statusu/)
+    ).rejects.toThrow(/Twoja rola nie może wykonać tej zmiany statusu/)
 
     expect(mockTransaction).not.toHaveBeenCalled()
   })
@@ -210,7 +210,7 @@ describe('changePortingRequestStatus', () => {
         'user-admin',
         'ADMIN',
       ),
-    ).rejects.toThrow(/Sprawa ma juz wskazany status/)
+    ).rejects.toThrow(/Sprawa ma już wskazany status/)
 
     expect(mockTransaction).not.toHaveBeenCalled()
   })
@@ -291,7 +291,7 @@ describe('changePortingRequestStatus', () => {
           'user-admin',
           'ADMIN',
         ),
-      ).rejects.toThrow(/statusu sprzed wejscia w blad/)
+      ).rejects.toThrow(/statusu sprzed wejścia w błąd/)
 
       expect(mockTransaction).not.toHaveBeenCalled()
     })
@@ -306,7 +306,7 @@ describe('changePortingRequestStatus', () => {
           'user-admin',
           'ADMIN',
         ),
-      ).rejects.toThrow(/statusu sprzed wejscia w blad/)
+      ).rejects.toThrow(/statusu sprzed wejścia w błąd/)
     })
 
     it('blocks when comment is missing', async () => {
@@ -330,7 +330,7 @@ describe('changePortingRequestStatus', () => {
           'user-bok',
           'BOK_CONSULTANT',
         ),
-      ).rejects.toThrow(/Twoja rola nie moze wznowic sprawy z bledu/)
+      ).rejects.toThrow(/Twoja rola nie może wznowić sprawy z błędu/)
 
       expect(mockTransaction).not.toHaveBeenCalled()
     })

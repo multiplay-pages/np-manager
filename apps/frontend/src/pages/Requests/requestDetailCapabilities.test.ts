@@ -71,12 +71,12 @@ describe('requestDetailCapabilities', () => {
   it('does not suggest external actions when capability is disabled', () => {
     const manualMessage = getWorkflowErrorEmptyStateMessage(false)
 
-    expect(manualMessage).toContain('ustalic dalszy krok')
-    expect(manualMessage).not.toContain('zewnetrznych')
+    expect(manualMessage).toContain('ustalić dalszy krok')
+    expect(manualMessage).not.toContain('zewnętrznych')
   })
 
   it('keeps external-action guidance when capability is enabled', () => {
-    expect(getWorkflowErrorEmptyStateMessage(true)).toContain('akcji zewnetrznych')
+    expect(getWorkflowErrorEmptyStateMessage(true)).toContain('akcji zewnętrznych')
   })
 
   it('enables manual port-date confirmation only in standalone for allowed roles', () => {

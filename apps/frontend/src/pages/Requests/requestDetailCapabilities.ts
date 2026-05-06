@@ -22,10 +22,10 @@ export function getWorkflowErrorEmptyStateMessage(
   canUsePliCbdExternalActions: boolean,
 ): string {
   if (canUsePliCbdExternalActions) {
-    return 'Sprawa w stanie bledu - skontaktuj sie z przelozonym lub skorzystaj z akcji zewnetrznych ponizej.'
+    return 'Sprawa w stanie błędu — skontaktuj się z przełożonym lub skorzystaj z akcji zewnętrznych poniżej.'
   }
 
-  return 'Sprawa w stanie bledu - skontaktuj sie z przelozonym, aby ustalic dalszy krok.'
+  return 'Sprawa w stanie błędu — skontaktuj się z przełożonym, aby ustalić dalszy krok.'
 }
 
 export function canUseManualPortDateConfirmation(

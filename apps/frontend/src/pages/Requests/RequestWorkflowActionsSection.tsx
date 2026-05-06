@@ -224,7 +224,7 @@ export function RequestWorkflowActionsSection({
                   className="btn-primary"
                   disabled={isUpdatingStatus || isExporting || isSyncing}
                 >
-                  {isUpdatingStatus ? 'Zapis statusu' : selectedStatusAction.label}
+                  {isUpdatingStatus ? 'Zapisywanie...' : selectedStatusAction.label}
                 </button>
                 <button
                   type="button"
@@ -232,13 +232,13 @@ export function RequestWorkflowActionsSection({
                   className="btn-secondary"
                   disabled={isUpdatingStatus}
                 >
-                  Wyczysc
+                  Wyczyść
                 </button>
               </div>
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              Wybierz akcje, aby zmienic status sprawy.
+              Wybierz akcję, aby zmienić status sprawy.
             </div>
           )}
 
@@ -345,7 +345,7 @@ export function RequestWorkflowActionsSection({
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-          Twoja rola ma dostep tylko do podgladu sprawy.
+          Twoja rola ma dostęp tylko do podglądu sprawy.
         </div>
       )}
     </section>

@@ -47,7 +47,7 @@ describe('porting-events timeline mapping', () => {
       })
 
       expect(result.statusBefore).toBe('Szkic')
-      expect(result.statusAfter).toBe('Zlozona')
+      expect(result.statusAfter).toBe('Złożona')
     })
   })
 
@@ -67,8 +67,8 @@ describe('porting-events timeline mapping', () => {
       const result = mapStatusHistoryToTimelineItem(baseStatusEntry)
       expect(result.kind).toBe('STATUS')
       expect(result.badge).toBe('PENDING_DONOR')
-      expect(result.statusBefore).toBe('Zlozona')
-      expect(result.statusAfter).toBe('Oczekuje na dawce')
+      expect(result.statusBefore).toBe('Złożona')
+      expect(result.statusAfter).toBe('Oczekuje na dawcę')
     })
 
     it('joins reason and comment in description', () => {

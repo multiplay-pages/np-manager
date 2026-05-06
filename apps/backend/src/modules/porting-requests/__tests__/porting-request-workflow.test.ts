@@ -42,19 +42,19 @@ describe('porting-request-workflow', () => {
   it('rejects transition not allowed from current status', () => {
     expect(() =>
       resolveWorkflowTransition('DRAFT', { targetStatus: 'PORTED' }, 'ADMIN'),
-    ).toThrowError(/Nie mozna zmienic statusu/)
+    ).toThrowError(/Nie można zmienić statusu/)
   })
 
   it('rejects role not allowed for transition', () => {
     expect(() =>
       resolveWorkflowTransition('SUBMITTED', { targetStatus: 'CONFIRMED' }, 'BOK_CONSULTANT'),
-    ).toThrowError(/Twoja rola nie moze wykonac tej zmiany statusu/)
+    ).toThrowError(/Twoja rola nie może wykonać tej zmiany statusu/)
   })
 
   it('requires reason when configured', () => {
     expect(() =>
       resolveWorkflowTransition('SUBMITTED', { targetStatus: 'REJECTED' }, 'ADMIN'),
-    ).toThrowError(/Powod odrzucenia jest wymagany/)
+    ).toThrowError(/Powód odrzucenia jest wymagany/)
   })
 
   it('requires comment when configured', () => {
@@ -64,7 +64,7 @@ describe('porting-request-workflow', () => {
         { targetStatus: 'ERROR', reason: 'Bledne dane', comment: '   ' },
         'ADMIN',
       ),
-    ).toThrowError(/Szczegoly bledu jest wymagany/)
+    ).toThrowError(/Szczegóły błędu jest wymagany/)
   })
 
   it('MARK_PORTED is available from CONFIRMED for REVIEW_ROLES', () => {
@@ -101,13 +101,13 @@ describe('porting-request-workflow', () => {
   it('blocks CONFIRMED to PORTED for BOK_CONSULTANT', () => {
     expect(() =>
       resolveWorkflowTransition('CONFIRMED', { targetStatus: 'PORTED' }, 'BOK_CONSULTANT'),
-    ).toThrowError(/Twoja rola nie moze wykonac tej zmiany statusu/)
+    ).toThrowError(/Twoja rola nie może wykonać tej zmiany statusu/)
   })
 
   it('blocks already-PORTED request from being ported again', () => {
     expect(() =>
       resolveWorkflowTransition('PORTED', { targetStatus: 'PORTED' }, 'ADMIN'),
-    ).toThrowError(/Sprawa ma juz wskazany status/)
+    ).toThrowError(/Sprawa ma już wskazany status/)
   })
 
   describe('CANCEL_FROM_ERROR', () => {
@@ -137,7 +137,7 @@ describe('porting-request-workflow', () => {
     it('requires reason', () => {
       expect(() =>
         resolveWorkflowTransition('ERROR', { targetStatus: 'CANCELLED' }, 'ADMIN'),
-      ).toThrowError(/Powod anulowania z bledu jest wymagany/)
+      ).toThrowError(/Powód anulowania z błędu jest wymagany/)
     })
 
     it('blocks BOK_CONSULTANT from ERROR → CANCELLED', () => {
@@ -147,7 +147,7 @@ describe('porting-request-workflow', () => {
           { targetStatus: 'CANCELLED', reason: 'x' },
           'BOK_CONSULTANT',
         ),
-      ).toThrowError(/Twoja rola nie moze wykonac tej zmiany statusu/)
+      ).toThrowError(/Twoja rola nie może wykonać tej zmiany statusu/)
     })
   })
 

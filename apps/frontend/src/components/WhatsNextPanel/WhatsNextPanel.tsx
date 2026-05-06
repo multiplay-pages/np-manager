@@ -85,11 +85,12 @@ function buildNextStep(
   availableStatusActions: PortingRequestStatusActionDto[],
 ): string | null {
   if (status === 'DRAFT') {
-    if (hasStatusAction(availableStatusActions, 'SUBMIT')) {
-      return 'szkic jest gotowy: uzupelnij brakujace dane, a potem uzyj akcji "Zloz sprawe", zeby przekazac ja dalej.'
+    const submitAction = availableStatusActions.find((a) => a.actionId === 'SUBMIT')
+    if (submitAction) {
+      return `szkic jest zapisany. Uzupełnij dane, a następnie użyj akcji „${submitAction.label}", aby przekazać sprawę dalej.`
     }
 
-    return 'szkic jest zapisany. Backend nie udostepnia teraz akcji przekazania dalej dla Twojej sesji.'
+    return 'szkic jest zapisany. Sprawdź dane i złóż sprawę, gdy będzie gotowa.'
   }
 
   if (status === 'SUBMITTED') {
@@ -98,10 +99,10 @@ function buildNextStep(
       hasStatusAction(availableStatusActions, 'CONFIRM') ||
       hasStatusAction(availableStatusActions, 'REJECT')
     ) {
-      return 'Zweryfikuj dane i wybierz jedna z dostepnych akcji statusu: przekazanie do dawcy, potwierdź albo odrzuc.'
+      return 'Zweryfikuj dane i wybierz jedną z dostępnych akcji statusu: przekazanie do dawcy, potwierdź albo odrzuć.'
     }
 
-    return 'Sprawa jest zlozona. Jesli nie masz dostepnego kolejnego kroku, wroc do listy spraw i kontynuuj prace na kolejce.'
+    return 'Sprawa jest złożona. Jeśli nie masz dostępnego kolejnego kroku, wróć do listy spraw i kontynuuj pracę na kolejce.'
   }
 
   if (status === 'PENDING_DONOR') {
@@ -109,17 +110,17 @@ function buildNextStep(
       hasStatusAction(availableStatusActions, 'CONFIRM') ||
       hasStatusAction(availableStatusActions, 'REJECT')
     ) {
-      return 'Czekaj na odpowiedz dawcy. Gdy nadejdzie, uzyj dostepnej akcji potwierdzenia albo odrzucenia.'
+      return 'Czekaj na odpowiedź dawcy. Gdy nadejdzie, użyj dostępnej akcji potwierdzenia albo odrzucenia.'
     }
 
-    return 'Czekaj na odpowiedz dawcy. Gdy sprawa bedzie wymagala reakcji, dalszy krok pojawi sie w akcjach statusu albo na liscie spraw.'
+    return 'Czekaj na odpowiedź dawcy. Gdy sprawa będzie wymagała reakcji, dalszy krok pojawi się w akcjach statusu albo na liście spraw.'
   }
 
   if (status === 'CONFIRMED') {
-    const hasMarkPorted = availableStatusActions.some((a) => a.actionId === 'MARK_PORTED')
-    return hasMarkPorted
-      ? 'Numer przeniesiony? Użyj akcji "Oznacz jako przeniesiona" w sekcji Akcje statusu.'
-      : 'Sprawa jest potwierdzona. Dostępne akcje zależą od Twojej roli - sprawdź sekcję akcji statusu.'
+    const markPortedAction = availableStatusActions.find((a) => a.actionId === 'MARK_PORTED')
+    return markPortedAction
+      ? `Numer przeniesiony? Użyj akcji „${markPortedAction.label}" w sekcji Akcje statusu.`
+      : 'Sprawa jest potwierdzona. Dostępne akcje zależą od Twojej roli — sprawdź sekcję akcji statusu.'
   }
   if (status === 'ERROR') {
     const hasResume = availableStatusActions.some((a) => a.actionId === 'RESUME_FROM_ERROR')
@@ -242,7 +243,7 @@ function buildBlocker({
 
   if (!assignedUser) {
     return {
-      text: 'Sprawa nie ma przypisanego operatora BOK. Jesli zaczynasz obsluge, przypisz ja do siebie.',
+      text: 'Sprawa nie ma przypisanego operatora BOK. Jeśli zaczynasz obsługę, przypisz ją do siebie.',
       ctaLabel: canManageAssignment ? 'Przypisz do siebie' : 'Zobacz przypisanie',
       onClick: onScrollToAssignment,
     }
@@ -265,19 +266,19 @@ function buildBlocker({
 
 function buildStatusSummary(status: PortingCaseStatus): string {
   if (status === 'DRAFT') {
-    return 'To szkic sprawy. Dane sa zapisane, ale sprawa nie zostala jeszcze przekazana dalej.'
+    return 'To szkic sprawy. Dane są zapisane, ale sprawa nie została jeszcze przekazana dalej.'
   }
 
   if (status === 'SUBMITTED') {
-    return 'Sprawa zostala zlozona i czeka na dalsza obsluge operacyjna.'
+    return 'Sprawa została złożona i czeka na dalszą obsługę operacyjną.'
   }
 
   if (status === 'PENDING_DONOR') {
-    return 'Sprawa czeka na odpowiedz operatora oddajacego.'
+    return 'Sprawa czeka na odpowiedź operatora oddającego.'
   }
 
   if (status === 'CONFIRMED') {
-    return 'Sprawa jest potwierdzona i czeka na dzien przeniesienia.'
+    return 'Sprawa jest potwierdzona i czeka na dzień przeniesienia.'
   }
 
   return STATUS_SUMMARY[status]

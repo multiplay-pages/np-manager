@@ -240,13 +240,13 @@ export type PortingCaseStatus = (typeof PORTING_CASE_STATUSES)[keyof typeof PORT
 
 export const PORTING_CASE_STATUS_LABELS: Record<PortingCaseStatus, string> = {
   DRAFT: 'Szkic',
-  SUBMITTED: 'Zlozona',
-  PENDING_DONOR: 'Oczekuje na dawce',
+  SUBMITTED: 'Złożona',
+  PENDING_DONOR: 'Oczekuje na dawcę',
   CONFIRMED: 'Potwierdzona',
   REJECTED: 'Odrzucona',
   CANCELLED: 'Anulowana',
   PORTED: 'Przeniesiona',
-  ERROR: 'Blad',
+  ERROR: 'Błąd',
 }
 
 export const PORTING_CASE_STATUS_TRANSITIONS: Record<PortingCaseStatus, PortingCaseStatus[]> = {
@@ -261,13 +261,13 @@ export const PORTING_CASE_STATUS_TRANSITIONS: Record<PortingCaseStatus, PortingC
 }
 
 export const PORTING_CASE_STATUS_ACTION_LABELS: Partial<Record<PortingCaseStatus, string>> = {
-  SUBMITTED: 'Zloz sprawe',
-  PENDING_DONOR: 'Oczekiwanie na dawce',
-  CONFIRMED: 'Potwierdz',
-  REJECTED: 'Odrzuc',
+  SUBMITTED: 'Złóż sprawę',
+  PENDING_DONOR: 'Oczekiwanie na dawcę',
+  CONFIRMED: 'Potwierdź',
+  REJECTED: 'Odrzuć',
   CANCELLED: 'Anuluj',
-  ERROR: 'Oznacz blad',
-  PORTED: 'Oznacz jako przeniesiona',
+  ERROR: 'Oznacz błąd',
+  PORTED: 'Oznacz jako przeniesioną',
 }
 
 export const PORTING_CASE_STATUS_CONFIRMATION_TARGETS: PortingCaseStatus[] = [

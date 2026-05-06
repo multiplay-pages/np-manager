@@ -211,8 +211,8 @@ describe('PortingCommunicationPanel', () => {
     expect(html).toContain('Ta akcja nie jest dostepna dla zakonczonej sprawy.')
     expect(html).toContain('Przewidziana jest dla statusow:')
     expect(html).toContain('Szkic')
-    expect(html).toContain('Zlozona')
-    expect(html).toContain('Oczekuje na dawce')
+    expect(html).toContain('Złożona')
+    expect(html).toContain('Oczekuje na dawcę')
   })
 
   it('does not keep a stale success message when the panel is rendered again without feedback', () => {

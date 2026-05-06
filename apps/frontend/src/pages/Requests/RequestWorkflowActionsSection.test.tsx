@@ -85,7 +85,7 @@ describe('RequestWorkflowActionsSection', () => {
   it('renders read-only message when canManageStatus is false', () => {
     render(<RequestWorkflowActionsSection {...buildProps({ canManageStatus: false })} />)
 
-    expect(screen.getByText(/Twoja rola ma dostep tylko do podgladu/)).toBeDefined()
+    expect(screen.getByText(/Twoja rola ma dostęp tylko do podglądu/)).toBeDefined()
     expect(screen.queryByRole('button')).toBeNull()
   })
 

@@ -141,7 +141,7 @@ describe('WhatsNextPanel', () => {
     const text = getTextContent(tree)
     expect(text).toContain('szkic')
     expect(text).toContain('Zloz sprawe')
-    expect(text).toContain('przekazac')
+    expect(text).toContain('przekaz')
   })
 
   it('DRAFT without submit action does not suggest unavailable submission', () => {

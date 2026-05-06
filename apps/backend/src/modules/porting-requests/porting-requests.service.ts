@@ -1518,7 +1518,7 @@ async function resolveResumeFromErrorTarget(requestId: string): Promise<PortingC
   const statusBefore = entry?.statusBefore as PortingCaseStatus | null | undefined
   if (!statusBefore || !(RESUME_FROM_ERROR_ALLOWED_TARGETS as string[]).includes(statusBefore)) {
     throw AppError.badRequest(
-      'Nie mozna ustalic statusu sprzed wejscia w blad. Uzyj opcji anulowania.',
+      'Nie można ustalić statusu sprzed wejścia w błąd. Użyj opcji anulowania.',
       'ERROR_RESUME_TARGET_NOT_FOUND',
     )
   }
@@ -1539,13 +1539,13 @@ export async function changePortingRequestStatus(
   if (body.actionId === PORTING_REQUEST_STATUS_ACTION_IDS.RESUME_FROM_ERROR) {
     if (currentStatus !== 'ERROR') {
       throw AppError.badRequest(
-        'Wznowienie mozliwe tylko ze statusu ERROR.',
+        'Wznowienie możliwe tylko ze statusu ERROR.',
         'PORTING_REQUEST_STATUS_TRANSITION_NOT_ALLOWED',
       )
     }
     if (!REVIEW_ROLES.includes(userRole)) {
       throw AppError.forbidden(
-        'Twoja rola nie moze wznowic sprawy z bledu.',
+        'Twoja rola nie może wznowić sprawy z błędu.',
         'PORTING_REQUEST_STATUS_TRANSITION_ROLE_NOT_ALLOWED',
       )
     }
@@ -1558,9 +1558,9 @@ export async function changePortingRequestStatus(
     }
 
     const targetStatus = await resolveResumeFromErrorTarget(requestId)
-    const actionLabel = 'Wznow obsluge'
+    const actionLabel = 'Wznów obsługę'
     const descriptionLines = [
-      `Status sprawy zostal zmieniony z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[targetStatus]}.`,
+      `Status sprawy został zmieniony z ${PORTING_CASE_STATUS_LABELS[currentStatus]} na ${PORTING_CASE_STATUS_LABELS[targetStatus]}.`,
       `Komentarz: ${comment}`,
     ]
 
