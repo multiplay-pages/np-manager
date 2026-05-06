@@ -136,7 +136,7 @@ function buildAttentionItems({
       key: 'unassigned',
       tone: 'warning',
       title: 'Brak przypisania BOK',
-      description: 'Sprawa nie ma aktualnie przypisanego operatora odpowiedzialnego za obsluge.',
+      description: 'Sprawa nie ma aktualnie przypisanego operatora odpowiedzialnego za obsługę.',
       actionLabel: canManageAssignment ? 'Przypisz operatora' : 'Zobacz przypisanie',
       onAction: onScrollToAssignment,
     })
@@ -341,7 +341,7 @@ export function RequestCaseHero({
           />
         </CaseGroup>
 
-        <CaseGroup title="Obsluga">
+        <CaseGroup title="Obsługa">
           <DataField
             label="BOK"
             value={
