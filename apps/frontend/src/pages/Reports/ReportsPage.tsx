@@ -18,11 +18,14 @@ function currentMonthRange(): { dateFrom: string; dateTo: string } {
 
 export function ReportsPage() {
   const defaults = currentMonthRange()
-  const [dateFrom, setDateFrom] = useState(defaults.dateFrom)
-  const [dateTo, setDateTo] = useState(defaults.dateTo)
+  const [draftDateFrom, setDraftDateFrom] = useState(defaults.dateFrom)
+  const [draftDateTo, setDraftDateTo] = useState(defaults.dateTo)
+  const [appliedDateFrom, setAppliedDateFrom] = useState(defaults.dateFrom)
+  const [appliedDateTo, setAppliedDateTo] = useState(defaults.dateTo)
   const [report, setReport] = useState<PortingOperationalReportDto | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rangeError, setRangeError] = useState<string | null>(null)
 
   const fetchReport = useCallback(async (from: string, to: string) => {
     setIsLoading(true)
@@ -38,8 +41,18 @@ export function ReportsPage() {
   }, [])
 
   useEffect(() => {
-    void fetchReport(dateFrom, dateTo)
-  }, [fetchReport, dateFrom, dateTo])
+    void fetchReport(appliedDateFrom, appliedDateTo)
+  }, [fetchReport, appliedDateFrom, appliedDateTo])
+
+  function applyFilters() {
+    if (draftDateFrom > draftDateTo) {
+      setRangeError('Data „Od" nie może być późniejsza niż „Do".')
+      return
+    }
+    setRangeError(null)
+    setAppliedDateFrom(draftDateFrom)
+    setAppliedDateTo(draftDateTo)
+  }
 
   return (
     <div className="space-y-6">
@@ -58,9 +71,11 @@ export function ReportsPage() {
             <input
               id="dateFrom"
               type="date"
-              value={dateFrom}
-              max={dateTo}
-              onChange={(e) => setDateFrom(e.target.value)}
+              value={draftDateFrom}
+              onChange={(e) => setDraftDateFrom(e.target.value)}
+              onBlur={(e) => {
+                if (e.currentTarget.value) setDraftDateFrom(e.currentTarget.value)
+              }}
               className="rounded-ui border border-line bg-surface px-3 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -71,18 +86,30 @@ export function ReportsPage() {
             <input
               id="dateTo"
               type="date"
-              value={dateTo}
-              min={dateFrom}
-              onChange={(e) => setDateTo(e.target.value)}
+              value={draftDateTo}
+              onChange={(e) => setDraftDateTo(e.target.value)}
+              onBlur={(e) => {
+                if (e.currentTarget.value) setDraftDateTo(e.currentTarget.value)
+              }}
               className="rounded-ui border border-line bg-surface px-3 py-2 text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
+          <button
+            type="button"
+            onClick={applyFilters}
+            className="rounded-ui bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            Zastosuj
+          </button>
           {report && (
             <p className="pb-2 text-xs text-ink-400">
               Wygenerowano: {new Date(report.generatedAt).toLocaleString('pl-PL')}
             </p>
           )}
         </div>
+        {rangeError && (
+          <p className="mt-2 text-xs text-red-600">{rangeError}</p>
+        )}
       </SectionCard>
 
       {isLoading && (

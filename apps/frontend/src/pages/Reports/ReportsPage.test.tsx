@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReportsPage } from './ReportsPage'
@@ -58,13 +58,75 @@ describe('ReportsPage', () => {
     cleanup()
   })
 
-  it('renders title and date filter inputs', async () => {
+  it('renders title and loads default data on mount', async () => {
     getMock.mockResolvedValue(makeReport())
     renderPage()
 
     expect(screen.getByText('Raporty operacyjne')).toBeTruthy()
     expect(screen.getByLabelText('Od')).toBeTruthy()
     expect(screen.getByLabelText('Do')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Zastosuj' })).toBeTruthy()
+
+    await waitFor(() => {
+      expect(screen.getByText('Rozkład po statusach')).toBeTruthy()
+    })
+
+    expect(getMock).toHaveBeenCalledOnce()
+  })
+
+  it('clicking Zastosuj after changing draft dates fetches with new range', async () => {
+    getMock.mockResolvedValue(makeReport())
+    renderPage()
+
+    await waitFor(() => expect(getMock).toHaveBeenCalledOnce())
+    getMock.mockClear()
+
+    getMock.mockResolvedValue(makeReport({ dateFrom: '2026-04-01', dateTo: '2026-04-30' }))
+
+    fireEvent.change(screen.getByLabelText('Od'), { target: { value: '2026-04-01' } })
+    fireEvent.change(screen.getByLabelText('Do'), { target: { value: '2026-04-30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Zastosuj' }))
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith({ dateFrom: '2026-04-01', dateTo: '2026-04-30' })
+    })
+  })
+
+  it('onBlur commits programmatically set input value when onChange did not fire', async () => {
+    getMock.mockResolvedValue(makeReport())
+    renderPage()
+
+    await waitFor(() => expect(getMock).toHaveBeenCalledOnce())
+    getMock.mockClear()
+
+    getMock.mockResolvedValue(makeReport({ dateFrom: '2026-03-01', dateTo: '2026-03-31' }))
+
+    // Simulate browser/autofill setting value without triggering React onChange
+    const inputFrom = screen.getByLabelText('Od') as HTMLInputElement
+    Object.defineProperty(inputFrom, 'value', { value: '2026-03-01', configurable: true, writable: true })
+    fireEvent.blur(inputFrom)
+
+    fireEvent.change(screen.getByLabelText('Do'), { target: { value: '2026-03-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Zastosuj' }))
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith({ dateFrom: '2026-03-01', dateTo: '2026-03-31' })
+    })
+  })
+
+  it('shows range error and skips fetch when dateFrom > dateTo', async () => {
+    getMock.mockResolvedValue(makeReport())
+    renderPage()
+
+    await waitFor(() => expect(getMock).toHaveBeenCalledOnce())
+    getMock.mockClear()
+
+    fireEvent.change(screen.getByLabelText('Od'), { target: { value: '2026-06-01' } })
+    fireEvent.change(screen.getByLabelText('Do'), { target: { value: '2026-05-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Zastosuj' }))
+
+    expect(screen.getByText(/Data „Od" nie może być późniejsza/)).toBeTruthy()
+    expect(getMock).not.toHaveBeenCalled()
   })
 
   it('renders metric cards after data loads', async () => {
