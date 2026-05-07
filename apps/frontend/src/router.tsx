@@ -222,7 +222,7 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.TASKS,
         element: (
-          <PlaceholderPage title="Zadania" description="Implementacja w Sprint 2 (Faza 2)" />
+          <PlaceholderPage title="Zadania" description="Moduł zadań nie jest jeszcze dostępny." />
         ),
       },
       {
