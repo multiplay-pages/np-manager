@@ -213,6 +213,46 @@ Workflow spraw jest kontrolowany przez `availableStatusActions` zwracane przez b
 
 ---
 
+## Git workflow
+
+### Feature branch — obowiazkowy
+
+Galaz `main` jest chroniona: bezposredni push jest zablokowany. Kazda zmiana musi przejsc przez PR.
+
+```bash
+# 1. Nowa galaz od main
+git checkout main && git pull
+git checkout -b fix/nazwa-problemu   # lub feat/nazwa-funkcji
+
+# 2. Praca, commit
+git add <pliki>
+git commit -m "typ(scope): opis"
+
+# 3. Push i PR
+git push -u origin <nazwa-galezi>
+gh pr create --base main --title "typ(scope): opis" --body "..."
+
+# 4. Po merge — sprzatanie
+git checkout main && git pull
+git branch -d <nazwa-galezi>
+```
+
+### Konwencja nazw galezi
+
+| Typ | Wzorzec |
+|-----|---------|
+| Fix | `fix/krotki-opis` |
+| Nowa funkcja | `feat/krotki-opis` |
+| Refaktor | `refactor/krotki-opis` |
+| Dokumentacja | `docs/krotki-opis` |
+
+### PR bez reviewerow
+
+Projekt solo — PR nie wymaga zatwierdzenia. Merge mozliwy natychmiast po otwarciu.
+`enforce_admins=false`: wlasciciel repozytorium moze bezposrednio pushowac jesli konieczne (hotfix).
+
+---
+
 ## Ciaglosc miedzy sesjami
 
 Stan projektu jest udokumentowany w:
