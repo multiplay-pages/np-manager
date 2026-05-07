@@ -185,6 +185,86 @@ Po uruchomieniu `npm run db:seed` system zawiera:
 
 ---
 
+## Staging deployment (demo/QA)
+
+Etap 13 — pierwsze wdrożenie staging/demo. Realne SMTP, realne PLI CBD oraz dane produkcyjne **nie są** w zakresie tego środowiska.
+
+### Rekomendowana architektura
+
+| Warstwa | Platforma | Uwagi |
+|---|---|---|
+| Backend (Fastify, long-running Node) | Railway (lub VPS / Fly.io / Render) | `railway.json` w root — build + healthcheck `/health`. **Nie** Vercel serverless. |
+| PostgreSQL 16 | Railway Postgres / Neon / Supabase / RDS | `DATABASE_URL` przekazany do backendu |
+| Frontend (Vite SPA static) | Vercel / Netlify / Railway static / GH Pages | `vercel.json` (root) ma SPA fallback (`/(.*) → /index.html`), outputDirectory `apps/frontend/dist` |
+
+### Wymagane zmienne środowiskowe — backend (staging)
+
+| Klucz | Wartość staging |
+|---|---|
+| `NODE_ENV` | `staging` |
+| `PORT` | ustawiane przez platformę (Railway injectuje); backend nasłuchuje `0.0.0.0:$PORT` |
+| `DATABASE_URL` | `postgresql://USER:PASS@HOST:PORT/DB` (managed Postgres) |
+| `JWT_SECRET` | min. 32 znaki, unikalny — `openssl rand -hex 32` |
+| `JWT_EXPIRES_IN` | `8h` (lub krócej dla demo) |
+| `FRONTEND_URL` | publiczny URL frontendu staging (CORS allow-origin) |
+| `LOG_LEVEL` | `info` |
+| `UPLOAD_DIR` | `./uploads` (uwaga: ephemeral FS na Railway — pliki znikają po redeploy) |
+| `MAX_FILE_SIZE_MB` | `10` |
+| `INTERNAL_NOTIFICATION_EMAIL_ADAPTER` | `STUB` (brak realnego SMTP na stagingu) |
+| `SMTP_*` | puste |
+| `PLI_CBD_TRANSPORT_MODE` | `STUB` |
+| `PLI_CBD_REAL_SOAP_*` | puste / domyślne placeholdery |
+
+### Wymagane zmienne — frontend (staging)
+
+| Klucz | Wartość staging |
+|---|---|
+| `VITE_API_URL` | publiczny URL backendu staging, np. `https://np-manager-api.up.railway.app` |
+| `VITE_APP_NAME` | `NP-Manager (staging)` (opcjonalne) |
+
+### Kroki wdrożenia
+
+1. **Postgres** — utwórz bazę staging i pobierz `DATABASE_URL`.
+2. **Backend (Railway)**:
+   - Połącz repo, root `/`, plik `railway.json` zostanie wykryty automatycznie.
+   - Build: `npm ci && npm run build -w packages/shared && npm run build -w apps/backend` (wykonywany przez Railway).
+   - Start: `npm run db:migrate:prod -w apps/backend && npm run start -w apps/backend` — migracje uruchamiają się przed startem.
+   - Healthcheck: `/health`.
+   - Ustaw zmienne środowiskowe z tabeli powyżej.
+3. **Seed QA (jednorazowo, ręcznie)**:
+   ```bash
+   railway run --service backend npm run db:seed -w apps/backend
+   ```
+   Seed jest idempotentny i tworzy konta: `admin`, `bok`, `back-office`, `manager`, `auditor`. **Nie uruchamiaj seeda na produkcji z realnymi danymi.**
+4. **Frontend (Vercel)**:
+   - Project root: `apps/frontend` (lub root z `vercel.json` — patrz plik).
+   - Ustaw `VITE_API_URL` na URL backendu staging.
+   - Build/output zdefiniowane w `apps/frontend/vercel.json`.
+5. **CORS** — upewnij się, że `FRONTEND_URL` na backendzie = dokładny URL deployu frontendu (bez trailing slash).
+
+### Smoke checklist (po każdym deployu staging)
+
+- [ ] `GET /health` → `200`
+- [ ] `GET /health/ready` → `200` (DB osiągalna, schema OK)
+- [ ] Login: ADMIN, BOK, BACK_OFFICE, MANAGER, AUDITOR
+- [ ] Utworzenie sprawy FNP (BOK)
+- [ ] Przejście DRAFT → SUBMITTED
+- [ ] Anulowanie błędnej sprawy (Etap 10 flow)
+- [ ] `/reports` dostępne dla ADMIN i MANAGER i AUDITOR
+- [ ] `/reports` zablokowane dla BOK (403/redirect)
+- [ ] Brak błędów CORS w konsoli przeglądarki
+
+### Znane ograniczenia staging
+
+- PLI CBD: tryb STUB, brak realnej integracji SOAP.
+- Notyfikacje email: STUB, brak realnej wysyłki.
+- Dane: tylko demo/QA z seeda — **nie używać realnych danych klientów**.
+- Uploads na Railway: ephemeral FS — załączniki giną po redeploy (akceptowalne dla demo, do zmiany przy produkcji: S3/object storage).
+- Brak skonfigurowanego CI/CD (deploy ręczny / przez integrację Railway+GitHub).
+- Brak realnych sekretów w repo — wszystkie wartości są przykładowe.
+
+---
+
 ## Deployment checklist
 
 Przed wdrożeniem na środowisko produkcyjne lub staging:
