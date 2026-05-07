@@ -195,7 +195,7 @@ Etap 13 — pierwsze wdrożenie staging/demo. Realne SMTP, realne PLI CBD oraz d
 |---|---|---|
 | Backend (Fastify, long-running Node) | Railway (lub VPS / Fly.io / Render) | `railway.json` w root — build + healthcheck `/health`. **Nie** Vercel serverless. |
 | PostgreSQL 16 | Railway Postgres / Neon / Supabase / RDS | `DATABASE_URL` przekazany do backendu |
-| Frontend (Vite SPA static) | Vercel / Netlify / Railway static / GH Pages | `apps/frontend/vercel.json` ma SPA fallback (`/(.*) → /index.html`) |
+| Frontend (Vite SPA static) | Vercel / Netlify / Railway static / GH Pages | `vercel.json` (root) ma SPA fallback (`/(.*) → /index.html`), outputDirectory `apps/frontend/dist` |
 
 ### Wymagane zmienne środowiskowe — backend (staging)
 
