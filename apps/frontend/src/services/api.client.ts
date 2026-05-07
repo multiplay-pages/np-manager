@@ -4,10 +4,12 @@ import { useAuthStore } from '@/stores/auth.store'
 /**
  * Zwraca bazowy URL klienta HTTP.
  *
- * Prod/staging: VITE_API_URL=https://np-manager-production.up.railway.app
+ * Prod: VITE_API_URL=https://np-manager-production.up.railway.app (wymagane)
  *   → baseURL = 'https://np-manager-production.up.railway.app/api'
  *
- * Dev (brak VITE_API_URL): baseURL = '/api' — obsługiwany przez Vite proxy.
+ * Dev (brak VITE_API_URL lub localhost): baseURL = '/api' — Vite proxy → localhost:3001.
+ *
+ * Prod + brak VITE_API_URL lub localhost: blokuje wywołanie, loguje błąd, zwraca '/api'.
  *
  * Request interceptor: dołącza token JWT z auth store do każdego żądania.
  *
@@ -17,9 +19,24 @@ import { useAuthStore } from '@/stores/auth.store'
  * czyszczenia sesji i przekierowania.
  */
 export const getApiBaseUrl = (): string => {
-  const envUrl = import.meta.env.VITE_API_URL as string | undefined
-  if (!envUrl) return '/api'
-  return `${envUrl.replace(/\/$/, '')}/api`
+  const rawUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
+
+  const isLocalhost =
+    rawUrl?.startsWith('http://localhost') || rawUrl?.startsWith('http://127.0.0.1')
+
+  if (import.meta.env.PROD && (!rawUrl || isLocalhost)) {
+    console.error(
+      `[api.client] VITE_API_URL nie jest skonfigurowany dla produkcji` +
+        ` (wartość: "${rawUrl ?? 'undefined'}").` +
+        ` Ustaw VITE_API_URL=https://np-manager-production.up.railway.app` +
+        ` w Vercel Environment Variables.`,
+    )
+    return '/api'
+  }
+
+  if (!rawUrl) return '/api'
+
+  return `${rawUrl.replace(/\/$/, '')}/api`
 }
 
 export const apiClient = axios.create({
