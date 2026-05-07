@@ -2,9 +2,12 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth.store'
 
 /**
- * Klient HTTP dla całej aplikacji.
+ * Zwraca bazowy URL klienta HTTP.
  *
- * baseURL: '/api' — Vite proxy przekierowuje na http://localhost:3001/api
+ * Prod/staging: VITE_API_URL=https://np-manager-production.up.railway.app
+ *   → baseURL = 'https://np-manager-production.up.railway.app/api'
+ *
+ * Dev (brak VITE_API_URL): baseURL = '/api' — obsługiwany przez Vite proxy.
  *
  * Request interceptor: dołącza token JWT z auth store do każdego żądania.
  *
@@ -13,8 +16,14 @@ import { useAuthStore } from '@/stores/auth.store'
  * może normalnie obsłużyć błąd 401 (nieprawidłowe dane) bez niechcianego
  * czyszczenia sesji i przekierowania.
  */
+export const getApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined
+  if (!envUrl) return '/api'
+  return `${envUrl.replace(/\/$/, '')}/api`
+}
+
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
