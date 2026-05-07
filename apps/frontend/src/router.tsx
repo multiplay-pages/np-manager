@@ -20,6 +20,7 @@ import { PortingNotificationSettingsPage } from '@/pages/Admin/PortingNotificati
 import { NotificationFallbackSettingsPage } from '@/pages/Admin/NotificationFallbackSettingsPage'
 import { InternalNotificationAttemptsPage } from '@/pages/Notifications/InternalNotificationAttemptsPage'
 import { NotificationFailureQueuePage } from '@/pages/Notifications/NotificationFailureQueuePage'
+import { ReportsPage } from '@/pages/Reports/ReportsPage'
 import {
   getDefaultAuthenticatedRoute,
   getForcePasswordChangeRouteRedirect,
@@ -118,6 +119,29 @@ export function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+const REPORT_ROLES = ['ADMIN', 'MANAGER', 'AUDITOR'] as const
+
+function ReportAccessRoute({ children }: { children: React.ReactNode }) {
+  const { user, isHydrated } = useAuthStore()
+
+  if (!isHydrated) return null
+
+  if (!user || !(REPORT_ROLES as readonly string[]).includes(user.role)) {
+    return (
+      <div className="p-6">
+        <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+          <h1 className="text-2xl font-semibold text-gray-900">Brak dostępu do raportów</h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
+            Raporty operacyjne dostępne są dla administratorów, kierowników i audytorów.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
 export const router = createBrowserRouter([
   {
     path: ROUTES.LOGIN,
@@ -203,7 +227,11 @@ export const router = createBrowserRouter([
       },
       {
         path: ROUTES.REPORTS,
-        element: <PlaceholderPage title="Raporty" description="Implementacja w Sprint 8" />,
+        element: (
+          <ReportAccessRoute>
+            <ReportsPage />
+          </ReportAccessRoute>
+        ),
       },
       {
         path: ROUTES.ADMIN,

@@ -8,6 +8,7 @@ import {
   executePortingRequestExternalActionSchema,
   internalNotificationAttemptsQuerySchema,
   markPortingCommunicationSentSchema,
+  portingOperationalReportQuerySchema,
   portingRequestListQuerySchema,
   portingRequestSummaryQuerySchema,
   preparePortingCommunicationDraftSchema,
@@ -28,6 +29,7 @@ import {
   getPortingRequestIntegrationEvents,
   getPortingRequest,
   getPortingRequestByCaseNumber,
+  getPortingOperationalReport,
   listAssignablePortingRequestUsers,
   listCommercialOwnerCandidates,
   listPortingRequests,
@@ -108,6 +110,18 @@ export async function portingRequestsRouter(app: FastifyInstance): Promise<void>
     async (request, reply) => {
       const query = portingRequestSummaryQuerySchema.parse(request.query)
       const result = await getPortingRequestsOperationalSummary(query, request.user.id)
+      return reply.status(200).send({ success: true, data: result })
+    },
+  )
+
+  const reportRoles: UserRole[] = ['ADMIN', 'MANAGER', 'AUDITOR']
+
+  app.get(
+    '/operational-report',
+    { preHandler: [authenticate, authorize(reportRoles)] },
+    async (request, reply) => {
+      const query = portingOperationalReportQuerySchema.parse(request.query)
+      const result = await getPortingOperationalReport(query)
       return reply.status(200).send({ success: true, data: result })
     },
   )

@@ -488,6 +488,13 @@ export const portingRequestSummaryQuerySchema = z.object({
 
 export type PortingRequestSummaryQuery = z.input<typeof portingRequestSummaryQuerySchema>
 
+export const portingOperationalReportQuerySchema = z.object({
+  dateFrom: optionalDateOnlySchema,
+  dateTo: optionalDateOnlySchema,
+})
+
+export type PortingOperationalReportQuery = z.infer<typeof portingOperationalReportQuerySchema>
+
 export const internalNotificationAttemptsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 })

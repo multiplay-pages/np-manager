@@ -19,6 +19,7 @@ const primaryNavItems: NavItem[] = [
   { label: 'Sprawy', description: 'Portowanie numerow', path: ROUTES.REQUESTS, icon: 'request-queue' },
   { label: 'Klienci', description: 'Kartoteka klientow', path: ROUTES.CLIENTS, icon: 'clients' },
   { label: 'Operatorzy', description: 'Slownik operatorow', path: ROUTES.OPERATORS, icon: 'operators' },
+  { label: 'Raporty', description: 'Podsumowanie operacyjne', path: ROUTES.REPORTS, icon: 'reports', roles: ['ADMIN', 'MANAGER', 'AUDITOR'] },
 ]
 
 const adminNavItems: NavItem[] = [

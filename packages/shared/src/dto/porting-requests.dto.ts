@@ -178,6 +178,41 @@ export interface PortingRequestOperationalSummaryDto {
 }
 
 // ============================================================
+// RAPORT OPERACYJNY
+// ============================================================
+
+export interface PortingOperationalReportByStatusItemDto {
+  status: PortingCaseStatus
+  label: string
+  count: number
+}
+
+export interface PortingOperationalReportAttentionDto {
+  errorCount: number
+  pendingDonorCount: number
+  missingConfirmedPortDateCount: number
+}
+
+export interface PortingOperationalReportTotalsDto {
+  createdInPeriod: number
+  inProgress: number
+  ported: number
+  cancelled: number
+  rejected: number
+  error: number
+  pendingDonor: number
+}
+
+export interface PortingOperationalReportDto {
+  dateFrom: string
+  dateTo: string
+  generatedAt: string
+  totals: PortingOperationalReportTotalsDto
+  byStatus: PortingOperationalReportByStatusItemDto[]
+  attention: PortingOperationalReportAttentionDto
+}
+
+// ============================================================
 // CREATE
 // ============================================================
 

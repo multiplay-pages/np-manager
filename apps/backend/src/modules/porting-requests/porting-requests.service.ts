@@ -1339,6 +1339,79 @@ export async function getPortingRequestsOperationalSummary(
   }
 }
 
+export async function getPortingOperationalReport(
+  query: import('./porting-requests.schema').PortingOperationalReportQuery,
+): Promise<import('@np-manager/shared').PortingOperationalReportDto> {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
+  const defaultDateFrom = `${year}-${month}-01`
+  const defaultDateTo = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+
+  const dateFrom = typeof query.dateFrom === 'string' ? query.dateFrom : defaultDateFrom
+  const dateTo = typeof query.dateTo === 'string' ? query.dateTo : defaultDateTo
+
+  const periodWhere: Prisma.PortingRequestWhereInput = {
+    createdAt: {
+      gte: toDateOnlyValue(dateFrom),
+      lte: toDateOnlyEndValue(dateTo),
+    },
+  }
+
+  const statuses = ['DRAFT', 'SUBMITTED', 'PENDING_DONOR', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'PORTED', 'ERROR'] as const
+  type ReportStatus = (typeof statuses)[number]
+
+  const statusCounts = await prisma.$transaction(
+    statuses.map((status) =>
+      prisma.portingRequest.count({
+        where: { ...periodWhere, statusInternal: status },
+      }),
+    ),
+  ) as number[]
+
+  const byStatusMap = Object.fromEntries(
+    statuses.map((status, i) => [status, statusCounts[i] ?? 0]),
+  ) as Record<ReportStatus, number>
+
+  const inProgressStatuses: ReportStatus[] = ['DRAFT', 'SUBMITTED', 'PENDING_DONOR', 'CONFIRMED', 'ERROR']
+  const inProgress = inProgressStatuses.reduce((sum, s) => sum + byStatusMap[s], 0)
+  const createdInPeriod = statuses.reduce((sum, s) => sum + byStatusMap[s], 0)
+
+  const missingConfirmedPortDateCount = await prisma.portingRequest.count({
+    where: {
+      ...periodWhere,
+      statusInternal: { in: inProgressStatuses },
+      confirmedPortDate: null,
+    },
+  })
+
+  return {
+    dateFrom,
+    dateTo,
+    generatedAt: now.toISOString(),
+    totals: {
+      createdInPeriod,
+      inProgress,
+      ported: byStatusMap['PORTED'],
+      cancelled: byStatusMap['CANCELLED'],
+      rejected: byStatusMap['REJECTED'],
+      error: byStatusMap['ERROR'],
+      pendingDonor: byStatusMap['PENDING_DONOR'],
+    },
+    byStatus: statuses.map((status) => ({
+      status,
+      label: PORTING_CASE_STATUS_LABELS[status],
+      count: byStatusMap[status],
+    })),
+    attention: {
+      errorCount: byStatusMap['ERROR'],
+      pendingDonorCount: byStatusMap['PENDING_DONOR'],
+      missingConfirmedPortDateCount,
+    },
+  }
+}
+
 export async function getPortingRequest(
   id: string,
   actorRole: UserRole,

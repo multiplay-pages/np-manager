@@ -10,7 +10,7 @@ const { authState, mockedUseAuthStore } = vi.hoisted(() => {
       email: string
       firstName: string
       lastName: string
-      role: 'ADMIN' | 'BOK_CONSULTANT'
+      role: 'ADMIN' | 'BOK_CONSULTANT' | 'MANAGER' | 'AUDITOR'
       forcePasswordChange: boolean
     }
     clearAuth: ReturnType<typeof vi.fn>
@@ -74,7 +74,7 @@ describe('AppLayout admin navigation', () => {
     expect(html).toContain('Kolejka diagnostyczna')
     expect(html).not.toContain('Zadania')
     expect(html).not.toContain('Praca zespolu')
-    expect(html).not.toContain('Raporty')
+    expect(html).toContain('Raporty')
     expect(html).not.toContain('Kontrola i wyniki')
   })
 
@@ -104,5 +104,51 @@ describe('AppLayout admin navigation', () => {
     expect(html).not.toContain('Bledy notyfikacji')
     expect(html).not.toContain('Zadania')
     expect(html).not.toContain('Raporty')
+  })
+
+  it('shows Raporty navigation link for MANAGER', () => {
+    authState.user = {
+      id: 'mgr-1',
+      email: 'manager@np-manager.local',
+      firstName: 'Marek',
+      lastName: 'Manager',
+      role: 'MANAGER',
+      forcePasswordChange: false,
+    }
+
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<div>Dashboard</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(html).toContain('Raporty')
+  })
+
+  it('shows Raporty navigation link for AUDITOR', () => {
+    authState.user = {
+      id: 'aud-1',
+      email: 'auditor@np-manager.local',
+      firstName: 'Anna',
+      lastName: 'Audytor',
+      role: 'AUDITOR',
+      forcePasswordChange: false,
+    }
+
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<div>Dashboard</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(html).toContain('Raporty')
   })
 })
