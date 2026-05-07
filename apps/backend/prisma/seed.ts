@@ -879,6 +879,12 @@ export const QA_SEED_USERS = [
     firstName: 'Manager',
     lastName: 'QA',
   },
+  {
+    email: 'auditor@np-manager.local',
+    role: 'AUDITOR' as const,
+    firstName: 'Audytor',
+    lastName: 'QA',
+  },
 ] as const
 
 // ============================================================
@@ -1281,6 +1287,32 @@ export async function seedMain() {
   console.info('   ✓ Konto testowe MANAGER gotowe')
   console.info('   📧  E-mail:  manager@np-manager.local')
   console.info('   🔑  Hasło:   Manager@NP2026!')
+
+  // Konto testowe AUDITOR — dostep do raportow operacyjnych (tylko odczyt)
+  const auditorPassword = 'Auditor@NP2026!'
+  const auditorPasswordHash = await bcrypt.hash(auditorPassword, 12)
+
+  await prisma.user.upsert({
+    where: { email: 'auditor@np-manager.local' },
+    update: {
+      passwordHash: auditorPasswordHash,
+      firstName: 'Audytor',
+      lastName: 'QA',
+      role: 'AUDITOR',
+      isActive: true,
+    },
+    create: {
+      email: 'auditor@np-manager.local',
+      passwordHash: auditorPasswordHash,
+      firstName: 'Audytor',
+      lastName: 'QA',
+      role: 'AUDITOR',
+      isActive: true,
+    },
+  })
+  console.info('   ✓ Konto testowe AUDITOR gotowe')
+  console.info('   📧  E-mail:  auditor@np-manager.local')
+  console.info('   🔑  Hasło:   Auditor@NP2026!')
 
   // ----------------------------------------------------------
   // 6. DANE QA â€” klient i sprawy portowania
@@ -2362,7 +2394,7 @@ export async function seedMain() {
   console.info(`  • ${transitionCount} przejść statusów`)
   console.info(`  • ${documentTypes.length} typów dokumentów`)
   console.info(`  • ${operators.length} operatorów`)
-  console.info('  • 4 konta użytkowników (ADMIN + BOK_CONSULTANT + BACK_OFFICE + MANAGER)')
+  console.info('  • 5 kont użytkowników (ADMIN + BOK_CONSULTANT + BACK_OFFICE + MANAGER + AUDITOR)')
   console.info(`  • ${settings.length} ustawień systemowych`)
   console.info(`  • ${holidays2026.length} dni wolnych 2026`)
   console.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')

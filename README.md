@@ -54,11 +54,17 @@ npm run db:migrate
 npm run db:seed
 ```
 
-Po seedzie dostępne jest konto administratora:
-- **E-mail:** `admin@np-manager.local`
-- **Hasło:** `Admin@NP2026!`
+Po seedzie dostępne są konta QA:
 
-> ⚠️ Zmień hasło administratora po pierwszym zalogowaniu.
+| Rola | E-mail | Hasło |
+|---|---|---|
+| ADMIN | `admin@np-manager.local` | `Admin@NP2026!` |
+| BOK_CONSULTANT | `bok@np-manager.local` | `Bok@NP2026!` |
+| BACK_OFFICE | `back-office@np-manager.local` | `BackOffice@NP2026!` |
+| MANAGER | `manager@np-manager.local` | `Manager@NP2026!` |
+| AUDITOR | `auditor@np-manager.local` | `Auditor@NP2026!` |
+
+> ⚠️ Konta QA są przeznaczone wyłącznie do środowiska dev/demo. Nie używaj tych haseł na produkcji.
 
 ### 5. Uruchom aplikację w trybie deweloperskim
 
@@ -176,6 +182,24 @@ Po uruchomieniu `npm run db:seed` system zawiera:
 - 5 przykładowych operatorów telekomunikacyjnych
 - Ustawienia systemowe (SLA, limity plików)
 - Kalendarz świąt 2026
+
+---
+
+## Deployment checklist
+
+Przed wdrożeniem na środowisko produkcyjne lub staging:
+
+- [ ] Ustaw `NODE_ENV=production` w środowisku backendu
+- [ ] Wygeneruj silny `JWT_SECRET` (min. 32 znaki): `openssl rand -hex 32`
+- [ ] Ustaw `DATABASE_URL` wskazujący na produkcyjną bazę PostgreSQL
+- [ ] Ustaw `FRONTEND_URL` na docelowy adres frontendu (CORS)
+- [ ] Uruchom migracje przed startem: `npm run db:migrate:prod`
+- [ ] Zweryfikuj health check: `GET /health/ready` powinno zwracać `200`
+- [ ] Ustaw `INTERNAL_NOTIFICATION_EMAIL_ADAPTER=STUB|REAL|DISABLED` zgodnie z potrzebą
+- [ ] Nie seeduj kont QA na produkcji (`npm run db:seed` tylko dev/demo)
+- [ ] Zmień hasło pgAdmin (`admin123`) jeśli pgAdmin jest dostępny publicznie
+- [ ] Backend: długo żyjący proces Node.js (Railway, VPS) — nie Vercel serverless
+- [ ] Frontend: statyczny hosting (Vercel, Netlify, nginx) z `VITE_API_URL` wskazującym na backend
 
 ---
 
