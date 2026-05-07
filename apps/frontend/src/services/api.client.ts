@@ -21,8 +21,14 @@ import { useAuthStore } from '@/stores/auth.store'
 export const getApiBaseUrl = (): string => {
   const rawUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
 
-  const isLocalhost =
-    rawUrl?.startsWith('http://localhost') || rawUrl?.startsWith('http://127.0.0.1')
+  const isLocalhost = (() => {
+    try {
+      const { hostname } = new URL(rawUrl ?? '')
+      return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    } catch {
+      return false
+    }
+  })()
 
   if (import.meta.env.PROD && (!rawUrl || isLocalhost)) {
     console.error(

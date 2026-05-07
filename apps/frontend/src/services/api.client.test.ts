@@ -40,4 +40,13 @@ describe('getApiBaseUrl', () => {
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('VITE_API_URL'))
     consoleSpy.mockRestore()
   })
+
+  it('does not block PROD URL with localhost in domain name (e.g. localhost.example.com)', () => {
+    vi.stubEnv('PROD', true)
+    vi.stubEnv('VITE_API_URL', 'https://localhost.example.com')
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(getApiBaseUrl()).toBe('https://localhost.example.com/api')
+    expect(consoleSpy).not.toHaveBeenCalled()
+    consoleSpy.mockRestore()
+  })
 })
