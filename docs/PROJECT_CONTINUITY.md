@@ -13,7 +13,7 @@ Powstała część A/B w [Notion](https://app.notion.com/p/3f3daa43f5688183baf6f
 - Wymagania i decyzje pozostają propozycjami: brak osób/dat zatwierdzenia, wyników badań BOK i decyzji o rewrite. Nie zmieniono kierunku produktu ani reguł biznesowych.
 - Poprawiono instrukcje README/CLAUDE (stack, testy, konfiguracja hostingu); roadmapę poniżej traktować historycznie. Obecne UI wskazówek nie jest backendowym kontraktem rekomendacji.
 - Lokalna weryfikacja 2026-10-09: backend604/604 PASS; frontend447/448 (Email/E-mail) FAIL; tsc obu apps PASS. Dokładny lokalny SHA091e533; nie deklarować suite GitHub1292827. Build/browser/integracje niewykonane.
-- FigJam oczekuje na wybór planu/zespołu w widżecie; nie deklarować utworzenia pliku lub prototypu.
+- Wygenerowano interaktywną mapę bramek przebudowy w FigJam; link do otwarcia/przejęcia jest w PRODUCT_DISCOVERY i Notion B4. To diagram, nie klikalny prototyp UI ani wynik badania.
 
 Poniższa historia jest zachowana. Starsze wpisy DONE opisują efekt danego etapu, nie potwierdzają aktualnego UI ani gotowości produkcyjnej.
 

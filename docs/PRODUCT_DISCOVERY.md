@@ -25,7 +25,7 @@ Treść R01–R22 pozostaje w [13.1 — Doświadczenia i wymagania](https://app.
 - Wszystkie nowe T01–T12, D01–D12 i M01–M14 wymagają uzgodnienia. Role konsultacyjne nie są przydziałem pracy konkretnym osobom.
 - Nie przeprowadzono w tym uzupełnieniu badań BOK, browser E2E, odbioru PLI ani rzeczywistych wysyłek.
 - Nie zdecydowano o rewrite, nowym stacku, usunięciu modułów ani migracji danych.
-- Brief F01–F05 jest przygotowany. Publikacja diagramu FigJam wymaga wyboru planu/zespołu w widżecie; nie jest potwierdzonym plikiem ani klikalnym prototypem.
+- Brief F01–F05 jest przygotowany. Wygenerowano [interaktywną mapę bramek przebudowy w FigJam](https://www.figma.com/board/SCPdPIQ6kMwPTRxCiJi5S7?utm_source=chatgpt&utm_content=edit_in_figjam&oai_id=v1%2Fq4OdG7RGjvjtHFMQyk8tOK9ue87DFZmjWmPdtGsRdgkjD8xtv1NMH2&request_id=d1e51fe9-358a-4cff-8e6c-8c9fcee07a80); link pozwala ją otworzyć/przejąć. To diagram etapów decyzji, nie klikalny prototyp UI ani wynik badania BOK.
 
 ## Kolejność decyzji
 
