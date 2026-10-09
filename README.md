@@ -4,11 +4,19 @@ System zarządzania przenoszeniem numerów telefonów stacjonarnych.
 
 ---
 
+## Dokumentacja i przygotowanie kolejnej wersji
+
+[Indeks w Notion](https://app.notion.com/p/3f3daa43f5688183baf6f727b9eb8004) rozdziela pracę BOK (A), propozycje wymagań i weryfikacji (B) oraz snapshot obecnej implementacji (C). [PRODUCT_DISCOVERY.md](docs/PRODUCT_DISCOVERY.md) wskazuje źródła, status decyzji i warunki rozpoczęcia przebudowy. Utworzenie dokumentacji nie zatwierdza rewrite ani reguł biznesowych.
+
+Wyniki testów muszą wskazywać dokładny SHA. Lokalna walidacja `091e533` nie jest wynikiem suite GitHub `1292827`. Build, browser E2E i zewnętrzne integracje wymagają osobnych dowodów.
+
+`npm run test` buduje shared przed uruchomieniem suite. Obecny discovery shared może zebrać skompilowane testy z `dist` i zatrzymać pipeline; focused `npx vitest run src/porting-urgency.test.ts` nie zastępuje pełnej suite. Backend/frontend można diagnozować osobno przez `npx vitest run` z ich katalogów.
+
 ## Wymagania
 
 | Narzędzie | Wersja minimalna |
 |---|---|
-| Node.js | 20.x LTS |
+| Node.js | 24+ albo 20.19+ w linii 20 / 22.13+ w linii 22 (wymagania lockfile Vite/jsdom) |
 | npm | 10.x |
 | Docker + Docker Compose | Dowolna aktualna |
 
@@ -21,7 +29,7 @@ System zarządzania przenoszeniem numerów telefonów stacjonarnych.
 ```bash
 git clone <repo-url>
 cd np-manager
-npm install
+npm ci
 ```
 
 ### 2. Skopiuj pliki środowiskowe
@@ -142,7 +150,7 @@ Szczegółowy opis architektury: [docs/architecture.md](docs/architecture.md)
 | `npm run lint` | Sprawdzenie kodu ESLint |
 | `npm run lint:fix` | Automatyczna naprawa problemów ESLint |
 | `npm run format` | Formatowanie kodu Prettier |
-| `npm run test` | Uruchomienie testów (shared + backend) |
+| `npm run test` | Build shared, następnie testy shared → backend → frontend; błąd zatrzymuje kolejne etapy |
 | `npm run db:migrate` | Wykonanie nowych migracji Prisma |
 | `npm run db:migrate:prod` | Migracje w trybie produkcyjnym |
 | `npm run db:seed` | Załadowanie danych startowych |
@@ -163,9 +171,9 @@ Szczegółowy opis architektury: [docs/architecture.md](docs/architecture.md)
 
 ## Technologie
 
-**Backend:** Node.js 20, TypeScript, Fastify 4, Prisma 5, PostgreSQL 16, Zod
+**Backend:** Node.js zgodny z wymaganiami powyżej, TypeScript, Fastify 5.8.5, Prisma 5, PostgreSQL 16, Zod
 
-**Frontend:** React 18, TypeScript, Vite 5, Tailwind CSS 3, React Router 6, Zustand
+**Frontend:** React 18, TypeScript, Vite 8.0.9, Tailwind CSS 3, React Router 6, Zustand
 
 **Shared:** TypeScript, Zod (walidatory PESEL, NIP, numery PL)
 
@@ -201,7 +209,7 @@ Etap 13 — pierwsze wdrożenie staging/demo. Realne SMTP, realne PLI CBD oraz d
 
 | Klucz | Wartość staging |
 |---|---|
-| `NODE_ENV` | `staging` |
+| `NODE_ENV` | `staging` (wartość dopuszczona przez schema backendu) |
 | `PORT` | ustawiane przez platformę (Railway injectuje); backend nasłuchuje `0.0.0.0:$PORT` |
 | `DATABASE_URL` | `postgresql://USER:PASS@HOST:PORT/DB` (managed Postgres) |
 | `JWT_SECRET` | min. 32 znaki, unikalny — `openssl rand -hex 32` |
@@ -210,7 +218,8 @@ Etap 13 — pierwsze wdrożenie staging/demo. Realne SMTP, realne PLI CBD oraz d
 | `LOG_LEVEL` | `info` |
 | `UPLOAD_DIR` | `./uploads` (uwaga: ephemeral FS na Railway — pliki znikają po redeploy) |
 | `MAX_FILE_SIZE_MB` | `10` |
-| `INTERNAL_NOTIFICATION_EMAIL_ADAPTER` | `STUB` (brak realnego SMTP na stagingu) |
+| `INTERNAL_NOTIFICATION_EMAIL_ADAPTER` | `STUB` (wewnętrzny email; brak realnego SMTP na stagingu) |
+| `COMMUNICATION_DELIVERY_ADAPTER` | `STUB` (osobny adapter komunikacji klienta; obecnie obsługuje wyłącznie STUB) |
 | `SMTP_*` | puste |
 | `PLI_CBD_TRANSPORT_MODE` | `STUB` |
 | `PLI_CBD_REAL_SOAP_*` | puste / domyślne placeholdery |
@@ -219,7 +228,7 @@ Etap 13 — pierwsze wdrożenie staging/demo. Realne SMTP, realne PLI CBD oraz d
 
 | Klucz | Wartość staging |
 |---|---|
-| `VITE_API_URL` | publiczny URL backendu staging, np. `https://np-manager-api.up.railway.app` |
+| `VITE_API_URL` | publiczny URL backendu staging bez `/api`, np. `https://np-manager-api.up.railway.app`; ustawiany przed buildem |
 | `VITE_APP_NAME` | `NP-Manager (staging)` (opcjonalne) |
 
 ### Kroki wdrożenia
@@ -227,7 +236,7 @@ Etap 13 — pierwsze wdrożenie staging/demo. Realne SMTP, realne PLI CBD oraz d
 1. **Postgres** — utwórz bazę staging i pobierz `DATABASE_URL`.
 2. **Backend (Railway)**:
    - Połącz repo, root `/`, plik `railway.json` zostanie wykryty automatycznie.
-   - Build: `npm ci && npm run build -w packages/shared && npm run build -w apps/backend` (wykonywany przez Railway).
+   - Instalacja zależności jest osobnym etapem buildera. `buildCommand` zapisany w `railway.json`: `npm run build -w packages/shared && npm run build -w apps/backend`.
    - Start: `npm run db:migrate:prod -w apps/backend && npm run start -w apps/backend` — migracje uruchamiają się przed startem.
    - Healthcheck: `/health`.
    - Ustaw zmienne środowiskowe z tabeli powyżej.
@@ -235,11 +244,11 @@ Etap 13 — pierwsze wdrożenie staging/demo. Realne SMTP, realne PLI CBD oraz d
    ```bash
    railway run --service backend npm run db:seed -w apps/backend
    ```
-   Seed jest idempotentny i tworzy konta: `admin`, `bok`, `back-office`, `manager`, `auditor`. **Nie uruchamiaj seeda na produkcji z realnymi danymi.**
+   Seed tworzy/aktualizuje konta i odtwarza wybrane fixture QA (także przez `deleteMany`); nie jest migracją danych produkcyjnych. Konta: `admin`, `bok`, `back-office`, `manager`, `auditor`. **Nie uruchamiaj seeda na produkcji z realnymi danymi.**
 4. **Frontend (Vercel)**:
-   - Project root: `apps/frontend` (lub root z `vercel.json` — patrz plik).
-   - Ustaw `VITE_API_URL` na URL backendu staging.
-   - Build/output zdefiniowane w `apps/frontend/vercel.json`.
+   - Project root: root repozytorium; konfiguracja w `/vercel.json`, output `apps/frontend/dist`. Plik `apps/frontend/vercel.json` nie istnieje w tym checkout.
+   - Ustaw `VITE_API_URL` przed buildem na publiczny URL backendu bez `/api` na końcu (klient dodaje `/api`). Zmiana wartości wymaga ponownego builda.
+   - Build/output i SPA fallback są zdefiniowane w rootowym `vercel.json`.
 5. **CORS** — upewnij się, że `FRONTEND_URL` na backendzie = dokładny URL deployu frontendu (bez trailing slash).
 
 ### Smoke checklist (po każdym deployu staging)

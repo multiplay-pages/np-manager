@@ -2,7 +2,20 @@
 
 Dokument Etapu 0. Cel: uporzadkowac kierunek produktu przed kolejnymi PR-ami. Nie jest to pelny audyt repo ani specyfikacja wszystkich funkcji.
 
-## 1. Obecny stan produktu
+## Status dokumentu — przegląd 2026-10-09
+
+To historyczna propozycja Etapu 0, oparta na ograniczonej analizie; poniższe etapy nie są aktualną listą brakujących funkcji ani zatwierdzonym planem następcy. Aktualny kod jest źródłem prawdy, a [PRODUCT_DISCOVERY.md](PRODUCT_DISCOVERY.md) prowadzi do otwartych decyzji i dokumentacji produktu.
+
+Stan implementacji zweryfikowany dla `1292827587e0ec6439643e3735f187fbffb0623f`:
+- Etap 1: globalne `NotificationFailureQueuePage` i `InternalNotificationAttemptsPage` oraz retry już istnieją. Obie strony mają obecnie `AdminOnlyRoute`; dostęp BOK wymaga osobnej decyzji i zmiany RBAC.
+- Etap 2: wskazówki operacyjne i `RequestCommandCenter` istnieją we frontendzie. Backendowy model rekomendacji poniżej jest propozycją; backend pozostaje źródłem dozwolonych akcji.
+- Etap 3: komunikacja klienta ma send/retry i attempts, ale adapter działa jako STUB; stan SENT nie dowodzi realnego nadania/doręczenia.
+- Etap 4: REAL_SOAP zwraca NOT_IMPLEMENTED bez wysyłki sieciowej. Konfiguracja profilu i active capability nie stanowią odbioru integracji.
+- Etap 6: wykonano część redesignu i nawigacji. W tej dokumentacji nie ma wyników badań użyteczności BOK potwierdzających wygodę całego flow.
+
+Nowy zakres MVP, role, terminy, transporty, prototyp i sposób migracji wymagają zatwierdzenia. Aktualizacja dokumentacji nie przesądza całkowitego rewrite. Historyczną treść poniżej zachowano jako kontekst, a nie instrukcję ponownego wdrażania już istniejących funkcji.
+
+## 1. Obecny stan produktu (opis historyczny Etapu 0)
 
 NP-Manager jest monorepo dla systemu obslugi przenoszenia numerow stacjonarnych w Polsce. Backend Fastify + Prisma jest zrodlem prawdy dla workflow, RBAC, walidacji i audit logu. Frontend React/Vite pokazuje liste spraw, szczegol sprawy, akcje statusowe, ownership, komunikacje, diagnostyke notyfikacji i foundation integracji PLI CBD.
 

@@ -4,7 +4,20 @@ Dokument dla kolejnych sesji AI/deweloperskich. Opisuje stan, decyzje architekto
 
 ---
 
-## Aktualny stan projektu (2026-05-01)
+## Uzupełnienie dokumentacji produktu (2026-10-09)
+
+Powstała część A/B w [Notion](https://app.notion.com/p/3f3daa43f5688183baf6f727b9eb8004) obok 28 rozdziałów snapshotu C. [PRODUCT_DISCOVERY.md](PRODUCT_DISCOVERY.md) opisuje źródła, statusy i bramki.
+- A1/A2: mapa zadań BOK, plan obserwacji i 12 scenariuszy T01–T12.
+- B1/B2: metadata R01–R22, 12 decyzji D01–D12 oraz plan UX, rejestr dowodów i odbiór zależny od trybu.
+- B3/B4: 14 ocen modułów M01–M14, ryzyka i brief F01–F05.
+- Wymagania i decyzje pozostają propozycjami: brak osób/dat zatwierdzenia, wyników badań BOK i decyzji o rewrite. Nie zmieniono kierunku produktu ani reguł biznesowych.
+- Poprawiono instrukcje README/CLAUDE (stack, testy, konfiguracja hostingu); roadmapę poniżej traktować historycznie. Obecne UI wskazówek nie jest backendowym kontraktem rekomendacji.
+- Lokalna weryfikacja 2026-10-09: backend604/604 PASS; frontend447/448 (Email/E-mail) FAIL; tsc obu apps PASS. Dokładny lokalny SHA091e533; nie deklarować suite GitHub1292827. Build/browser/integracje niewykonane.
+- Wygenerowano interaktywną mapę bramek przebudowy w FigJam; link do otwarcia/przejęcia jest w PRODUCT_DISCOVERY i Notion B4. To diagram, nie klikalny prototyp UI ani wynik badania.
+
+Poniższa historia jest zachowana. Starsze wpisy DONE opisują efekt danego etapu, nie potwierdzają aktualnego UI ani gotowości produkcyjnej.
+
+## Historyczny stan projektu (2026-05-01)
 
 ### Stan prac / etapy
 
